@@ -1,0 +1,47 @@
+{
+  "name": "framework-agents",
+  "version": "0.1.0",
+  "description": "Multi-agent marketing platform with guardrail pipeline",
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "trigger:dev": "npx trigger.dev@latest dev"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/h-asadollahi/agentic-framework-test.git"
+  },
+  "keywords": [
+    "ai-agents",
+    "multi-agent",
+    "marketing",
+    "trigger.dev"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@ai-sdk/anthropic": "^3.0.48",
+    "@ai-sdk/google": "^3.0.33",
+    "@ai-sdk/mcp": "^1.0.21",
+    "@ai-sdk/openai": "^3.0.36",
+    "@modelcontextprotocol/sdk": "^1.27.1",
+    "@sendgrid/mail": "^8.1.6",
+    "@slack/web-api": "^7.14.1",
+    "@trigger.dev/sdk": "^4.4.1",
+    "ai": "^6.0.103",
+    "dotenv": "^17.3.1",
+    "hono": "^4.12.3",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "^25.3.2",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.18"
+  }
+}
