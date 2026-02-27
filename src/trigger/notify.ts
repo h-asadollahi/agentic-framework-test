@@ -1,13 +1,16 @@
 import { task, logger } from "@trigger.dev/sdk/v3";
 import type { NotificationRequest, NotificationResult } from "../core/types.js";
+// Register all channel adapters
+import { channelRegistry } from "../channels/index.js";
 
 /**
  * Notify Task
  *
- * Sends a notification via the appropriate channel (Slack, Email, Webhook).
- * Called by the orchestrator after the deliver stage if notifications are needed.
+ * Sends a notification via the appropriate channel adapter.
+ * Called by the orchestrator after the deliver stage if notifications are needed,
+ * or by the escalation task for human-in-the-loop alerts.
  *
- * Channel adapters (Phase 6) will be plugged in here.
+ * Dispatches to the channel registry which routes to Slack, Email, or Webhook adapters.
  */
 export const notifyTask = task({
   id: "send-notification",
@@ -21,34 +24,32 @@ export const notifyTask = task({
       priority: notification.priority,
     });
 
-    // Channel adapter dispatch — will be implemented in Phase 6
-    switch (notification.channel) {
-      case "slack":
-        logger.info("Slack notification (adapter not yet connected)", {
-          recipient: notification.recipient,
-          subject: notification.subject,
-        });
-        // TODO: Phase 6 — slackChannel.send(notification)
-        return { success: true, messageId: `slack-placeholder-${Date.now()}` };
+    const adapter = channelRegistry.get(notification.channel);
 
-      case "email":
-        logger.info("Email notification (adapter not yet connected)", {
-          recipient: notification.recipient,
-          subject: notification.subject,
-        });
-        // TODO: Phase 6 — emailChannel.send(notification)
-        return { success: true, messageId: `email-placeholder-${Date.now()}` };
-
-      case "webhook":
-        logger.info("Webhook notification (adapter not yet connected)", {
-          recipient: notification.recipient,
-        });
-        // TODO: Phase 6 — webhookChannel.send(notification)
-        return { success: true, messageId: `webhook-placeholder-${Date.now()}` };
-
-      default:
-        logger.error(`Unknown notification channel: ${notification.channel}`);
-        return { success: false, error: `Unknown channel: ${notification.channel}` };
+    if (!adapter) {
+      logger.error(`No adapter for channel: ${notification.channel}`);
+      return {
+        success: false,
+        error: `Unknown channel: ${notification.channel}`,
+      };
     }
+
+    if (!adapter.isConfigured()) {
+      logger.warn(`Channel "${notification.channel}" is not configured, sending anyway (adapter will report error)`);
+    }
+
+    const result = await adapter.send(notification);
+
+    if (result.success) {
+      logger.info(`Notification sent via ${notification.channel}`, {
+        messageId: result.messageId,
+      });
+    } else {
+      logger.error(`Notification failed via ${notification.channel}`, {
+        error: result.error,
+      });
+    }
+
+    return result;
   },
 });
