@@ -1,7 +1,8 @@
+import "dotenv/config";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { serve } from "@hono/node-server";
-import { tasks, runs } from "@trigger.dev/sdk/v3";
+import { tasks } from "@trigger.dev/sdk/v3";
 import { z } from "zod";
 import { logger } from "./core/logger.js";
 import { shortTermMemory } from "./memory/short-term.js";
@@ -79,19 +80,37 @@ app.post("/message", async (c) => {
 });
 
 // ── Get Run Status ───────────────────────────────────────────
+// Direct API call to Trigger.dev platform — avoids SDK v4/v3 validation mismatch
+async function retrieveRun(runId: string) {
+  const apiUrl = process.env.TRIGGER_API_URL ?? "http://localhost:3040";
+  const secretKey = process.env.TRIGGER_SECRET_KEY;
+
+  if (!secretKey) throw new Error("TRIGGER_SECRET_KEY not set");
+
+  const res = await fetch(`${apiUrl}/api/v1/runs/${runId}`, {
+    headers: { Authorization: `Bearer ${secretKey}` },
+  });
+
+  if (!res.ok) {
+    throw new Error(`Trigger API returned ${res.status}: ${res.statusText}`);
+  }
+
+  return res.json();
+}
+
 app.get("/status/:runId", async (c) => {
   const runId = c.req.param("runId");
 
   try {
-    const run = await runs.retrieve(runId);
+    const run = await retrieveRun(runId);
 
     return c.json({
       runId: run.id,
       status: run.status,
-      output: run.output,
+      output: run.output ?? null,
       createdAt: run.createdAt,
       updatedAt: run.updatedAt,
-      finishedAt: run.finishedAt,
+      finishedAt: run.finishedAt ?? null,
     });
   } catch (error) {
     return c.json(
