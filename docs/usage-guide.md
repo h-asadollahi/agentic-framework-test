@@ -26,8 +26,8 @@ A step-by-step guide to setting up, running, using, and extending the platform.
 
 - **Node.js** 20+ (ES2022 target)
 - **npm** 9+
+- **Docker** and **Docker Compose** (for self-hosted Trigger.dev)
 - At least one AI provider API key (Anthropic recommended)
-- A [Trigger.dev](https://trigger.dev) account (free tier works for dev)
 
 ### Setup
 
@@ -51,8 +51,9 @@ Open `.env` and fill in your keys:
 # Required — at least one AI provider
 ANTHROPIC_API_KEY=sk-ant-...
 
-# Required — Trigger.dev
-TRIGGER_SECRET_KEY=tr_dev_...
+# Required — Trigger.dev (self-hosted, see docs/trigger-dev-self-hosted.md)
+TRIGGER_API_URL=http://localhost:3040
+TRIGGER_SECRET_KEY=tr_dev_...  # copy from your local Trigger.dev dashboard
 
 # Optional — additional AI providers
 OPENAI_API_KEY=sk-...
@@ -92,17 +93,35 @@ npm test             # should pass all 32 tests
 
 ## 2. Running the System
 
-You need two processes running side by side:
+### First time: Set up self-hosted Trigger.dev
+
+Follow the full guide in [docs/trigger-dev-self-hosted.md](./trigger-dev-self-hosted.md), or the quick version:
 
 ```bash
-# Terminal 1 — Trigger.dev dev server (task execution)
+# Clone and start the Trigger.dev platform (Docker)
+git clone https://github.com/triggerdotdev/docker.git trigger-dev-local
+cd trigger-dev-local && ./start.sh -d
+
+# Open http://localhost:3040, create a project, copy the secret key
+# Paste TRIGGER_API_URL and TRIGGER_SECRET_KEY into your .env
+```
+
+### Start the system
+
+You need three processes running:
+
+```bash
+# Terminal 1 — Trigger.dev platform (if not already running)
+cd trigger-dev-local && docker compose up -d
+
+# Terminal 2 — Trigger.dev dev worker (connects tasks to local platform)
 npm run trigger:dev
 
-# Terminal 2 — API server (HTTP endpoints)
+# Terminal 3 — API server (HTTP endpoints)
 npm run dev
 ```
 
-The API server starts at `http://localhost:3000`. The Trigger.dev dashboard opens in your browser at `http://localhost:3040`.
+The API server starts at `http://localhost:3000`. The Trigger.dev dashboard is at `http://localhost:3040`.
 
 ### Available npm scripts
 
@@ -634,10 +653,14 @@ Channels degrade gracefully — if a channel isn't configured (missing env var),
 
 ### Trigger.dev deployment
 
-- **Cloud**: Deploy to Trigger.dev cloud for managed infrastructure
-- **Self-hosted**: Run the Trigger.dev platform via Docker
+This project is configured for **self-hosted Trigger.dev** (no cloud dependency). For production:
 
-See [Trigger.dev deployment docs](https://trigger.dev/docs/deploy) for details.
+- Deploy the Docker Compose stack on a VPS or dedicated server
+- Use the official **Kubernetes Helm chart** for cluster deployments
+- Configure a reverse proxy (nginx/Caddy) for HTTPS
+- Set up proper Postgres backups for the Trigger.dev database
+
+See [docs/trigger-dev-self-hosted.md](./trigger-dev-self-hosted.md) and the [official self-hosting docs](https://trigger.dev/docs/open-source-self-hosting) for details.
 
 ### Monitoring
 
