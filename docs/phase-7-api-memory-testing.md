@@ -156,7 +156,7 @@ npm run trigger:dev
 npm run dev
 
 # 4. Send a message
-curl -X POST http://localhost:3000/message \
+curl -X POST http://localhost:3001/message \
   -H 'Content-Type: application/json' \
   -d '{"userMessage": "How is our top cohort performing?"}'
 ```

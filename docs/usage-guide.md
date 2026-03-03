@@ -121,7 +121,7 @@ npm run trigger:dev
 npm run dev
 ```
 
-The API server starts at `http://localhost:3000`. The Trigger.dev dashboard is at `http://localhost:3040`.
+The API server starts at `http://localhost:3001`. The Trigger.dev dashboard is at `http://localhost:3040`.
 
 ### Available npm scripts
 
@@ -141,7 +141,7 @@ The API server starts at `http://localhost:3000`. The Trigger.dev dashboard is a
 ### Step 1 — Send a message
 
 ```bash
-curl -X POST http://localhost:3000/message \
+curl -X POST http://localhost:3001/message \
   -H "Content-Type: application/json" \
   -d '{"userMessage": "How is our VIP cohort performing this quarter?"}'
 ```
@@ -160,7 +160,7 @@ Response:
 ### Step 2 — Poll for the result
 
 ```bash
-curl http://localhost:3000/status/run_abc123
+curl http://localhost:3001/status/run_abc123
 ```
 
 Response (while running):
@@ -211,7 +211,7 @@ Open `http://localhost:3040` to see the full run timeline, logs per stage, model
 Health check with system stats.
 
 ```bash
-curl http://localhost:3000/health
+curl http://localhost:3001/health
 ```
 
 ```json
@@ -229,7 +229,7 @@ curl http://localhost:3000/health
 Trigger the full pipeline with a marketer message.
 
 ```bash
-curl -X POST http://localhost:3000/message \
+curl -X POST http://localhost:3001/message \
   -H "Content-Type: application/json" \
   -d '{"userMessage": "Analyze churn in the free-trial segment", "sessionId": "optional-id"}'
 ```
@@ -244,7 +244,7 @@ curl -X POST http://localhost:3000/message \
 Get pipeline run status and output.
 
 ```bash
-curl http://localhost:3000/status/run_abc123
+curl http://localhost:3001/status/run_abc123
 ```
 
 ### GET /session/:sessionId/history
@@ -252,7 +252,7 @@ curl http://localhost:3000/status/run_abc123
 Get conversation history for a session (up to 50 messages).
 
 ```bash
-curl http://localhost:3000/session/550e8400-e29b-41d4-a716-446655440000/history
+curl http://localhost:3001/session/550e8400-e29b-41d4-a716-446655440000/history
 ```
 
 ### DELETE /session/:sessionId
@@ -260,7 +260,7 @@ curl http://localhost:3000/session/550e8400-e29b-41d4-a716-446655440000/history
 Clear a session's short-term memory.
 
 ```bash
-curl -X DELETE http://localhost:3000/session/550e8400-e29b-41d4-a716-446655440000
+curl -X DELETE http://localhost:3001/session/550e8400-e29b-41d4-a716-446655440000
 ```
 
 ### GET /agents
@@ -268,7 +268,7 @@ curl -X DELETE http://localhost:3000/session/550e8400-e29b-41d4-a716-44665544000
 List all registered sub-agent plugins.
 
 ```bash
-curl http://localhost:3000/agents
+curl http://localhost:3001/agents
 ```
 
 ```json
@@ -289,7 +289,7 @@ curl http://localhost:3000/agents
 Get memory statistics.
 
 ```bash
-curl http://localhost:3000/memory/stats
+curl http://localhost:3001/memory/stats
 ```
 
 ```json
@@ -383,7 +383,7 @@ import "./my-agent.js";
 Restart the dev server and check:
 
 ```bash
-curl http://localhost:3000/agents
+curl http://localhost:3001/agents
 ```
 
 Your agent should appear in the list. The Cognition agent can now assign subtasks with `agentId: "my-agent"`, and the Agency stage will route them through your plugin.

@@ -100,7 +100,7 @@ Now you have three services running:
 |----------|---------|-------------|
 | 1 | `./start.sh` (in trigger-dev-local/) | Trigger.dev platform (Docker) |
 | 2 | `npm run trigger:dev` | Task worker connected to local platform |
-| 3 | `npm run dev` | API server on http://localhost:3000 |
+| 3 | `npm run dev` | API server on http://localhost:3001 |
 
 ---
 
@@ -108,7 +108,7 @@ Now you have three services running:
 
 ```bash
 # Send a test message
-curl -X POST http://localhost:3000/message \
+curl -X POST http://localhost:3001/message \
   -H "Content-Type: application/json" \
   -d '{"userMessage": "How is our VIP cohort performing?"}'
 
