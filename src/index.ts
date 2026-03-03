@@ -87,7 +87,7 @@ async function retrieveRun(runId: string) {
 
   if (!secretKey) throw new Error("TRIGGER_SECRET_KEY not set");
 
-  const res = await fetch(`${apiUrl}/api/v1/runs/${runId}`, {
+  const res = await fetch(`${apiUrl}/api/v3/runs/${runId}`, {
     headers: { Authorization: `Bearer ${secretKey}` },
   });
 
