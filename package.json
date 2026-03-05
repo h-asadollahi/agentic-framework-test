@@ -35,7 +35,7 @@
     "@modelcontextprotocol/sdk": "^1.27.1",
     "@sendgrid/mail": "^8.1.6",
     "@slack/web-api": "^7.14.1",
-    "@trigger.dev/sdk": "^4.4.1",
+    "@trigger.dev/sdk": "^3.3.17",
     "ai": "^6.0.103",
     "dotenv": "^17.3.1",
     "hono": "^4.12.3",
