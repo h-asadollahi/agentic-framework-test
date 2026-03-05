@@ -4,6 +4,7 @@ export default defineConfig({
   project: process.env.TRIGGER_PROJECT_REF ?? "proj_framework-agents",
   runtime: "node",
   logLevel: "info",
+  maxDuration: 600,
   retries: {
     enabledInDev: true,
     default: {
