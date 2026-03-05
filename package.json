@@ -10,7 +10,8 @@
     "start": "node dist/index.js",
     "test": "vitest run",
     "test:watch": "vitest",
-    "trigger:dev": "npx trigger.dev@latest dev",
+    "trigger:login": "npx trigger.dev@latest login --api-url http://localhost:3040",
+    "trigger:dev": "npx trigger.dev@latest dev --api-url http://localhost:3040",
     "test:email": "tsx scripts/test-email.ts"
   },
   "repository": {

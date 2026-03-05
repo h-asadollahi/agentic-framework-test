@@ -103,8 +103,18 @@ git clone https://github.com/triggerdotdev/docker.git trigger-dev-local
 cd trigger-dev-local && ./start.sh -d
 
 # Open http://localhost:3040, create a project, copy the secret key
-# Paste TRIGGER_API_URL and TRIGGER_SECRET_KEY into your .env
+# Paste TRIGGER_API_URL, TRIGGER_SECRET_KEY, and TRIGGER_PROJECT_REF into your .env
 ```
+
+### First time: Login the CLI to your local instance
+
+The Trigger.dev CLI needs a one-time login to your self-hosted instance (this saves a token locally):
+
+```bash
+npm run trigger:login
+```
+
+This opens your browser to `http://localhost:3040` for authentication. Once approved, the CLI stores the token and you won't need to login again.
 
 ### Start the system
 
@@ -132,7 +142,8 @@ The API server starts at `http://localhost:3001`. The Trigger.dev dashboard is a
 | `npm start` | Run the compiled build |
 | `npm test` | Run all tests once |
 | `npm run test:watch` | Run tests in watch mode |
-| `npm run trigger:dev` | Start Trigger.dev local dev server |
+| `npm run trigger:login` | One-time login to self-hosted Trigger.dev |
+| `npm run trigger:dev` | Start Trigger.dev local dev worker |
 
 ---
 
