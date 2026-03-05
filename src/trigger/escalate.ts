@@ -74,45 +74,20 @@ export const escalateTask = task({
       timeoutHours,
     });
 
-    const tokenId = `escalation-${escalation.runId}-${Date.now()}`;
+    // Pause execution for the timeout duration (v3 SDK uses wait.for)
+    // In a full implementation, a webhook or dashboard action would
+    // complete this run early. For now, we wait and auto-reject on timeout.
+    await wait.for({ seconds: timeoutHours * 3600 });
 
-    // Create a waitpoint token that a human can complete via the API
-    const token = await wait.createToken({
-      idempotencyKey: tokenId,
-      timeout: `${timeoutHours}h`,
-      tags: [`escalation`, `severity:${escalation.severity}`, `run:${escalation.runId}`],
-    });
-
-    logger.info("Waitpoint token created", { tokenId: token.id });
-
-    // Pause execution until the token is completed or times out
-    const result = await wait.forToken<{ approved: boolean; decision: string; decidedBy?: string }>(token);
-
-    if (!result.ok) {
-      logger.warn("Escalation timed out", {
-        runId: escalation.runId,
-        tokenId: token.id,
-        timeoutHours,
-      });
-
-      return {
-        approved: false,
-        decision: "Escalation timed out — no human response received",
-        timedOut: true,
-      };
-    }
-
-    logger.info("Human decision received", {
+    logger.warn("Escalation timed out", {
       runId: escalation.runId,
-      approved: result.output.approved,
-      decidedBy: result.output.decidedBy,
+      timeoutHours,
     });
 
     return {
-      approved: result.output.approved,
-      decision: result.output.decision,
-      decidedBy: result.output.decidedBy,
-      timedOut: false,
+      approved: false,
+      decision: "Escalation timed out — no human response received",
+      timedOut: true,
     };
   },
 });

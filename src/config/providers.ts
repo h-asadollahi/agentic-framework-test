@@ -35,5 +35,5 @@ export const MODEL_ALIASES: Record<string, string> = {
 
   // Google
   "google:fast": "google:gemini-2.0-flash",
-  "google:balanced": "google:gemini-2.0-pro",
+  "google:balanced": "google:gemini-1.5-pro",
 };
