@@ -4,8 +4,8 @@ Last updated: 2026-03-06
 
 ## Collaboration Rules to Follow
 
-1. Before implementation, provide a plan and save it in `docs/` with numbered naming:
-- `codex-plan-01.md`, `codex-plan-02.md`, ...
+1. Before implementation, provide a plan and save it in `docs/ai-coding-plans/` with numbered naming:
+- `docs/ai-coding-plans/codex-plan-01.md`, `docs/ai-coding-plans/codex-plan-02.md`, ...
 
 2. After each implementation batch:
 - Commit changes.
@@ -17,8 +17,8 @@ Last updated: 2026-03-06
 ## Current Project Context
 
 - Project: Multi-agent marketing platform (Trigger.dev + Vercel AI SDK + TypeScript + Hono)
-- Slack thread-read scope (`channels:history`) is not yet approved.
-- Slack-dependent end-to-end tests remain blocked until scope approval.
+- Slack thread-read + polling path is verified working.
+- Learned routes support both API targets and sub-agent targets.
 
 ## Recent Completed Batch (reference)
 
