@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "lastUpdated": "2026-03-06T16:05:00.000Z",
+  "lastUpdated": "2026-03-06T15:16:32.752Z",
   "routes": [
     {
       "id": "route-001",
@@ -57,6 +57,7 @@
           "metric": "{{input.metric}}"
         }
       },
+      "agentInputDefaults": {},
       "inputMapping": {},
       "outputFormat": "json",
       "addedAt": "2026-03-06T16:05:00.000Z",
@@ -91,6 +92,7 @@
           "funnelId": "{{input.funnelId}}"
         }
       },
+      "agentInputDefaults": {},
       "inputMapping": {},
       "outputFormat": "json",
       "addedAt": "2026-03-06T16:05:00.000Z",
@@ -125,6 +127,7 @@
           "metric": "{{input.metric}}"
         }
       },
+      "agentInputDefaults": {},
       "inputMapping": {},
       "outputFormat": "json",
       "addedAt": "2026-03-06T16:05:00.000Z",
@@ -159,6 +162,7 @@
           "metric": "{{input.metric}}"
         }
       },
+      "agentInputDefaults": {},
       "inputMapping": {},
       "outputFormat": "json",
       "addedAt": "2026-03-06T16:05:00.000Z",
@@ -193,12 +197,54 @@
           "metric": "{{input.metric}}"
         }
       },
+      "agentInputDefaults": {},
       "inputMapping": {},
       "outputFormat": "json",
       "addedAt": "2026-03-06T16:05:00.000Z",
       "addedBy": "codex",
-      "usageCount": 0,
-      "lastUsedAt": null
+      "usageCount": 1,
+      "lastUsedAt": "2026-03-06T15:16:32.752Z"
+    },
+    {
+      "id": "route-007",
+      "capability": "list available-available dimensions-dimensions metrics",
+      "description": "List all available dimensions and metrics in Mapp Intelligence",
+      "matchPatterns": [
+        "list available",
+        "available dimensions",
+        "dimensions metrics",
+        "metrics mapp",
+        "mapp intelligence",
+        "list",
+        "available",
+        "dimensions",
+        "metrics",
+        "mapp",
+        "intelligence"
+      ],
+      "routeType": "api",
+      "endpoint": {
+        "url": "{{MAPP_ANALYTICS_API_URL}}/query-objects",
+        "method": "GET",
+        "headers": {
+          "X-Client-Id": "{{MAPP_ANALYTICS_API_CLIENT_ID}}",
+          "X-Client-Secret": "{{MAPP_ANALYTICS_API_CLIENT_SECRET}}",
+          "Accept": "application/json"
+        },
+        "queryParams": {
+          "from": "{{input.from}}",
+          "to": "{{input.to}}",
+          "granularity": "{{input.granularity}}",
+          "metric": "{{input.metric}}"
+        }
+      },
+      "agentInputDefaults": {},
+      "inputMapping": {},
+      "outputFormat": "json",
+      "addedAt": "2026-03-06T16:05:00.000Z",
+      "addedBy": "codex",
+      "usageCount": 1,
+      "lastUsedAt": "2026-03-06T15:15:18.698Z"
     }
   ]
 }
