@@ -201,6 +201,18 @@ src/
   - `execute.ts` now follows learned route target type as the routing source of truth for unknown tasks.
   - Added VIP cohort learned route entry as a `sub-agent` route in `knowledge/learned-routes.json`.
   - Verified live: prompt \"How is our VIP cohort performing this quarter?\" routed through learned route and executed `cohort-monitor` successfully.
+- Added Mapp analytics learned-route coverage:
+  - `knowledge/learned-routes.json` now includes multiple analytics API routes using env templates:
+    - `{{MAPP_ANALYTICS_API_URL}}`
+    - `{{MAPP_ANALYTICS_API_CLIENT_ID}}`
+    - `{{MAPP_ANALYTICS_API_CLIENT_SECRET}}`
+  - Added route capabilities for:
+    - campaign performance
+    - conversion funnel drop-off
+    - channel attribution
+    - segment performance
+    - KPI trend analysis
+  - Route matching remains keyword-driven; execution uses `api-fetcher` and template substitution at runtime.
 
 ### Still pending
 - Optional production hardening:

@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "lastUpdated": "2026-03-06T14:51:52.606Z",
+  "lastUpdated": "2026-03-06T16:05:00.000Z",
   "routes": [
     {
       "id": "route-001",
@@ -26,8 +26,179 @@
       "outputFormat": "json",
       "addedAt": "2026-03-06T15:05:00.000Z",
       "addedBy": "codex",
-      "usageCount": 1,
-      "lastUsedAt": "2026-03-06T14:51:52.606Z"
+      "usageCount": 2,
+      "lastUsedAt": "2026-03-06T14:58:12.165Z"
+    },
+    {
+      "id": "route-002",
+      "capability": "campaign-performance-overview",
+      "description": "Analyze campaign performance by impressions, clicks, conversions, and revenue.",
+      "matchPatterns": [
+        "campaign performance",
+        "top campaign",
+        "best performing campaign",
+        "campaign roi",
+        "campaign conversion"
+      ],
+      "routeType": "api",
+      "endpoint": {
+        "url": "{{MAPP_ANALYTICS_API_URL}}/campaigns/performance",
+        "method": "GET",
+        "headers": {
+          "X-Client-Id": "{{MAPP_ANALYTICS_API_CLIENT_ID}}",
+          "X-Client-Secret": "{{MAPP_ANALYTICS_API_CLIENT_SECRET}}",
+          "Accept": "application/json"
+        },
+        "queryParams": {
+          "from": "{{input.from}}",
+          "to": "{{input.to}}",
+          "campaignId": "{{input.campaignId}}",
+          "channel": "{{input.channel}}",
+          "metric": "{{input.metric}}"
+        }
+      },
+      "inputMapping": {},
+      "outputFormat": "json",
+      "addedAt": "2026-03-06T16:05:00.000Z",
+      "addedBy": "codex",
+      "usageCount": 0,
+      "lastUsedAt": null
+    },
+    {
+      "id": "route-003",
+      "capability": "conversion-funnel-analysis",
+      "description": "Analyze funnel performance across stages and identify drop-off points.",
+      "matchPatterns": [
+        "funnel conversion",
+        "drop off",
+        "conversion funnel",
+        "where users drop",
+        "funnel performance"
+      ],
+      "routeType": "api",
+      "endpoint": {
+        "url": "{{MAPP_ANALYTICS_API_URL}}/funnels/conversion",
+        "method": "GET",
+        "headers": {
+          "X-Client-Id": "{{MAPP_ANALYTICS_API_CLIENT_ID}}",
+          "X-Client-Secret": "{{MAPP_ANALYTICS_API_CLIENT_SECRET}}",
+          "Accept": "application/json"
+        },
+        "queryParams": {
+          "from": "{{input.from}}",
+          "to": "{{input.to}}",
+          "segment": "{{input.segment}}",
+          "funnelId": "{{input.funnelId}}"
+        }
+      },
+      "inputMapping": {},
+      "outputFormat": "json",
+      "addedAt": "2026-03-06T16:05:00.000Z",
+      "addedBy": "codex",
+      "usageCount": 0,
+      "lastUsedAt": null
+    },
+    {
+      "id": "route-004",
+      "capability": "channel-attribution-analysis",
+      "description": "Analyze channel contribution and attribution performance for conversions/revenue.",
+      "matchPatterns": [
+        "channel performance",
+        "attribution",
+        "top channel",
+        "which channel",
+        "source performance"
+      ],
+      "routeType": "api",
+      "endpoint": {
+        "url": "{{MAPP_ANALYTICS_API_URL}}/channels/attribution",
+        "method": "GET",
+        "headers": {
+          "X-Client-Id": "{{MAPP_ANALYTICS_API_CLIENT_ID}}",
+          "X-Client-Secret": "{{MAPP_ANALYTICS_API_CLIENT_SECRET}}",
+          "Accept": "application/json"
+        },
+        "queryParams": {
+          "from": "{{input.from}}",
+          "to": "{{input.to}}",
+          "model": "{{input.model}}",
+          "metric": "{{input.metric}}"
+        }
+      },
+      "inputMapping": {},
+      "outputFormat": "json",
+      "addedAt": "2026-03-06T16:05:00.000Z",
+      "addedBy": "codex",
+      "usageCount": 0,
+      "lastUsedAt": null
+    },
+    {
+      "id": "route-005",
+      "capability": "segment-performance-analysis",
+      "description": "Analyze customer segment performance across engagement, conversion, and revenue.",
+      "matchPatterns": [
+        "segment performance",
+        "which segment",
+        "audience segment",
+        "high value segment",
+        "segment conversion"
+      ],
+      "routeType": "api",
+      "endpoint": {
+        "url": "{{MAPP_ANALYTICS_API_URL}}/segments/performance",
+        "method": "GET",
+        "headers": {
+          "X-Client-Id": "{{MAPP_ANALYTICS_API_CLIENT_ID}}",
+          "X-Client-Secret": "{{MAPP_ANALYTICS_API_CLIENT_SECRET}}",
+          "Accept": "application/json"
+        },
+        "queryParams": {
+          "from": "{{input.from}}",
+          "to": "{{input.to}}",
+          "segmentId": "{{input.segmentId}}",
+          "metric": "{{input.metric}}"
+        }
+      },
+      "inputMapping": {},
+      "outputFormat": "json",
+      "addedAt": "2026-03-06T16:05:00.000Z",
+      "addedBy": "codex",
+      "usageCount": 0,
+      "lastUsedAt": null
+    },
+    {
+      "id": "route-006",
+      "capability": "daily-kpi-trend-analysis",
+      "description": "Analyze daily KPI trends such as sessions, conversions, revenue, and retention.",
+      "matchPatterns": [
+        "daily trend",
+        "kpi trend",
+        "trend over time",
+        "weekly trend",
+        "monthly trend"
+      ],
+      "routeType": "api",
+      "endpoint": {
+        "url": "{{MAPP_ANALYTICS_API_URL}}/kpis/trends",
+        "method": "GET",
+        "headers": {
+          "X-Client-Id": "{{MAPP_ANALYTICS_API_CLIENT_ID}}",
+          "X-Client-Secret": "{{MAPP_ANALYTICS_API_CLIENT_SECRET}}",
+          "Accept": "application/json"
+        },
+        "queryParams": {
+          "from": "{{input.from}}",
+          "to": "{{input.to}}",
+          "granularity": "{{input.granularity}}",
+          "metric": "{{input.metric}}"
+        }
+      },
+      "inputMapping": {},
+      "outputFormat": "json",
+      "addedAt": "2026-03-06T16:05:00.000Z",
+      "addedBy": "codex",
+      "usageCount": 0,
+      "lastUsedAt": null
     }
   ]
 }
