@@ -1,5 +1,38 @@
 {
   "version": "1.0.0",
-  "lastUpdated": "2026-03-06T00:00:00Z",
-  "routes": []
+  "lastUpdated": "2026-03-06T14:15:42.386Z",
+  "routes": [
+    {
+      "id": "route-001",
+      "capability": "fetch clv-clv drivers-drivers segment",
+      "description": "Fetch CLV drivers by segment from internal analytics API",
+      "matchPatterns": [
+        "fetch clv",
+        "clv drivers",
+        "drivers segment",
+        "segment internal",
+        "internal analytics",
+        "analytics api",
+        "fetch",
+        "clv",
+        "drivers",
+        "segment",
+        "internal",
+        "analytics",
+        "api"
+      ],
+      "endpoint": {
+        "url": "https://api.example.com/v1/clv",
+        "method": "GET",
+        "headers": {},
+        "queryParams": {}
+      },
+      "inputMapping": {},
+      "outputFormat": "json",
+      "addedAt": "2026-03-06T14:15:42.385Z",
+      "addedBy": "U075RTGLATG",
+      "usageCount": 0,
+      "lastUsedAt": null
+    }
+  ]
 }

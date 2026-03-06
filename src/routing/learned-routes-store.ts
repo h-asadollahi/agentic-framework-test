@@ -1,7 +1,7 @@
-import { readFileSync, writeFileSync, existsSync } from "node:fs";
+import { readFileSync, writeFileSync, existsSync, mkdirSync } from "node:fs";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { dirname } from "node:path";
+import { dirname, join } from "node:path";
 import {
   LearnedRoutesFileSchema,
   type LearnedRoute,
@@ -14,7 +14,31 @@ import { logger } from "../core/logger.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
-const PROJECT_ROOT = resolve(__dirname, "../..");
+
+function findProjectRoot(startDir: string): string | null {
+  let current = startDir;
+
+  while (true) {
+    const hasPackageJson = existsSync(join(current, "package.json"));
+    const hasKnowledgeDir = existsSync(join(current, "knowledge"));
+
+    if (hasPackageJson && hasKnowledgeDir) {
+      return current;
+    }
+
+    const parent = resolve(current, "..");
+    if (parent === current) {
+      return null;
+    }
+    current = parent;
+  }
+}
+
+const PROJECT_ROOT =
+  findProjectRoot(process.cwd()) ??
+  findProjectRoot(__dirname) ??
+  resolve(__dirname, "../..");
+
 const ROUTES_FILE = resolve(PROJECT_ROOT, "knowledge/learned-routes.json");
 
 // ── Store Implementation ────────────────────────────────────
@@ -61,6 +85,7 @@ class LearnedRoutesStoreImpl {
     };
 
     try {
+      mkdirSync(dirname(ROUTES_FILE), { recursive: true });
       writeFileSync(ROUTES_FILE, JSON.stringify(file, null, 2) + "\n", "utf-8");
       logger.info(`Saved ${this.routes.length} learned route(s) to disk`);
     } catch (error) {

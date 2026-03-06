@@ -81,14 +81,14 @@ src/
 
 **Status:** Runtime verified for send + thread polling + timeout path.
 
-### 6. Smart Fallback Router (Code Complete, Partially Runtime Verified)
+### 6. Smart Fallback Router (Code Complete, Runtime Verified)
 **Files:**
 - `src/routing/learned-routes-schema.ts` — Zod schemas
 - `src/routing/learned-routes-store.ts` — Singleton store (load/save/find/add from `knowledge/learned-routes.json`)
 - `src/routing/route-learning-escalation.ts` — Slack HITL for learning API endpoints
 - `src/trigger/learn-route.ts` — Trigger.dev task for route learning
 - `src/trigger/sub-agents/plugins/api-fetcher.ts` — Sub-agent executing learned routes
-- `knowledge/learned-routes.json` — Human-readable route storage (currently empty)
+- `knowledge/learned-routes.json` — Human-readable route storage (contains verified learned route entries)
 
 **How it works:**
 1. When a subtask has no matching sub-agent (falls back to "general"):
@@ -99,7 +99,7 @@ src/
    - If Slack times out → fall back to generic LLM response
 2. Future requests: Cognition agent sees learned routes in its system prompt → assigns `api-fetcher` directly
 
-**Status:** Runtime verified for route-learning task trigger and fallback/timeout behavior; full "learned route via human reply" path still pending interactive validation.
+**Status:** Runtime verified for timeout/fallback path and interactive URL-reply learn/save path.
 
 ---
 
@@ -116,23 +116,9 @@ src/
 2. Verified task runtime with short timeout:
    - Run: `run_v1ubh945p3xf1z51csj2n`
    - Output: timed out cleanly with `slackThreadTs` returned.
-3. Optional interactive test:
-   ```typescript
-   await escalateTask.trigger({
-     escalation: {
-       runId: "test-run",
-       taskDescription: "Approve Q1 campaign launch",
-       reason: "Budget exceeds $10k threshold",
-       severity: "warning",
-       notifyMarketer: true,
-       notifyAdmin: false,
-       context: {},
-     },
-     timeoutMinutes: 5,
-   });
-   ```
-   ```
-4. Reply `approve` or `reject` in the Slack thread to validate non-timeout decision path.
+3. Interactive non-timeout path verified:
+   - Run: `run_39d3r95oca4fn4y3vodgs`
+   - Output: rejected decision captured with `decidedBy` and `timedOut: false`
 
 #### Smart Fallback Router
 1. Verified `learn-route` runtime with short-timeout test:
@@ -141,8 +127,10 @@ src/
 2. Verified direct Slack send helpers after channel fallback patch:
    - Escalation helper send: success to channel `C0AJUTFJYKX`
    - Route-learning helper send: success to channel `C0AJUTFJYKX`
-3. Remaining interactive validation:
-   - Reply in route-learning thread with `URL: ...` and verify route persists to `knowledge/learned-routes.json`.
+3. Interactive URL-reply path verified:
+   - Run: `run_ygi1s1cjj9wbcmssejshp`
+   - Output: `{ learned: true, fallbackUsed: false }`
+   - Route persisted to `knowledge/learned-routes.json`
 
 ### Potential Improvements
 - **Integrate escalation into pipeline**: Add try/catch in `orchestrate.ts` to trigger `escalateTask` when a stage fails
@@ -174,11 +162,17 @@ src/
   - Scope probe success (`chat.postMessage` + `conversations.replies`)
   - `escalate-to-human` timeout path verified end-to-end
   - `learn-route` fallback path verified end-to-end
+- Verified interactive runtime paths:
+  - `escalate-to-human` non-timeout human decision path (`run_39d3r95oca4fn4y3vodgs`)
+  - `learn-route` interactive URL reply path with persisted route (`run_ygi1s1cjj9wbcmssejshp`)
+- Fixed learned-routes persistence for Trigger worker runtime:
+  - `src/routing/learned-routes-store.ts` now resolves project root robustly (handles `.trigger` worker execution context)
+  - Added directory creation before writing learned routes
 
 ### Still pending
-- Interactive human-reply path verification:
-  - Escalation task non-timeout approval/rejection path
-  - Route-learning task successful URL parse/save path
+- Optional production hardening:
+  - Set Slack channel env vars to channel IDs (e.g., `C...`) to avoid workspace name-resolution issues
+  - Add integration tests around `learned-routes-store` path resolution under worker context
 
 ### Validation status
 - `npm test`: passing
