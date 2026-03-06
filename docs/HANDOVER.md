@@ -143,6 +143,9 @@ src/
 ## Post-Handover Progress (2026-03-06, Codex)
 
 ### Completed (non-blocked)
+- Untracked local Claude settings file from git index:
+  - `.claude/settings.local.json` removed from version control via `git rm --cached`
+  - File remains local and is now ignored by `.gitignore`
 - Added failure-path escalation triggers in `src/trigger/orchestrate.ts`:
   - If Grounding/Cognition/Agency/Interface task returns failure, pipeline now triggers `escalate-to-human` (fire-and-forget) with stage metadata and then still fails the run.
   - Escalation trigger failures are logged and do not mask the original stage error.
