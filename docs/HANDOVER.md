@@ -265,6 +265,7 @@ curl http://localhost:3001/status/<runId>
 
 ### Common Pitfalls
 - **Zombie workers**: If runs get stuck in QUEUED, kill any zombie `node` processes consuming high CPU, then restart `npx trigger dev`
+- **Orphaned queued runs after platform outage**: If `localhost:3040` goes down briefly, some runs may remain permanently `QUEUED`. Start a fresh worker and retrigger the request (new runs execute; old orphaned run can be ignored/canceled).
 - **Model "Not Found"**: Use short model aliases (e.g., `claude-haiku-4-5` not `claude-haiku-4-5-20251001`)
 - **CLI restart on code change**: The trigger CLI auto-restarts when it detects code changes, which cancels in-flight runs — wait for reload before triggering new runs
 
