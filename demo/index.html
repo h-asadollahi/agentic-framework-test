@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Marketer Demo Chat</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="bg-orb orb-a"></div>
+    <div class="bg-orb orb-b"></div>
+
+    <main class="app-shell">
+      <header class="app-header">
+        <div>
+          <p class="eyebrow">Demo</p>
+          <h1>Marketer Chat Console</h1>
+        </div>
+        <div class="api-config">
+          <label for="apiBase">API Base</label>
+          <input id="apiBase" type="text" value="http://localhost:3000" />
+        </div>
+      </header>
+
+      <section id="chatLog" class="chat-log"></section>
+
+      <section class="composer">
+        <textarea id="promptInput" rows="3" placeholder="Ask a marketing question..."></textarea>
+        <div class="composer-actions">
+          <button id="sendBtn" type="button">Send</button>
+          <span id="sessionInfo" class="session-info">Session: not started</span>
+        </div>
+      </section>
+    </main>
+
+    <template id="messageTemplate">
+      <article class="message">
+        <div class="message-head">
+          <span class="role"></span>
+          <span class="stamp"></span>
+        </div>
+        <div class="message-body"></div>
+      </article>
+    </template>
+
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>

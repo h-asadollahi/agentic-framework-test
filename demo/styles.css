@@ -1,0 +1,220 @@
+:root {
+  --bg: #f6f7f2;
+  --surface: #ffffff;
+  --ink: #13211a;
+  --muted: #5f7467;
+  --accent: #0e8f5b;
+  --accent-2: #f0b43c;
+  --line: #dde5dd;
+  --shadow: 0 16px 40px rgba(19, 33, 26, 0.08);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: radial-gradient(circle at 20% 20%, #fef9ea 0%, transparent 35%),
+    radial-gradient(circle at 80% 10%, #e8f7ef 0%, transparent 35%),
+    var(--bg);
+  color: var(--ink);
+  font-family: "Space Grotesk", system-ui, sans-serif;
+}
+
+.bg-orb {
+  position: fixed;
+  width: 360px;
+  height: 360px;
+  border-radius: 50%;
+  filter: blur(80px);
+  opacity: 0.25;
+  z-index: 0;
+}
+
+.orb-a {
+  top: -120px;
+  left: -90px;
+  background: #6de3a8;
+}
+
+.orb-b {
+  bottom: -150px;
+  right: -100px;
+  background: #ffd067;
+}
+
+.app-shell {
+  position: relative;
+  z-index: 1;
+  width: min(980px, 92vw);
+  margin: 26px auto;
+  padding: 18px;
+  background: rgba(255, 255, 255, 0.86);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  box-shadow: var(--shadow);
+}
+
+.app-header {
+  display: flex;
+  gap: 16px;
+  justify-content: space-between;
+  align-items: end;
+  margin-bottom: 14px;
+}
+
+.eyebrow {
+  margin: 0;
+  color: var(--muted);
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+h1 {
+  margin: 0;
+  font-size: clamp(1.3rem, 2.3vw, 1.8rem);
+}
+
+.api-config {
+  display: grid;
+  gap: 4px;
+}
+
+.api-config label {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.api-config input {
+  min-width: 220px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 8px;
+  font-family: "IBM Plex Mono", monospace;
+}
+
+.chat-log {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 12px;
+  min-height: 420px;
+  max-height: 58vh;
+  overflow-y: auto;
+  background: var(--surface);
+}
+
+.message {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px;
+  margin-bottom: 10px;
+  background: #fcfcfa;
+}
+
+.message.user {
+  background: #ecfff5;
+  border-color: #c7f1dd;
+}
+
+.message.assistant {
+  background: #fffcf2;
+  border-color: #f6e3b8;
+}
+
+.message.system {
+  background: #f4f7ff;
+  border-color: #d7dff9;
+}
+
+.message-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+  font-size: 12px;
+  color: var(--muted);
+  font-family: "IBM Plex Mono", monospace;
+}
+
+.message-body {
+  white-space: pre-wrap;
+  line-height: 1.45;
+}
+
+.step-block {
+  margin-top: 10px;
+  border-top: 1px dashed var(--line);
+  padding-top: 10px;
+}
+
+.step-row {
+  padding: 8px;
+  border-radius: 8px;
+  margin-bottom: 8px;
+  background: #f7faf7;
+  border: 1px solid #e4ece4;
+}
+
+.step-title {
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+.composer {
+  margin-top: 14px;
+  display: grid;
+  gap: 8px;
+}
+
+textarea {
+  width: 100%;
+  resize: vertical;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px;
+  font-family: inherit;
+}
+
+.composer-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+button {
+  border: 0;
+  border-radius: 10px;
+  padding: 9px 14px;
+  background: linear-gradient(135deg, var(--accent), #0c6a46);
+  color: #fff;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+button:disabled {
+  opacity: 0.55;
+  cursor: wait;
+}
+
+.session-info {
+  color: var(--muted);
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 12px;
+}
+
+@media (max-width: 700px) {
+  .app-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .api-config input {
+    min-width: 0;
+    width: 100%;
+  }
+}

@@ -168,6 +168,16 @@ src/
 - Fixed learned-routes persistence for Trigger worker runtime:
   - `src/routing/learned-routes-store.ts` now resolves project root robustly (handles `.trigger` worker execution context)
   - Added directory creation before writing learned routes
+- Added a standalone marketer demo chat app in `demo/`:
+  - `demo/index.html`, `demo/styles.css`, `demo/app.js`
+  - `demo/server.mjs` static server
+  - `demo/README.md` run instructions
+  - npm script: `npm run demo`
+  - Demo features:
+    - marketer chat input and session continuity
+    - pipeline run status updates while waiting
+    - final response rendering
+    - visible step-by-step execution trace (phase/action/reasoning/duration)
 
 ### Still pending
 - Optional production hardening:
