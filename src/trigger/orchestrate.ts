@@ -4,6 +4,7 @@ import { thinkTask } from "./think.js";
 import { executeTask } from "./execute.js";
 import { deliverTask } from "./deliver.js";
 import { notifyTask } from "./notify.js";
+import { learnedRoutesStore } from "../routing/learned-routes-store.js";
 import type { PipelinePayload, PipelineResult, TraceEntry } from "../core/types.js";
 
 /**
@@ -23,6 +24,9 @@ export const orchestrateTask = task({
   id: "orchestrate-pipeline",
   retry: { maxAttempts: 1 }, // orchestrator itself doesn't retry; stages do
   run: async (payload: PipelinePayload): Promise<PipelineResult> => {
+    // Reload learned routes from disk (picks up manual edits)
+    learnedRoutesStore.load();
+
     const trace: TraceEntry[] = [];
     const startTime = Date.now();
 

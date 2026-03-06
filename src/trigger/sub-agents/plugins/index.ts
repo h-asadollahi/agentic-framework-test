@@ -6,6 +6,7 @@
  */
 
 import "./cohort-monitor.js";
+import "./api-fetcher.js";
 
 // Future plugins:
 // import "./journey-agent.js";

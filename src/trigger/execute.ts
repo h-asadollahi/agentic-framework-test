@@ -1,6 +1,8 @@
 import { task, logger } from "@trigger.dev/sdk/v3";
 import { agencyAgent } from "../agents/agency-agent.js";
 import { subAgentRegistry } from "./sub-agents/registry.js";
+import { learnedRoutesStore } from "../routing/learned-routes-store.js";
+import { learnRouteTask } from "./learn-route.js";
 // Register all plugins on import
 import "./sub-agents/plugins/index.js";
 import type {
@@ -65,16 +67,67 @@ export const executeTask = task({
               payload.context
             );
           } else {
-            // ── Fallback: use the Agency LLM agent ────────
+            // ── Smart Fallback Router ─────────────────────
             logger.info(
-              `No registered sub-agent for "${subtask.agentId}", falling back to LLM`
+              `No registered sub-agent for "${subtask.agentId}", checking learned routes`
             );
-            const llmInput = JSON.stringify({
-              taskDescription: subtask.description,
-              input: subtask.input,
-              agentId: subtask.agentId,
-            });
-            result = await agencyAgent.execute(llmInput, payload.context);
+
+            // Step 1: Check learned routes for a match
+            const learnedRoute = learnedRoutesStore.findByCapability(
+              subtask.description
+            );
+
+            if (learnedRoute) {
+              // Use existing learned route via api-fetcher
+              logger.info(
+                `Found learned route "${learnedRoute.id}" for "${subtask.agentId}"`
+              );
+              result = await subAgentRegistry.execute(
+                "api-fetcher",
+                {
+                  routeId: learnedRoute.id,
+                  params: subtask.input,
+                  description: subtask.description,
+                },
+                payload.context
+              );
+            } else {
+              // Step 2: No learned route — trigger Slack HITL to learn one
+              logger.info(
+                `No learned route for "${subtask.agentId}", triggering route learning`
+              );
+
+              const learnResult = await learnRouteTask.triggerAndWait({
+                subtaskDescription: subtask.description,
+                subtaskInput: subtask.input,
+                agentId: subtask.agentId,
+                runId: payload.context.sessionId,
+                timeoutMinutes: 30,
+              });
+
+              if (
+                learnResult.ok &&
+                learnResult.output.learned &&
+                learnResult.output.fetchResult
+              ) {
+                // Route learned and data fetched successfully
+                result = learnResult.output.fetchResult;
+              } else {
+                // Step 3: Final fallback — use the Agency LLM agent
+                logger.info(
+                  "Route learning failed or timed out, falling back to LLM"
+                );
+                const llmInput = JSON.stringify({
+                  taskDescription: subtask.description,
+                  input: subtask.input,
+                  agentId: subtask.agentId,
+                });
+                result = await agencyAgent.execute(
+                  llmInput,
+                  payload.context
+                );
+              }
+            }
           }
 
           return {

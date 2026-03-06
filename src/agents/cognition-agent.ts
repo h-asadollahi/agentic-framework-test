@@ -2,6 +2,7 @@ import type { Tool } from "ai";
 import { BaseAgent } from "./base-agent.js";
 import type { AgentConfig, ExecutionContext } from "../core/types.js";
 import { getModelAssignment } from "../config/models.js";
+import { learnedRoutesStore } from "../routing/learned-routes-store.js";
 
 const DEFAULT_CONFIG: AgentConfig = {
   id: "cognition",
@@ -81,8 +82,9 @@ Example:
 { "metric": "retention", "cohortId": "vip-2024-q4", "timeRange": "90d" }
 
 (more sub-agents will be added in the future)
-
+${this.buildLearnedRoutesSection()}
 If no specific sub-agent fits, use "general" as the agentId.
+The system will check learned routes and may ask the marketer for the data source via Slack.
 
 ## Instructions
 
@@ -111,6 +113,32 @@ Return a JSON object with this exact structure:
 }
 
 Be specific about what each subtask should accomplish. Subtasks without dependencies will run in parallel.`;
+  }
+
+  /**
+   * Build a prompt section listing learned API routes so the cognition agent
+   * can assign subtasks to "api-fetcher" instead of "general" for known routes.
+   */
+  private buildLearnedRoutesSection(): string {
+    const routes = learnedRoutesStore.getSummary();
+    if (routes.length === 0) return "";
+
+    const routeLines = routes
+      .map(
+        (r) =>
+          `- **${r.capability}** (routeId: "${r.id}"): ${r.description}\n` +
+          `  Match keywords: ${r.matchPatterns.slice(0, 5).join(", ")}\n` +
+          `  Input: { "routeId": "${r.id}", "params": { ...relevant params... } }`
+      )
+      .join("\n\n");
+
+    return `
+### api-fetcher (Learned API Routes)
+Fetches data from previously learned API endpoints.
+When a request matches one of these routes, assign agentId "api-fetcher" with the routeId.
+
+${routeLines}
+`;
   }
 }
 
