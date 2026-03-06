@@ -3,6 +3,7 @@ import { agencyAgent } from "../agents/agency-agent.js";
 import { subAgentRegistry } from "./sub-agents/registry.js";
 import { learnedRoutesStore } from "../routing/learned-routes-store.js";
 import { learnRouteTask } from "./learn-route.js";
+import { resolveUnknownSubtaskStrategy } from "./execute-routing.js";
 // Register all plugins on import
 import "./sub-agents/plugins/index.js";
 import type {
@@ -76,8 +77,12 @@ export const executeTask = task({
             const learnedRoute = learnedRoutesStore.findByCapability(
               subtask.description
             );
+            const strategy = resolveUnknownSubtaskStrategy(
+              subtask,
+              Boolean(learnedRoute)
+            );
 
-            if (learnedRoute) {
+            if (strategy === "use-learned-route" && learnedRoute) {
               // Use existing learned route via api-fetcher
               logger.info(
                 `Found learned route "${learnedRoute.id}" for "${subtask.agentId}"`
@@ -91,7 +96,7 @@ export const executeTask = task({
                 },
                 payload.context
               );
-            } else {
+            } else if (strategy === "learn-new-route") {
               // Step 2: No learned route — trigger Slack HITL to learn one
               logger.info(
                 `No learned route for "${subtask.agentId}", triggering route learning`
@@ -127,6 +132,19 @@ export const executeTask = task({
                   payload.context
                 );
               }
+            } else {
+              logger.info(
+                `Unknown subtask "${subtask.agentId}" is not data-oriented, using LLM fallback`
+              );
+              const llmInput = JSON.stringify({
+                taskDescription: subtask.description,
+                input: subtask.input,
+                agentId: subtask.agentId,
+              });
+              result = await agencyAgent.execute(
+                llmInput,
+                payload.context
+              );
             }
           }
 

@@ -170,6 +170,33 @@ src/
 
 ---
 
+## Post-Handover Progress (2026-03-06, Codex)
+
+### Completed (non-blocked)
+- Added failure-path escalation triggers in `src/trigger/orchestrate.ts`:
+  - If Grounding/Cognition/Agency/Interface task returns failure, pipeline now triggers `escalate-to-human` (fire-and-forget) with stage metadata and then still fails the run.
+  - Escalation trigger failures are logged and do not mask the original stage error.
+- Added deterministic strategy helper for unknown subtask routing:
+  - `src/trigger/execute-routing.ts`
+  - Strategy order: learned route → learn new route (data-like tasks) → LLM fallback.
+- Updated `src/trigger/execute.ts` to use the shared strategy helper.
+- Added non-Slack unit tests:
+  - `tests/unit/execute-routing.test.ts`
+  - `tests/unit/route-learning-parser.test.ts`
+  - `tests/unit/learned-routes-store.test.ts` (restores `knowledge/learned-routes.json` after test run)
+
+### Still blocked
+- End-to-end testing for Slack thread polling (`conversations.replies`) remains blocked until Slack app has `channels:history` scope approved and app reinstalled.
+
+### Validation status
+- `npm test`: passing
+- `npx tsc --noEmit`: passing
+
+### Operational note
+- Keep this file updated after each implementation batch so latest project status survives context resets.
+
+---
+
 ## Environment Setup
 
 ### Prerequisites

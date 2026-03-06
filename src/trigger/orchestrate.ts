@@ -4,6 +4,7 @@ import { thinkTask } from "./think.js";
 import { executeTask } from "./execute.js";
 import { deliverTask } from "./deliver.js";
 import { notifyTask } from "./notify.js";
+import { escalateTask } from "./escalate.js";
 import { learnedRoutesStore } from "../routing/learned-routes-store.js";
 import type { PipelinePayload, PipelineResult, TraceEntry } from "../core/types.js";
 
@@ -35,6 +36,35 @@ export const orchestrateTask = task({
       message: payload.userMessage.slice(0, 100),
     });
 
+    const escalateStageFailure = async (stage: string, reason: string, details: unknown) => {
+      try {
+        await escalateTask.trigger({
+          escalation: {
+            runId: payload.sessionId,
+            taskDescription: `${stage} stage failure`,
+            reason,
+            severity: "error",
+            notifyMarketer: true,
+            notifyAdmin: true,
+            context: {
+              stage,
+              userMessage: payload.userMessage,
+              error: details,
+            },
+          },
+          timeoutMinutes: 60,
+        });
+      } catch (escalationError) {
+        logger.warn(`Escalation trigger failed after ${stage} failure`, {
+          stage,
+          error:
+            escalationError instanceof Error
+              ? escalationError.message
+              : String(escalationError),
+        });
+      }
+    };
+
     // ── Stage 1: Grounding ─────────────────────────────────
     logger.info("Stage 1/4: Grounding");
     const groundingStart = Date.now();
@@ -45,6 +75,7 @@ export const orchestrateTask = task({
     });
 
     if (!groundingRun.ok) {
+      await escalateStageFailure("grounding", "Grounding stage execution failed", groundingRun.error);
       throw new Error(`Grounding stage failed: ${JSON.stringify(groundingRun.error)}`);
     }
 
@@ -66,6 +97,7 @@ export const orchestrateTask = task({
     });
 
     if (!thinkRun.ok) {
+      await escalateStageFailure("cognition", "Cognition stage execution failed", thinkRun.error);
       throw new Error(`Cognition stage failed: ${JSON.stringify(thinkRun.error)}`);
     }
 
@@ -90,6 +122,7 @@ export const orchestrateTask = task({
     });
 
     if (!executeRun.ok) {
+      await escalateStageFailure("agency", "Agency stage execution failed", executeRun.error);
       throw new Error(`Agency stage failed: ${JSON.stringify(executeRun.error)}`);
     }
 
@@ -111,6 +144,7 @@ export const orchestrateTask = task({
     });
 
     if (!deliverRun.ok) {
+      await escalateStageFailure("interface", "Interface stage execution failed", deliverRun.error);
       throw new Error(`Interface stage failed: ${JSON.stringify(deliverRun.error)}`);
     }
 
