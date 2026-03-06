@@ -213,6 +213,21 @@ src/
     - segment performance
     - KPI trend analysis
   - Route matching remains keyword-driven; execution uses `api-fetcher` and template substitution at runtime.
+- Added MCP-backed learned-route execution path:
+  - New sub-agent plugin: `src/trigger/sub-agents/plugins/mcp-fetcher.ts`
+  - Plugin registration updated in `src/trigger/sub-agents/plugins/index.ts`
+  - Supports learned-route defaults for:
+    - `serverName`
+    - `toolName`
+    - `args` with `{{input.*}}` and `{{ENV_VAR}}` template resolution
+  - `mcp-fetcher` executes MCP tool calls directly (no LLM), with route usage tracking via `routeId`.
+- Added MCP examples to learned routes:
+  - `route-008` (`analytics-kpi-benchmark-via-mcp`) → `agentId: "mcp-fetcher"`
+  - `route-009` (`analytics-retention-drivers-via-mcp`) → `agentId: "mcp-fetcher"`
+- Added unit tests for MCP input mapping helpers:
+  - `tests/unit/mcp-fetcher.test.ts`
+- Updated docs:
+  - `docs/usage-guide.md` now includes MCP learned-route configuration and runtime flow.
 
 ### Still pending
 - Optional production hardening:

@@ -490,6 +490,36 @@ await mcpManager.getAllTools();       // tools from all servers
 await mcpManager.closeAll();         // clean shutdown
 ```
 
+### MCP routes through `learned-routes.json`
+
+The router can now dispatch directly to MCP tools using `routeType: "sub-agent"` and `agentId: "mcp-fetcher"`.
+
+Example learned-route entry:
+
+```json
+{
+  "id": "route-008",
+  "capability": "analytics-kpi-benchmark-via-mcp",
+  "routeType": "sub-agent",
+  "agentId": "mcp-fetcher",
+  "agentInputDefaults": {
+    "serverName": "analytics",
+    "toolName": "kpi_benchmark",
+    "routeId": "route-008",
+    "args": {
+      "from": "{{input.from}}",
+      "to": "{{input.to}}",
+      "metric": "{{input.metric}}"
+    }
+  }
+}
+```
+
+At runtime:
+1. Unknown task matches a learned route.
+2. Executor dispatches to `mcp-fetcher`.
+3. `mcp-fetcher` resolves `{{input.*}}` placeholders from subtask input and executes the MCP tool.
+
 ---
 
 ## 8. Human-in-the-Loop Escalation

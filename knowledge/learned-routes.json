@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "lastUpdated": "2026-03-06T15:16:32.752Z",
+  "lastUpdated": "2026-03-06T17:05:00.000Z",
   "routes": [
     {
       "id": "route-001",
@@ -245,6 +245,65 @@
       "addedBy": "codex",
       "usageCount": 1,
       "lastUsedAt": "2026-03-06T15:15:18.698Z"
+    },
+    {
+      "id": "route-008",
+      "capability": "analytics-kpi-benchmark-via-mcp",
+      "description": "Compare KPI performance against benchmarks using MCP analytics tools.",
+      "matchPatterns": [
+        "kpi benchmark",
+        "benchmark performance",
+        "compare with benchmark",
+        "benchmark vs target"
+      ],
+      "routeType": "sub-agent",
+      "agentId": "mcp-fetcher",
+      "agentInputDefaults": {
+        "serverName": "analytics",
+        "toolName": "kpi_benchmark",
+        "routeId": "route-008",
+        "args": {
+          "from": "{{input.from}}",
+          "to": "{{input.to}}",
+          "metric": "{{input.metric}}",
+          "segment": "{{input.segment}}"
+        }
+      },
+      "inputMapping": {},
+      "outputFormat": "json",
+      "addedAt": "2026-03-06T17:05:00.000Z",
+      "addedBy": "codex",
+      "usageCount": 0,
+      "lastUsedAt": null
+    },
+    {
+      "id": "route-009",
+      "capability": "analytics-retention-drivers-via-mcp",
+      "description": "Find retention drivers and churn risks with MCP analytics tools.",
+      "matchPatterns": [
+        "retention drivers",
+        "churn drivers",
+        "why retention dropped",
+        "retention risk"
+      ],
+      "routeType": "sub-agent",
+      "agentId": "mcp-fetcher",
+      "agentInputDefaults": {
+        "serverName": "analytics",
+        "toolName": "retention_drivers",
+        "routeId": "route-009",
+        "args": {
+          "period": "{{input.period}}",
+          "cohort": "{{input.cohort}}",
+          "channel": "{{input.channel}}"
+        }
+      },
+      "inputMapping": {},
+      "outputFormat": "json",
+      "addedAt": "2026-03-06T17:05:00.000Z",
+      "addedBy": "codex",
+      "usageCount": 0,
+      "lastUsedAt": null
     }
   ]
 }
