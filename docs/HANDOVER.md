@@ -193,6 +193,14 @@ src/
     - Prompt: \"How is our VIP cohort performing this quarter?\"
     - Cognition reasoning: \"Could not parse agent output, falling back to single cohort-monitor task\"
     - Agency result now uses `agentId: \"cohort-monitor\"` (not `general`).
+- Learned-routes source-of-truth refactor:
+  - Removed static cohort-specific routing safeguards.
+  - `learned-routes.json` now supports route targets:
+    - `routeType: \"api\"` (existing `api-fetcher` path)
+    - `routeType: \"sub-agent\"` (direct plugin dispatch, e.g. `cohort-monitor`)
+  - `execute.ts` now follows learned route target type as the routing source of truth for unknown tasks.
+  - Added VIP cohort learned route entry as a `sub-agent` route in `knowledge/learned-routes.json`.
+  - Verified live: prompt \"How is our VIP cohort performing this quarter?\" routed through learned route and executed `cohort-monitor` successfully.
 
 ### Still pending
 - Optional production hardening:

@@ -1,38 +1,33 @@
 {
   "version": "1.0.0",
-  "lastUpdated": "2026-03-06T14:15:42.386Z",
+  "lastUpdated": "2026-03-06T14:51:52.606Z",
   "routes": [
     {
       "id": "route-001",
-      "capability": "fetch clv-clv drivers-drivers segment",
-      "description": "Fetch CLV drivers by segment from internal analytics API",
+      "capability": "vip-cohort-performance",
+      "description": "How is our VIP cohort performing this quarter?",
       "matchPatterns": [
-        "fetch clv",
-        "clv drivers",
-        "drivers segment",
-        "segment internal",
-        "internal analytics",
-        "analytics api",
-        "fetch",
-        "clv",
-        "drivers",
-        "segment",
-        "internal",
-        "analytics",
-        "api"
+        "vip cohort",
+        "cohort performing",
+        "performing quarter",
+        "vip",
+        "cohort",
+        "quarter"
       ],
-      "endpoint": {
-        "url": "https://api.example.com/v1/clv",
-        "method": "GET",
-        "headers": {},
-        "queryParams": {}
+      "routeType": "sub-agent",
+      "agentId": "cohort-monitor",
+      "agentInputDefaults": {
+        "cohortId": "vip",
+        "metric": "engagement",
+        "timeRange": "90d",
+        "compareBaseline": true
       },
       "inputMapping": {},
       "outputFormat": "json",
-      "addedAt": "2026-03-06T14:15:42.385Z",
-      "addedBy": "U075RTGLATG",
-      "usageCount": 0,
-      "lastUsedAt": null
+      "addedAt": "2026-03-06T15:05:00.000Z",
+      "addedBy": "codex",
+      "usageCount": 1,
+      "lastUsedAt": "2026-03-06T14:51:52.606Z"
     }
   ]
 }

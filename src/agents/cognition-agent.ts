@@ -125,17 +125,30 @@ Be specific about what each subtask should accomplish. Subtasks without dependen
 
     const routeLines = routes
       .map(
-        (r) =>
-          `- **${r.capability}** (routeId: "${r.id}"): ${r.description}\n` +
-          `  Match keywords: ${r.matchPatterns.slice(0, 5).join(", ")}\n` +
-          `  Input: { "routeId": "${r.id}", "params": { ...relevant params... } }`
+        (r) => {
+          const target =
+            r.routeType === "sub-agent" && r.agentId
+              ? `sub-agent:${r.agentId}`
+              : `api:${r.endpointUrl ?? "unknown-endpoint"}`;
+          const inputHint =
+            r.routeType === "sub-agent" && r.agentId
+              ? `{ ...relevant params for ${r.agentId}... }`
+              : `{ "routeId": "${r.id}", "params": { ...relevant params... } }`;
+
+          return (
+            `- **${r.capability}** (routeId: "${r.id}", target: ${target}): ${r.description}\n` +
+            `  Match keywords: ${r.matchPatterns.slice(0, 5).join(", ")}\n` +
+            `  Input: ${inputHint}`
+          );
+        }
       )
       .join("\n\n");
 
     return `
 ### api-fetcher (Learned API Routes)
-Fetches data from previously learned API endpoints.
-When a request matches one of these routes, assign agentId "api-fetcher" with the routeId.
+When a request matches one of these routes, route according to its target:
+- target: api:* -> assign agentId "api-fetcher"
+- target: sub-agent:* -> assign the specified sub-agent ID directly
 
 ${routeLines}
 `;

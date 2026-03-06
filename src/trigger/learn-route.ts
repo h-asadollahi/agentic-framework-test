@@ -140,6 +140,7 @@ export const learnRouteTask = task({
       capability: agentId !== "general" ? agentId : extractKeywords(subtaskDescription).slice(0, 3).join("-"),
       description: subtaskDescription,
       matchPatterns: extractKeywords(subtaskDescription),
+      routeType: "api",
       endpoint: {
         url: result.route.url,
         method: result.route.method as "GET" | "POST" | "PUT" | "PATCH" | "DELETE",
@@ -152,13 +153,17 @@ export const learnRouteTask = task({
     logger.info("Learned route saved", {
       routeId: newRoute.id,
       capability: newRoute.capability,
-      endpoint: newRoute.endpoint.url,
+      endpoint: newRoute.endpoint?.url,
     });
 
     // ── 4. Immediately fetch data ───────────────────────────
     let fetchResult: AgentResult;
 
     try {
+      if (!newRoute.endpoint) {
+        throw new Error("Learned route endpoint missing");
+      }
+
       const resolvedUrl = resolveTemplateString(newRoute.endpoint.url, subtaskInput);
       const resolvedHeaders = resolveTemplateObject(
         newRoute.endpoint.headers ?? {},
@@ -231,7 +236,7 @@ export const learnRouteTask = task({
     await postRouteLearningConfirmation(slackRef.channel, slackRef.ts, {
       learned: true,
       routeId: newRoute.id,
-      endpoint: newRoute.endpoint.url,
+      endpoint: newRoute.endpoint?.url,
       timedOut: false,
     });
 

@@ -17,13 +17,32 @@ export const LearnedRouteSchema = z.object({
   capability: z.string(),
   description: z.string(),
   matchPatterns: z.array(z.string()).min(1),
-  endpoint: EndpointSchema,
+  routeType: z.enum(["api", "sub-agent"]).default("api"),
+  endpoint: EndpointSchema.optional(),
+  agentId: z.string().optional(),
+  agentInputDefaults: z.record(z.unknown()).optional().default({}),
   inputMapping: z.record(z.string()).optional().default({}),
   outputFormat: z.enum(["json", "text", "csv"]).default("json"),
   addedAt: z.string(),
   addedBy: z.string(),
   usageCount: z.number().default(0),
   lastUsedAt: z.string().nullable().default(null),
+}).superRefine((route, ctx) => {
+  if (route.routeType === "api" && !route.endpoint) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["endpoint"],
+      message: "endpoint is required when routeType is 'api'",
+    });
+  }
+
+  if (route.routeType === "sub-agent" && !route.agentId) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["agentId"],
+      message: "agentId is required when routeType is 'sub-agent'",
+    });
+  }
 });
 
 // ── File Schema ─────────────────────────────────────────────

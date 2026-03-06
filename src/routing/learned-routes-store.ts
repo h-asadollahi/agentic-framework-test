@@ -153,7 +153,10 @@ class LearnedRoutesStoreImpl {
     capability: string;
     description: string;
     matchPatterns: string[];
-    endpoint: Endpoint;
+    routeType?: "api" | "sub-agent";
+    endpoint?: Endpoint;
+    agentId?: string;
+    agentInputDefaults?: Record<string, unknown>;
     inputMapping?: Record<string, string>;
     outputFormat?: "json" | "text" | "csv";
     addedBy: string;
@@ -167,7 +170,10 @@ class LearnedRoutesStoreImpl {
       capability: data.capability,
       description: data.description,
       matchPatterns: data.matchPatterns,
+      routeType: data.routeType ?? "api",
       endpoint: data.endpoint,
+      agentId: data.agentId,
+      agentInputDefaults: data.agentInputDefaults ?? {},
       inputMapping: data.inputMapping ?? {},
       outputFormat: data.outputFormat ?? "json",
       addedAt: new Date().toISOString(),
@@ -181,7 +187,11 @@ class LearnedRoutesStoreImpl {
 
     logger.info(`New learned route added: "${id}" (${data.capability})`, {
       matchPatterns: data.matchPatterns.slice(0, 5),
-      endpoint: data.endpoint.url,
+      routeType: newRoute.routeType,
+      target:
+        newRoute.routeType === "api"
+          ? newRoute.endpoint?.url
+          : newRoute.agentId,
     });
 
     return newRoute;
@@ -218,6 +228,9 @@ class LearnedRoutesStoreImpl {
     capability: string;
     description: string;
     matchPatterns: string[];
+    routeType: "api" | "sub-agent";
+    agentId?: string;
+    endpointUrl?: string;
   }> {
     this.ensureLoaded();
 
@@ -229,6 +242,9 @@ class LearnedRoutesStoreImpl {
         capability: r.capability,
         description: r.description,
         matchPatterns: r.matchPatterns,
+        routeType: r.routeType,
+        agentId: r.agentId,
+        endpointUrl: r.endpoint?.url,
       }));
   }
 

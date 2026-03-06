@@ -103,4 +103,25 @@ describe.sequential("learned-routes store", () => {
     expect(summary[0].id).toBe("route-002");
     expect(summary[1].id).toBe("route-001");
   });
+
+  it("supports sub-agent learned routes", () => {
+    const added = learnedRoutesStore.addRoute({
+      capability: "vip-cohort-performance",
+      description: "How is our VIP cohort performing this quarter?",
+      matchPatterns: ["vip cohort", "cohort performing", "quarter"],
+      routeType: "sub-agent",
+      agentId: "cohort-monitor",
+      agentInputDefaults: {
+        cohortId: "vip",
+        metric: "engagement",
+        timeRange: "90d",
+        compareBaseline: true,
+      },
+      addedBy: "tester",
+    });
+
+    expect(added.routeType).toBe("sub-agent");
+    expect(added.agentId).toBe("cohort-monitor");
+    expect(added.endpoint).toBeUndefined();
+  });
 });

@@ -106,6 +106,17 @@ export class ApiFetcherAgent extends BaseSubAgent {
       };
     }
 
+    if (route.routeType !== "api" || !route.endpoint) {
+      logger.warn(`api-fetcher: route "${routeId}" is not an API route`);
+      return {
+        success: false,
+        output: JSON.stringify({
+          error: `Learned route "${routeId}" is not an API route`,
+        }),
+        modelUsed: "none",
+      };
+    }
+
     try {
       // Resolve templates
       const resolvedUrl = resolveTemplateString(route.endpoint.url, params);

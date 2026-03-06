@@ -1,10 +1,6 @@
 import { task, logger } from "@trigger.dev/sdk/v3";
 import { cognitionAgent } from "../agents/cognition-agent.js";
 import type { CognitionResult, GroundingResult } from "../core/types.js";
-import {
-  isCohortOrientedSubtask,
-  deriveCohortInputFromText,
-} from "./execute-routing.js";
 
 /**
  * Think Task (Cognition)
@@ -41,32 +37,19 @@ export const thinkTask = task({
     try {
       cognitionResult = JSON.parse(result.output as string);
     } catch {
-      const fallbackAgentId = isCohortOrientedSubtask({
-        agentId: "general",
-        description: payload.userMessage,
-      })
-        ? "cohort-monitor"
-        : "general";
-
       logger.warn("Cognition agent output wasn't valid JSON, creating default plan");
       cognitionResult = {
         subtasks: [
           {
             id: "task-1",
-            agentId: fallbackAgentId,
+            agentId: "general",
             description: payload.userMessage,
-            input:
-              fallbackAgentId === "cohort-monitor"
-                ? deriveCohortInputFromText(payload.userMessage)
-                : {},
+            input: {},
             dependencies: [],
             priority: "medium",
           },
         ],
-        reasoning:
-          fallbackAgentId === "cohort-monitor"
-            ? "Could not parse agent output, falling back to single cohort-monitor task"
-            : "Could not parse agent output, falling back to single general task",
+        reasoning: "Could not parse agent output, falling back to single general task",
         plan: payload.userMessage,
       };
     }
