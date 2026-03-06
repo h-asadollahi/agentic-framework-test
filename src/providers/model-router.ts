@@ -8,11 +8,19 @@ type RegistryModelId = `anthropic:${string}` | `openai:${string}` | `google:${st
 /**
  * ModelRouter resolves model alias strings into actual LanguageModel instances.
  *
- * It supports:
- * - Alias resolution: "anthropic:fast" → "anthropic:claude-haiku-4-5-20251001"
- * - Direct model IDs: "anthropic:claude-sonnet-4-5-20250514" (passthrough)
- * - Agent-based lookup: getModelsForAgent("cognition") returns [preferred, ...fallbacks]
- * - Complexity-based selection: selectByComplexity("high") → "anthropic:powerful"
+ * All model configuration is driven by environment variables:
+ *
+ * 1. Model aliases (which concrete model each tier points to):
+ *    MODEL_ANTHROPIC_FAST, MODEL_ANTHROPIC_BALANCED, MODEL_GOOGLE_FAST, etc.
+ *    → See providers.ts for the full list and defaults.
+ *
+ * 2. Agent-to-model assignments (which tier each agent uses):
+ *    AGENT_GROUNDING_MODELS, AGENT_COGNITION_MODELS, etc.
+ *    → See models.ts for the full list and defaults.
+ *
+ * Resolution flow:
+ *   agentId → AGENT_{ID}_MODELS env → alias list → MODEL_{ALIAS} env → registry
+ *   e.g. "cognition" → "anthropic:balanced" → "anthropic:claude-sonnet-4-6" → LanguageModel
  */
 export class ModelRouter {
   /**

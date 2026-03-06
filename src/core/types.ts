@@ -172,6 +172,20 @@ export interface HumanEscalation {
   context: Record<string, unknown>;
 }
 
+export interface EscalationPayload {
+  escalation: HumanEscalation;
+  timeoutMinutes?: number; // default: 60
+}
+
+export interface EscalationResult {
+  approved: boolean;
+  decision: string;
+  decidedBy?: string;
+  feedback?: string;
+  slackThreadTs?: string;
+  timedOut: boolean;
+}
+
 // ── Sub-Agent Plugin Interface ─────────────────────────────
 export interface SubAgentPlugin {
   id: string;

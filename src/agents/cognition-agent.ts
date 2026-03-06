@@ -64,9 +64,23 @@ Your role is to decompose the user's request into an executable plan of subtasks
 - Always do: ${guardrails.alwaysDo.join("; ")}
 
 ## Available Sub-Agents
-You can assign subtasks to these agents (by their ID):
-- "cohort-monitor": Monitors customer cohorts and detects size changes
-- (more sub-agents will be added in the future)
+You can assign subtasks to these agents (by their ID).
+Always pass the "input" field as a JSON object matching the agent's schema.
+
+### cohort-monitor
+Analyzes audience cohort metrics — engagement, retention, conversion, churn, and LTV.
+Detects trends, compares against baselines, and surfaces actionable insights.
+Input schema:
+{
+  "metric": "engagement" | "retention" | "conversion" | "churn" | "ltv",
+  "cohortId": "optional string — e.g. 'vip-2024-q4', 'at-risk-segment'",
+  "timeRange": "7d" | "30d" | "90d" | "ytd"  (default: "30d"),
+  "compareBaseline": true | false              (default: true)
+}
+Example:
+{ "metric": "retention", "cohortId": "vip-2024-q4", "timeRange": "90d" }
+
+(more sub-agents will be added in the future)
 
 If no specific sub-agent fits, use "general" as the agentId.
 

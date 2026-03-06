@@ -1,104 +1,117 @@
-import { task, logger, wait } from "@trigger.dev/sdk/v3";
-import type { HumanEscalation, NotificationRequest } from "../core/types.js";
+import { task, logger } from "@trigger.dev/sdk/v3";
+import type {
+  HumanEscalation,
+  NotificationRequest,
+  EscalationPayload,
+  EscalationResult,
+} from "../core/types.js";
 import { notifyTask } from "./notify.js";
+import {
+  sendEscalationMessage,
+  pollForDecision,
+  postDecisionConfirmation,
+} from "../escalation/slack-escalation.js";
 
 /**
- * Escalation Task
+ * Escalation Task — Human-in-the-Loop via Slack Thread Replies
  *
- * Handles human-in-the-loop escalation. When an agent encounters a situation
- * that requires human judgment:
+ * When an agent encounters a situation that requires human judgment:
  *
- * 1. Sends notification(s) to the marketer / admin
- * 2. Pauses execution using trigger.dev wait.for()
- * 3. Resumes when a human provides a decision via token completion
+ * 1. Sends a rich Block Kit message to the Slack channel
+ * 2. Optionally sends an email notification to the admin
+ * 3. Polls the Slack thread every 30 seconds for human replies
+ * 4. Parses "approve" / "reject" keywords from thread replies
+ * 5. Posts a confirmation message in the thread
+ * 6. Returns the human's decision to the calling agent
  *
- * The calling agent triggers this task and receives the human's decision
- * as the return value.
+ * If no decision is received within the timeout, auto-rejects.
  */
-
-interface EscalationPayload {
-  escalation: HumanEscalation;
-  timeoutHours?: number;
-}
-
-interface EscalationResult {
-  approved: boolean;
-  decision: string;
-  decidedBy?: string;
-  timedOut: boolean;
-}
-
 export const escalateTask = task({
   id: "escalate-to-human",
   retry: { maxAttempts: 1 }, // don't retry escalations
   run: async (payload: EscalationPayload): Promise<EscalationResult> => {
-    const { escalation, timeoutHours = 24 } = payload;
+    const { escalation, timeoutMinutes = 60 } = payload;
 
     logger.info("Human escalation triggered", {
       runId: escalation.runId,
       reason: escalation.reason,
       severity: escalation.severity,
+      timeoutMinutes,
     });
 
-    // ── Send Notifications ──────────────────────────────────
-    const notifications: NotificationRequest[] = [];
+    // ── 1. Send Escalation Message to Slack ─────────────────
+    let slackRef: { channel: string; ts: string };
 
-    if (escalation.notifyMarketer) {
-      notifications.push({
-        channel: "slack",
-        recipient: process.env.MARKETER_SLACK_CHANNEL ?? "#marketing-alerts",
-        subject: `Action Required: ${escalation.taskDescription}`,
-        body: formatEscalationMessage(escalation),
-        priority: escalation.severity === "critical" ? "critical" : "warning",
+    try {
+      slackRef = await sendEscalationMessage(escalation, timeoutMinutes);
+    } catch (error) {
+      logger.error("Failed to send escalation to Slack — auto-rejecting", {
+        error: error instanceof Error ? error.message : String(error),
       });
+
+      return {
+        approved: false,
+        decision: "Failed to send escalation message to Slack",
+        timedOut: false,
+      };
     }
 
+    // ── 2. Send Email Notification (fire-and-forget) ────────
     if (escalation.notifyAdmin) {
-      notifications.push({
-        channel: "email",
-        recipient: process.env.ADMIN_EMAIL ?? "",
-        subject: `[${escalation.severity.toUpperCase()}] Agent Escalation: ${escalation.taskDescription}`,
-        body: formatEscalationMessage(escalation),
-        priority: escalation.severity === "critical" ? "critical" : "warning",
-      });
+      const adminEmail = process.env.ADMIN_EMAIL;
+      if (adminEmail) {
+        const emailNotification: NotificationRequest = {
+          channel: "email",
+          recipient: adminEmail,
+          subject: `[${escalation.severity.toUpperCase()}] Agent Escalation: ${escalation.taskDescription}`,
+          body: formatEscalationEmail(escalation, slackRef),
+          priority: escalation.severity === "critical" ? "critical" : "warning",
+        };
+        await notifyTask.trigger({ notification: emailNotification });
+      }
     }
 
-    // Fire-and-forget notifications
-    for (const notification of notifications) {
-      await notifyTask.trigger({ notification });
-    }
-
-    // ── Wait for Human Decision ─────────────────────────────
-    logger.info("Waiting for human decision", {
-      runId: escalation.runId,
-      timeoutHours,
+    // ── 3. Poll Slack Thread for Decision ────────────────────
+    logger.info("Polling Slack thread for human decision", {
+      channel: slackRef.channel,
+      threadTs: slackRef.ts,
+      timeoutMinutes,
     });
 
-    // Pause execution for the timeout duration (v3 SDK uses wait.for)
-    // In a full implementation, a webhook or dashboard action would
-    // complete this run early. For now, we wait and auto-reject on timeout.
-    await wait.for({ seconds: timeoutHours * 3600 });
+    const decision = await pollForDecision(
+      slackRef.channel,
+      slackRef.ts,
+      timeoutMinutes * 60, // convert to seconds
+      30 // poll every 30 seconds
+    );
 
-    logger.warn("Escalation timed out", {
+    // ── 4. Post Confirmation in Thread ──────────────────────
+    await postDecisionConfirmation(slackRef.channel, slackRef.ts, decision);
+
+    logger.info("Escalation resolved", {
       runId: escalation.runId,
-      timeoutHours,
+      approved: decision.approved,
+      timedOut: decision.timedOut,
+      decidedBy: decision.decidedBy,
     });
 
-    return {
-      approved: false,
-      decision: "Escalation timed out — no human response received",
-      timedOut: true,
-    };
+    return decision;
   },
 });
 
-function formatEscalationMessage(escalation: HumanEscalation): string {
+// ── Helpers ─────────────────────────────────────────────────
+
+function formatEscalationEmail(
+  escalation: HumanEscalation,
+  slackRef: { channel: string; ts: string }
+): string {
   return [
     `**Task:** ${escalation.taskDescription}`,
     `**Reason:** ${escalation.reason}`,
     `**Severity:** ${escalation.severity}`,
     `**Run ID:** ${escalation.runId}`,
     "",
-    "Please review and respond via the dashboard to approve or reject this action.",
+    `A Slack message has been sent to channel ${slackRef.channel}.`,
+    "Reply in the Slack thread to approve or reject this escalation.",
   ].join("\n");
 }

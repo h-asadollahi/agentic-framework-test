@@ -76,3 +76,14 @@ export class SlackChannel implements ChannelAdapter {
 }
 
 export const slackChannel = new SlackChannel();
+
+/**
+ * Factory to create a standalone Slack WebClient.
+ *
+ * Used by the escalation module which runs inside the Trigger.dev worker
+ * process (separate from the Hono server where `slackChannel` lives).
+ */
+export function createSlackClient(): WebClient | null {
+  const token = process.env.SLACK_BOT_TOKEN;
+  return token ? new WebClient(token) : null;
+}

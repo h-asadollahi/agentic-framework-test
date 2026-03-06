@@ -1,24 +1,38 @@
 import { z } from "zod";
-import { tool, type Tool } from "ai";
+import { type Tool } from "ai";
 import { BaseSubAgent } from "../base-sub-agent.js";
-import type { ExecutionContext } from "../../../core/types.js";
+import type { ExecutionContext, AgentResult } from "../../../core/types.js";
+import { getMockCohortData, getMockCohortOverview } from "./cohort-monitor-mock.js";
+import { logger } from "../../../core/logger.js";
 
-// ── Schemas ────────────────────────────────────────────────
+// ── Schemas ────────────────────────────────────────────────────
+// All fields are OPTIONAL with sensible defaults so the cognition
+// agent can pass partial / free-form input without validation errors.
 
-const CohortMonitorInput = z.object({
-  cohortId: z.string().optional().describe("Specific cohort ID to analyze"),
-  metric: z
-    .enum(["engagement", "retention", "conversion", "churn", "ltv"])
-    .describe("Primary metric to analyze"),
-  timeRange: z
-    .enum(["7d", "30d", "90d", "ytd"])
-    .default("30d")
-    .describe("Time range for analysis"),
-  compareBaseline: z
-    .boolean()
-    .default(true)
-    .describe("Whether to compare against baseline cohort"),
-});
+const CohortMonitorInput = z
+  .object({
+    cohortId: z
+      .string()
+      .optional()
+      .default("default-cohort")
+      .describe("Specific cohort ID to analyze (e.g. 'vip-2024-q4')"),
+    metric: z
+      .enum(["engagement", "retention", "conversion", "churn", "ltv"])
+      .optional()
+      .default("engagement")
+      .describe("Primary metric to analyze"),
+    timeRange: z
+      .enum(["7d", "30d", "90d", "ytd"])
+      .optional()
+      .default("30d")
+      .describe("Time range for analysis"),
+    compareBaseline: z
+      .boolean()
+      .optional()
+      .default(true)
+      .describe("Whether to compare against baseline cohort"),
+  })
+  .passthrough(); // ignore unknown keys from the cognition agent
 
 const CohortMonitorOutput = z.object({
   cohortId: z.string(),
@@ -30,9 +44,10 @@ const CohortMonitorOutput = z.object({
   insight: z.string(),
   recommendation: z.string(),
   alertLevel: z.enum(["none", "info", "warning", "critical"]),
+  dataSource: z.string().optional(),
 });
 
-// ── Plugin ─────────────────────────────────────────────────
+// ── Plugin ─────────────────────────────────────────────────────
 
 export class CohortMonitorAgent extends BaseSubAgent {
   id = "cohort-monitor";
@@ -40,7 +55,7 @@ export class CohortMonitorAgent extends BaseSubAgent {
   description =
     "Analyzes audience cohort metrics — engagement, retention, conversion, churn, and LTV. " +
     "Detects trends, compares against baselines, and surfaces actionable insights.";
-  version = "1.0.0";
+  version = "1.1.0";
   capabilities = [
     "cohort-analysis",
     "engagement-tracking",
@@ -54,12 +69,69 @@ export class CohortMonitorAgent extends BaseSubAgent {
 
   constructor() {
     super(
-      "anthropic:fast",                               // preferred — fast model for data analysis
-      ["openai:fast", "google:fast"],                  // fallbacks
-      5,                                               // maxSteps
-      0.1                                              // low temperature for precise analysis
+      "anthropic:fast",              // preferred (used only in AI mode)
+      ["openai:fast", "google:fast"],
+      5,
+      0.1
     );
   }
+
+  // ── Mock-based execution (no AI model calls) ──────────────
+
+  /**
+   * Override BaseSubAgent.execute() to return mock data directly.
+   *
+   * This makes the cohort-monitor deterministic, fast, and independent
+   * of AI model availability. When real data sources are connected,
+   * replace this with `super.execute(input, context)` to use the
+   * AI-based flow with tools.
+   */
+  async execute(input: unknown, context: ExecutionContext): Promise<AgentResult> {
+    const parsed = CohortMonitorInput.safeParse(input);
+
+    if (!parsed.success) {
+      // Even with lenient schema this shouldn't happen, but handle gracefully
+      logger.warn(`cohort-monitor: input parse failed, using defaults`, {
+        errors: parsed.error.flatten(),
+      });
+      const fallback = getMockCohortData({});
+      return {
+        success: true,
+        output: JSON.stringify(fallback),
+        modelUsed: "mock-data-service",
+      };
+    }
+
+    const { cohortId, metric, timeRange, compareBaseline } = parsed.data;
+
+    logger.info(`cohort-monitor: executing mock query`, {
+      cohortId,
+      metric,
+      timeRange,
+      compareBaseline,
+    });
+
+    // If no specific metric was requested, return an overview of all metrics
+    if (!input || (typeof input === "object" && !(input as Record<string, unknown>).metric)) {
+      const overview = getMockCohortOverview(cohortId);
+      return {
+        success: true,
+        output: JSON.stringify(overview),
+        modelUsed: "mock-data-service",
+      };
+    }
+
+    // Single-metric query
+    const result = getMockCohortData({ cohortId, metric, timeRange, compareBaseline });
+
+    return {
+      success: true,
+      output: JSON.stringify(result),
+      modelUsed: "mock-data-service",
+    };
+  }
+
+  // ── AI-based methods (kept for future real-data mode) ──────
 
   getSystemPrompt(context: ExecutionContext): string {
     return `You are the Cohort Monitor sub-agent for ${context.brandIdentity.name}.
@@ -92,73 +164,15 @@ Tone: ${context.brandIdentity.voice.tone}
 Style: ${context.brandIdentity.voice.style}
 
 ## Rules
-- Always ground analysis in data (even simulated data for now)
+- Always ground analysis in data
 - Flag declining metrics proactively
-- Recommendations should be specific and actionable
-- Never fabricate exact numbers — use realistic simulated data and label it as such`;
+- Recommendations should be specific and actionable`;
   }
 
   getTools(_context: ExecutionContext): Record<string, Tool> {
-    return {
-      getCohortMetrics: tool({
-        description:
-          "Retrieve engagement, retention, or conversion metrics for a cohort over a time range. " +
-          "Returns simulated data in the current version.",
-        inputSchema: z.object({
-          cohortId: z.string().describe("Cohort identifier"),
-          metric: z.string().describe("Metric name"),
-          timeRange: z.string().describe("Time range"),
-        }),
-        execute: async ({ cohortId, metric, timeRange }) => {
-          // Simulated data — will be replaced with real data source in production
-          const baseValues: Record<string, number> = {
-            engagement: 0.42,
-            retention: 0.68,
-            conversion: 0.034,
-            churn: 0.12,
-            ltv: 127.5,
-          };
-          const base = baseValues[metric] ?? 0.5;
-          const jitter = (Math.random() - 0.5) * base * 0.2;
-
-          return {
-            cohortId: cohortId || "default-cohort",
-            metric,
-            timeRange,
-            value: Number((base + jitter).toFixed(4)),
-            sampleSize: Math.floor(Math.random() * 5000) + 1000,
-            dataSource: "simulated",
-          };
-        },
-      }),
-
-      getBaselineMetrics: tool({
-        description:
-          "Retrieve baseline (overall average) metrics for comparison. " +
-          "Returns simulated data in the current version.",
-        inputSchema: z.object({
-          metric: z.string().describe("Metric name"),
-          timeRange: z.string().describe("Time range"),
-        }),
-        execute: async ({ metric, timeRange }) => {
-          const baseValues: Record<string, number> = {
-            engagement: 0.38,
-            retention: 0.62,
-            conversion: 0.028,
-            churn: 0.15,
-            ltv: 105.0,
-          };
-
-          return {
-            metric,
-            timeRange,
-            value: baseValues[metric] ?? 0.4,
-            sampleSize: 25000,
-            dataSource: "simulated-baseline",
-          };
-        },
-      }),
-    };
+    // Tools are available for the AI-based execution path (future use).
+    // In mock mode, execute() returns data directly without calling tools.
+    return {};
   }
 }
 

@@ -78,7 +78,28 @@ class SubAgentRegistryImpl {
   }
 
   /**
-   * Execute a sub-agent with input validation.
+   * Normalize raw input from the cognition agent before Zod validation.
+   *
+   * The cognition LLM may produce:
+   *   - a plain string  → wrap in { description: string }
+   *   - null/undefined   → empty object (let schema defaults apply)
+   *   - an object        → pass through as-is
+   */
+  private normalizeInput(input: unknown): Record<string, unknown> {
+    if (typeof input === "string") {
+      return { description: input };
+    }
+    if (input === null || input === undefined) {
+      return {};
+    }
+    if (typeof input === "object" && !Array.isArray(input)) {
+      return input as Record<string, unknown>;
+    }
+    return { value: input };
+  }
+
+  /**
+   * Execute a sub-agent with input normalization and validation.
    */
   async execute(
     agentId: string,
@@ -87,15 +108,26 @@ class SubAgentRegistryImpl {
   ): Promise<AgentResult> {
     const agent = this.getOrThrow(agentId);
 
+    // Normalize before validation so string / null inputs don't crash
+    const normalizedInput = this.normalizeInput(input);
+
     // Validate input against the plugin's schema
-    const parseResult = agent.inputSchema.safeParse(input);
+    const parseResult = agent.inputSchema.safeParse(normalizedInput);
     if (!parseResult.success) {
-      throw new SubAgentValidationError(agentId, parseResult.error);
+      logger.warn(`Sub-agent "${agentId}" input validation failed, using raw input`, {
+        agent: agentId,
+        errors: parseResult.error.flatten(),
+      });
+      // Fallback: pass the normalised input directly to the agent.
+      // The agent's own execute() should handle gracefully.
+      const startTime = Date.now();
+      const result = await agent.execute(normalizedInput, context);
+      return { ...result, durationMs: Date.now() - startTime };
     }
 
     logger.info(`Executing sub-agent "${agentId}"`, {
       agent: agentId,
-      inputKeys: Object.keys(input as Record<string, unknown>),
+      inputKeys: Object.keys(normalizedInput),
     });
 
     const startTime = Date.now();
