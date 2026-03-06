@@ -3,7 +3,10 @@ import { agencyAgent } from "../agents/agency-agent.js";
 import { subAgentRegistry } from "./sub-agents/registry.js";
 import { learnedRoutesStore } from "../routing/learned-routes-store.js";
 import { learnRouteTask } from "./learn-route.js";
-import { resolveUnknownSubtaskStrategy } from "./execute-routing.js";
+import {
+  resolveUnknownSubtaskStrategy,
+  deriveCohortInputFromText,
+} from "./execute-routing.js";
 // Register all plugins on import
 import "./sub-agents/plugins/index.js";
 import type {
@@ -77,12 +80,26 @@ export const executeTask = task({
             const learnedRoute = learnedRoutesStore.findByCapability(
               subtask.description
             );
+            const hasCohortMonitor = subAgentRegistry.has("cohort-monitor");
             const strategy = resolveUnknownSubtaskStrategy(
               subtask,
+              hasCohortMonitor,
               Boolean(learnedRoute)
             );
 
-            if (strategy === "use-learned-route" && learnedRoute) {
+            if (strategy === "use-cohort-monitor" && hasCohortMonitor) {
+              logger.info(
+                `Unknown subtask "${subtask.agentId}" appears cohort-oriented, using cohort-monitor`
+              );
+              result = await subAgentRegistry.execute(
+                "cohort-monitor",
+                {
+                  ...deriveCohortInputFromText(subtask.description),
+                  ...(subtask.input ?? {}),
+                },
+                payload.context
+              );
+            } else if (strategy === "use-learned-route" && learnedRoute) {
               // Use existing learned route via api-fetcher
               logger.info(
                 `Found learned route "${learnedRoute.id}" for "${subtask.agentId}"`

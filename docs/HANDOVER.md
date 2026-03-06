@@ -182,6 +182,17 @@ src/
   - Updated demo default API base to `http://localhost:3001` (common backend port in this repo setup)
   - Added auto-detection between `localhost:3001` and `localhost:3000` via `/health`
   - Improved UI error messages to include the exact endpoint used (helps diagnose 405/misrouting quickly)
+- Routing hardening fix for VIP/cohort questions:
+  - Root cause observed: cognition occasionally produced non-JSON output; `think.ts` fallback previously forced `agentId: "general"`.
+  - Side effect: `execute.ts` smart-router could match learned routes (e.g. `route-002`) and skip built-in cohort monitor.
+  - Fixes implemented:
+    - `think.ts`: parse-failure fallback now routes cohort-like requests to `cohort-monitor` with derived defaults.
+    - `execute.ts` + `execute-routing.ts`: unknown cohort-like tasks now prefer `cohort-monitor` before learned-route matching.
+    - Added regression tests in `tests/unit/execute-routing.test.ts`.
+  - Verified with live run:
+    - Prompt: \"How is our VIP cohort performing this quarter?\"
+    - Cognition reasoning: \"Could not parse agent output, falling back to single cohort-monitor task\"
+    - Agency result now uses `agentId: \"cohort-monitor\"` (not `general`).
 
 ### Still pending
 - Optional production hardening:

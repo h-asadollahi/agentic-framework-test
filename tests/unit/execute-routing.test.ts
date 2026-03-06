@@ -2,6 +2,8 @@ import { describe, it, expect } from "vitest";
 import {
   shouldAttemptRouteLearning,
   resolveUnknownSubtaskStrategy,
+  isCohortOrientedSubtask,
+  deriveCohortInputFromText,
 } from "../../src/trigger/execute-routing.js";
 
 describe("execute routing strategy", () => {
@@ -11,6 +13,7 @@ describe("execute routing strategy", () => {
         agentId: "general",
         description: "Get conversion metrics for Q1 campaign",
       },
+      true,
       true
     );
 
@@ -21,8 +24,9 @@ describe("execute routing strategy", () => {
     const strategy = resolveUnknownSubtaskStrategy(
       {
         agentId: "general",
-        description: "Fetch customer retention report from API",
+        description: "Fetch competitor ad spend report from API",
       },
+      false,
       false
     );
 
@@ -30,7 +34,7 @@ describe("execute routing strategy", () => {
     expect(
       shouldAttemptRouteLearning({
         agentId: "general",
-        description: "Fetch customer retention report from API",
+        description: "Fetch competitor ad spend report from API",
       })
     ).toBe(true);
   });
@@ -41,6 +45,7 @@ describe("execute routing strategy", () => {
         agentId: "general",
         description: "Draft a launch announcement email",
       },
+      false,
       false
     );
 
@@ -51,5 +56,37 @@ describe("execute routing strategy", () => {
         description: "Draft a launch announcement email",
       })
     ).toBe(false);
+  });
+
+  it("prefers cohort monitor for cohort-like unknown tasks", () => {
+    const strategy = resolveUnknownSubtaskStrategy(
+      {
+        agentId: "general",
+        description: "How is our VIP cohort performing this quarter?",
+      },
+      true,
+      true
+    );
+
+    expect(strategy).toBe("use-cohort-monitor");
+    expect(
+      isCohortOrientedSubtask({
+        agentId: "general",
+        description: "How is our VIP cohort performing this quarter?",
+      })
+    ).toBe(true);
+  });
+
+  it("derives cohort input from natural language", () => {
+    const input = deriveCohortInputFromText(
+      "How is our VIP cohort retention performing this quarter?"
+    );
+
+    expect(input).toEqual({
+      cohortId: "vip",
+      metric: "retention",
+      timeRange: "90d",
+      compareBaseline: true,
+    });
   });
 });
