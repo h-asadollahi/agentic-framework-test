@@ -191,7 +191,7 @@ src/
 ### Validation status
 - `npm test`: passing
 - `npx tsc --noEmit`: passing
-- Slack scope probe (2026-03-06): reached Slack API, but test failed with `channel_not_found` for configured channel. `conversations.replies` permission is still unverified.
+- Slack scope probe (2026-03-06): `chat.postMessage` and `conversations.replies` both succeeded (channel `C0AJUTFJYKX`). Slack thread-read path is now working.
 
 ### Operational note
 - Keep this file updated after each implementation batch so latest project status survives context resets.
