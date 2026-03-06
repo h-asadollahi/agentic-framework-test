@@ -178,6 +178,10 @@ src/
     - pipeline run status updates while waiting
     - final response rendering
     - visible step-by-step execution trace (phase/action/reasoning/duration)
+- Demo reliability fix:
+  - Updated demo default API base to `http://localhost:3001` (common backend port in this repo setup)
+  - Added auto-detection between `localhost:3001` and `localhost:3000` via `/health`
+  - Improved UI error messages to include the exact endpoint used (helps diagnose 405/misrouting quickly)
 
 ### Still pending
 - Optional production hardening:

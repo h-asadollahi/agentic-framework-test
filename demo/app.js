@@ -7,6 +7,7 @@ const messageTemplate = document.getElementById("messageTemplate");
 
 let sessionId = null;
 let isRunning = false;
+const API_CANDIDATES = ["http://localhost:3001", "http://localhost:3000"];
 
 function nowStamp() {
   return new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
@@ -74,7 +75,7 @@ async function triggerPipeline(userMessage) {
 
   if (!res.ok) {
     const text = await res.text();
-    throw new Error(`Failed to trigger pipeline: ${res.status} ${text}`);
+    throw new Error(`Failed to trigger pipeline via ${base}/message: ${res.status} ${text}`);
   }
 
   return res.json();
@@ -85,9 +86,31 @@ async function getStatus(runId) {
   const res = await fetch(`${base}/status/${runId}`);
   if (!res.ok) {
     const text = await res.text();
-    throw new Error(`Status check failed: ${res.status} ${text}`);
+    throw new Error(`Status check failed via ${base}/status/${runId}: ${res.status} ${text}`);
   }
   return res.json();
+}
+
+async function autoDetectApiBase() {
+  for (const base of API_CANDIDATES) {
+    try {
+      const res = await fetch(`${base}/health`);
+      if (!res.ok) continue;
+      const data = await res.json();
+      if (data.status === "ok") {
+        apiBaseInput.value = base;
+        addMessage("system", `Detected API base: ${base}`);
+        return;
+      }
+    } catch {
+      // try next
+    }
+  }
+
+  addMessage(
+    "system",
+    "Could not auto-detect API server. Ensure backend is running and set API Base manually."
+  );
 }
 
 function isTerminal(status) {
@@ -177,3 +200,5 @@ addMessage(
   "system",
   "Ready. Ask a marketing question.\nTip: use Ctrl+Enter (Cmd+Enter on Mac) to send."
 );
+
+autoDetectApiBase();

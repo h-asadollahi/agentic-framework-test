@@ -24,7 +24,11 @@ http://localhost:4173
 
 ## Notes
 
-- Default API base in the UI is `http://localhost:3000`.
+- Default API base in the UI is `http://localhost:3001`.
+- On load, the UI auto-detects the API by probing:
+  - `http://localhost:3001/health`
+  - `http://localhost:3000/health`
+- If detection fails, set `API Base` manually in the top-right input.
 - The app shows:
   - status transitions for each run
   - final formatted response
