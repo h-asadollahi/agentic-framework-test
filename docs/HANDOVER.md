@@ -143,6 +143,8 @@ src/
 ## Post-Handover Progress (2026-03-06, Codex)
 
 ### Completed (non-blocked)
+- Updated git ignore rules for Trigger local artifacts:
+  - Added explicit `.trigger` entry in `.gitignore` (alongside existing `.trigger/`).
 - Untracked local Claude settings file from git index:
   - `.claude/settings.local.json` removed from version control via `git rm --cached`
   - File remains local and is now ignored by `.gitignore`
