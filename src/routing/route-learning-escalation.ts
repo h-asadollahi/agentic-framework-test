@@ -49,6 +49,16 @@ function getDefaultChannel(): string {
   );
 }
 
+function getChannelCandidates(): string[] {
+  const candidates = [
+    process.env.MARKETER_SLACK_CHANNEL,
+    process.env.SLACK_DEFAULT_CHANNEL,
+    "#marketing-alerts",
+  ].filter((value): value is string => Boolean(value && value.trim()));
+
+  return [...new Set(candidates)];
+}
+
 // ── Send route learning message ─────────────────────────────
 
 /**
@@ -59,7 +69,8 @@ export async function sendRouteLearningMessage(
   timeoutMinutes: number
 ): Promise<SlackMessageRef> {
   const client = getSlackClient();
-  const channel = getDefaultChannel();
+  const fallbackChannel = getDefaultChannel();
+  const channels = getChannelCandidates();
 
   const blocks = [
     {
@@ -113,25 +124,48 @@ export async function sendRouteLearningMessage(
     },
   ];
 
-  const result = await client.chat.postMessage({
-    channel,
-    text: `Unknown data request: ${request.subtaskDescription}`,
-    blocks,
-  });
+  let lastError: unknown = null;
 
-  if (!result.ok || !result.ts) {
-    throw new Error(`Failed to send route learning message: ${result.error ?? "unknown"}`);
+  for (const channel of channels) {
+    try {
+      const result = await client.chat.postMessage({
+        channel,
+        text: `Unknown data request: ${request.subtaskDescription}`,
+        blocks,
+      });
+
+      if (!result.ok || !result.ts) {
+        throw new Error(`Failed to send route learning message: ${result.error ?? "unknown"}`);
+      }
+
+      const resolvedChannel = result.channel ?? channel;
+
+      logger.info("Route learning message sent to Slack", {
+        channel: resolvedChannel,
+        ts: result.ts,
+        description: request.subtaskDescription.slice(0, 80),
+      });
+
+      return { channel: resolvedChannel, ts: result.ts };
+    } catch (error) {
+      lastError = error;
+      const message = error instanceof Error ? error.message : String(error);
+
+      if (message.includes("channel_not_found")) {
+        logger.warn("Route learning channel not found, trying next configured channel", {
+          attemptedChannel: channel,
+          description: request.subtaskDescription.slice(0, 80),
+        });
+        continue;
+      }
+
+      throw error;
+    }
   }
 
-  const resolvedChannel = result.channel ?? channel;
-
-  logger.info("Route learning message sent to Slack", {
-    channel: resolvedChannel,
-    ts: result.ts,
-    description: request.subtaskDescription.slice(0, 80),
-  });
-
-  return { channel: resolvedChannel, ts: result.ts };
+  throw lastError instanceof Error
+    ? lastError
+    : new Error(`Failed to send route learning message to all channel candidates (fallback: ${fallbackChannel})`);
 }
 
 // ── Parse route info from reply ─────────────────────────────

@@ -62,14 +62,12 @@ src/
 - Slack (`@slack/web-api`), Email (SendGrid), Webhook (HMAC-signed)
 - Channel adapter pattern with registry
 
-### 4. Slack Integration (Partially Working)
-- Bot token configured, `chat:write` scope works
-- Messages send successfully to `#brand-cp-test` channel
-- **BLOCKED:** `channels:history` scope NOT yet approved by Slack admin
-  - Needed for `conversations.replies()` — reading thread replies
-  - Both human-in-the-loop and smart fallback router depend on this
+### 4. Slack Integration (Working)
+- Bot token configured, `chat:write` works
+- `conversations.replies()` is now confirmed working
+- Slack thread-read path is operational for escalation and route-learning polling
 
-### 5. Human-in-the-Loop Escalation (Code Complete, Untested)
+### 5. Human-in-the-Loop Escalation (Code Complete, Runtime Verified)
 **Files:**
 - `src/escalation/slack-escalation.ts` — Send Block Kit message, poll thread replies, parse approve/reject
 - `src/trigger/escalate.ts` — Trigger.dev task wrapping the escalation flow
@@ -81,9 +79,9 @@ src/
 4. Post confirmation in thread
 5. Return `EscalationResult` to caller
 
-**Status:** Code is complete but CANNOT be tested until `channels:history` scope is approved.
+**Status:** Runtime verified for send + thread polling + timeout path.
 
-### 6. Smart Fallback Router (Code Complete, Untested)
+### 6. Smart Fallback Router (Code Complete, Partially Runtime Verified)
 **Files:**
 - `src/routing/learned-routes-schema.ts` — Zod schemas
 - `src/routing/learned-routes-store.ts` — Singleton store (load/save/find/add from `knowledge/learned-routes.json`)
@@ -101,37 +99,24 @@ src/
    - If Slack times out → fall back to generic LLM response
 2. Future requests: Cognition agent sees learned routes in its system prompt → assigns `api-fetcher` directly
 
-**Status:** Code is complete but CANNOT be tested until `channels:history` scope is approved.
+**Status:** Runtime verified for route-learning task trigger and fallback/timeout behavior; full "learned route via human reply" path still pending interactive validation.
 
 ---
 
 ## What Needs to Be Done Next
 
-### BLOCKED — Waiting on Slack Admin
-- **Add `channels:history` Bot Token Scope** to the Slack app at api.slack.com/apps
-- **Add `users:read` Bot Token Scope** (optional, for resolving user display names)
-- **Reinstall the app** to the workspace after adding scopes
-- Once approved, run the scope test:
-  ```bash
-  npx tsx -e "
-  import 'dotenv/config';
-  import { WebClient } from '@slack/web-api';
-  const client = new WebClient(process.env.SLACK_BOT_TOKEN);
-  const channel = process.env.SLACK_DEFAULT_CHANNEL || '#brand-cp-test';
-  async function test() {
-    const msg = await client.chat.postMessage({ channel, text: 'scope test' });
-    const replies = await client.conversations.replies({ channel, ts: msg.ts, limit: 5 });
-    console.log('conversations.replies OK:', replies.messages?.length);
-  }
-  test().catch(e => console.log('FAIL:', e.message));
-  "
-  ```
+### Slack Scope Blocker (Resolved)
+- `channels:history` + thread polling path has been validated in runtime (`chat.postMessage` + `conversations.replies` both working).
+- No remaining blocker on Slack permissions.
 
-### Testing (Once Slack Scopes Are Approved)
+### Testing (Current)
 
-#### Test Human-in-the-Loop Escalation
-1. The `escalateTask` is defined but never called from the pipeline yet
-2. You could trigger it directly for testing:
+#### Human-in-the-Loop Escalation
+1. `escalateTask` is wired into orchestrator failure paths.
+2. Verified task runtime with short timeout:
+   - Run: `run_v1ubh945p3xf1z51csj2n`
+   - Output: timed out cleanly with `slackThreadTs` returned.
+3. Optional interactive test:
    ```typescript
    await escalateTask.trigger({
      escalation: {
@@ -146,21 +131,18 @@ src/
      timeoutMinutes: 5,
    });
    ```
-3. Reply "approve" or "reject" in the Slack thread
-4. Verify the task picks up the reply and returns the decision
-
-#### Test Smart Fallback Router
-1. Start Trigger.dev: `npx trigger dev`
-2. Start API server: `npx tsx src/index.ts`
-3. Send a request that will fall back to "general":
-   ```bash
-   curl -X POST http://localhost:3001/message \
-     -H "Content-Type: application/json" \
-     -d '{"userMessage":"What are the biggest drivers of Customer Lifetime Value for us?"}'
    ```
-4. Watch the Slack channel — a route learning message should appear
-5. Reply with a URL: `URL: https://api.example.com/v1/clv`
-6. Verify `knowledge/learned-routes.json` was updated with the new route
+4. Reply `approve` or `reject` in the Slack thread to validate non-timeout decision path.
+
+#### Smart Fallback Router
+1. Verified `learn-route` runtime with short-timeout test:
+   - Run: `run_mkfq2u68m9hbuwng2wykj`
+   - Output: `{ learned: false, fallbackUsed: true }` (expected timeout/fallback path).
+2. Verified direct Slack send helpers after channel fallback patch:
+   - Escalation helper send: success to channel `C0AJUTFJYKX`
+   - Route-learning helper send: success to channel `C0AJUTFJYKX`
+3. Remaining interactive validation:
+   - Reply in route-learning thread with `URL: ...` and verify route persists to `knowledge/learned-routes.json`.
 
 ### Potential Improvements
 - **Integrate escalation into pipeline**: Add try/catch in `orchestrate.ts` to trigger `escalateTask` when a stage fails
@@ -184,9 +166,19 @@ src/
   - `tests/unit/execute-routing.test.ts`
   - `tests/unit/route-learning-parser.test.ts`
   - `tests/unit/learned-routes-store.test.ts` (restores `knowledge/learned-routes.json` after test run)
+- Added Slack channel fallback behavior in both senders:
+  - `src/escalation/slack-escalation.ts`
+  - `src/routing/route-learning-escalation.ts`
+  - If first configured channel is invalid (`channel_not_found`), sender now tries the next configured channel.
+- Verified blocked runtime paths:
+  - Scope probe success (`chat.postMessage` + `conversations.replies`)
+  - `escalate-to-human` timeout path verified end-to-end
+  - `learn-route` fallback path verified end-to-end
 
-### Still blocked
-- End-to-end testing for Slack thread polling (`conversations.replies`) remains blocked until Slack app has `channels:history` scope approved and app reinstalled.
+### Still pending
+- Interactive human-reply path verification:
+  - Escalation task non-timeout approval/rejection path
+  - Route-learning task successful URL parse/save path
 
 ### Validation status
 - `npm test`: passing

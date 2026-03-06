@@ -22,6 +22,16 @@ function getDefaultChannel(): string {
   return process.env.MARKETER_SLACK_CHANNEL ?? process.env.SLACK_DEFAULT_CHANNEL ?? "#marketing-alerts";
 }
 
+function getChannelCandidates(): string[] {
+  const candidates = [
+    process.env.MARKETER_SLACK_CHANNEL,
+    process.env.SLACK_DEFAULT_CHANNEL,
+    "#marketing-alerts",
+  ].filter((value): value is string => Boolean(value && value.trim()));
+
+  return [...new Set(candidates)];
+}
+
 // ── Send escalation message ─────────────────────────────────
 
 interface SlackMessageRef {
@@ -38,7 +48,8 @@ export async function sendEscalationMessage(
   timeoutMinutes: number
 ): Promise<SlackMessageRef> {
   const client = getSlackClient();
-  const channel = getDefaultChannel();
+  const fallbackChannel = getDefaultChannel();
+  const channels = getChannelCandidates();
 
   const severityEmoji: Record<string, string> = {
     critical: ":rotating_light:",
@@ -105,25 +116,48 @@ export async function sendEscalationMessage(
     },
   ];
 
-  const result = await client.chat.postMessage({
-    channel,
-    text: `Action Required: ${escalation.taskDescription}`, // fallback for notifications
-    blocks,
-  });
+  let lastError: unknown = null;
 
-  if (!result.ok || !result.ts) {
-    throw new Error(`Failed to send escalation message: ${result.error ?? "unknown error"}`);
+  for (const channel of channels) {
+    try {
+      const result = await client.chat.postMessage({
+        channel,
+        text: `Action Required: ${escalation.taskDescription}`, // fallback for notifications
+        blocks,
+      });
+
+      if (!result.ok || !result.ts) {
+        throw new Error(`Failed to send escalation message: ${result.error ?? "unknown error"}`);
+      }
+
+      const resolvedChannel = result.channel ?? channel;
+
+      logger.info("Escalation message sent to Slack", {
+        channel: resolvedChannel,
+        ts: result.ts,
+        runId: escalation.runId,
+      });
+
+      return { channel: resolvedChannel, ts: result.ts };
+    } catch (error) {
+      lastError = error;
+      const message = error instanceof Error ? error.message : String(error);
+
+      if (message.includes("channel_not_found")) {
+        logger.warn("Escalation channel not found, trying next configured channel", {
+          attemptedChannel: channel,
+          runId: escalation.runId,
+        });
+        continue;
+      }
+
+      throw error;
+    }
   }
 
-  const resolvedChannel = result.channel ?? channel;
-
-  logger.info("Escalation message sent to Slack", {
-    channel: resolvedChannel,
-    ts: result.ts,
-    runId: escalation.runId,
-  });
-
-  return { channel: resolvedChannel, ts: result.ts };
+  throw lastError instanceof Error
+    ? lastError
+    : new Error(`Failed to send escalation message to all channel candidates (fallback: ${fallbackChannel})`);
 }
 
 // ── Poll for thread replies ─────────────────────────────────
