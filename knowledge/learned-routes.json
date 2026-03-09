@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "lastUpdated": "2026-03-09T09:22:20.797Z",
+  "lastUpdated": "2026-03-09T14:31:33.928Z",
   "routes": [
     {
       "id": "route-001",
@@ -229,8 +229,8 @@
       "outputFormat": "json",
       "addedAt": "2026-03-09T10:25:00.000Z",
       "addedBy": "codex",
-      "usageCount": 12,
-      "lastUsedAt": "2026-03-09T09:22:20.797Z"
+      "usageCount": 14,
+      "lastUsedAt": "2026-03-09T14:31:33.928Z"
     },
     {
       "id": "route-008",
