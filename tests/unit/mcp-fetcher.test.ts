@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   buildMcpToolArgs,
   resolveMcpTemplateValue,
+  shapeMcpOutputData,
 } from "../../src/trigger/sub-agents/plugins/mcp-fetcher.js";
 
 describe("mcp-fetcher mapping helpers", () => {
@@ -43,5 +44,37 @@ describe("mcp-fetcher mapping helpers", () => {
       metric: "sessions",
       channel: "email",
     });
+  });
+
+  it("compacts list_dimensions_and_metrics output to names only", () => {
+    const shaped = shapeMcpOutputData("list_dimensions_and_metrics", {
+      content: [
+        {
+          type: "text",
+          text: JSON.stringify({
+            dimensions: [{ name: "time_days" }, { name: "browser_name" }],
+            metrics: [{ name: "qty_visits" }, { name: "pages_pageImpressions" }],
+          }),
+        },
+      ],
+    }) as Record<string, unknown>;
+
+    expect(shaped.compacted).toBe(true);
+    expect(shaped.dimensionsCount).toBe(2);
+    expect(shaped.metricsCount).toBe(2);
+    expect(shaped.dimensions).toEqual(["time_days", "browser_name"]);
+    expect(shaped.metrics).toEqual(["qty_visits", "pages_pageImpressions"]);
+  });
+
+  it("truncates very large generic outputs", () => {
+    const large = { data: "x".repeat(100_000) };
+    const shaped = shapeMcpOutputData("run_analysis", large) as Record<
+      string,
+      unknown
+    >;
+
+    expect(shaped.compacted).toBe(true);
+    expect(shaped.note).toBeTruthy();
+    expect(typeof shaped.preview).toBe("string");
   });
 });

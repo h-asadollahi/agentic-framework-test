@@ -39,6 +39,108 @@ const McpFetcherOutput = z.object({
   executedAt: z.string(),
 });
 
+const MAX_OUTPUT_CHARS = 80_000;
+
+function asRecord(value: unknown): JsonRecord | null {
+  if (value && typeof value === "object" && !Array.isArray(value)) {
+    return value as JsonRecord;
+  }
+  return null;
+}
+
+function asStringArray(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter((item): item is string => typeof item === "string");
+}
+
+function extractDimensionMetricNames(data: unknown): {
+  dimensions: string[];
+  metrics: string[];
+} | null {
+  const direct = asRecord(data);
+  if (direct) {
+    const dimensions = asStringArray(
+      Array.isArray(direct.dimensions)
+        ? (direct.dimensions as unknown[]).map((d) =>
+            asRecord(d)?.name ?? null
+          )
+        : []
+    );
+    const metrics = asStringArray(
+      Array.isArray(direct.metrics)
+        ? (direct.metrics as unknown[]).map((m) => asRecord(m)?.name ?? null)
+        : []
+    );
+
+    if (dimensions.length > 0 || metrics.length > 0) {
+      return { dimensions, metrics };
+    }
+
+    const content = direct.content;
+    if (Array.isArray(content)) {
+      const first = asRecord(content[0]);
+      const text = typeof first?.text === "string" ? first.text : "";
+      if (text) {
+        try {
+          const parsed = JSON.parse(text);
+          const parsedRecord = asRecord(parsed);
+          if (!parsedRecord) return null;
+          const parsedDimensions = asStringArray(
+            Array.isArray(parsedRecord.dimensions)
+              ? (parsedRecord.dimensions as unknown[]).map((d) =>
+                  asRecord(d)?.name ?? null
+                )
+              : []
+          );
+          const parsedMetrics = asStringArray(
+            Array.isArray(parsedRecord.metrics)
+              ? (parsedRecord.metrics as unknown[]).map((m) =>
+                  asRecord(m)?.name ?? null
+                )
+              : []
+          );
+          if (parsedDimensions.length > 0 || parsedMetrics.length > 0) {
+            return { dimensions: parsedDimensions, metrics: parsedMetrics };
+          }
+        } catch {
+          return null;
+        }
+      }
+    }
+  }
+
+  return null;
+}
+
+export function shapeMcpOutputData(toolName: string, data: unknown): unknown {
+  if (toolName === "list_dimensions_and_metrics") {
+    const names = extractDimensionMetricNames(data);
+    if (names) {
+      return {
+        compacted: true,
+        compactedFor: toolName,
+        dimensionsCount: names.dimensions.length,
+        metricsCount: names.metrics.length,
+        dimensions: names.dimensions,
+        metrics: names.metrics,
+      };
+    }
+  }
+
+  const serialized = JSON.stringify(data);
+  if (serialized.length <= MAX_OUTPUT_CHARS) {
+    return data;
+  }
+
+  return {
+    compacted: true,
+    originalSizeChars: serialized.length,
+    preview: serialized.slice(0, 12_000),
+    note:
+      "MCP output was truncated to keep pipeline payload below task storage limits.",
+  };
+}
+
 export function resolveMcpTemplateValue(
   value: unknown,
   params: JsonRecord
@@ -148,7 +250,8 @@ export class McpFetcherAgent extends BaseSubAgent {
         argKeys: Object.keys(toolArgs),
       });
 
-      const data = await tool.execute(toolArgs);
+      const rawData = await tool.execute(toolArgs);
+      const data = shapeMcpOutputData(toolName, rawData);
 
       if (routeId) {
         learnedRoutesStore.incrementUsage(routeId);

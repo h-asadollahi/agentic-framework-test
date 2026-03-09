@@ -143,6 +143,11 @@ src/
 ## Post-Handover Progress (2026-03-06, Codex)
 
 ### Completed (non-blocked)
+- Fixed large MCP payload failures in `pipeline-execute` (Trigger.dev `Failed to generate presigned URL`):
+  - `src/trigger/sub-agents/plugins/mcp-fetcher.ts` now compacts oversized tool output before returning.
+  - For `list_dimensions_and_metrics`, output is normalized to names-only arrays plus counts.
+  - Generic oversized outputs are truncated with metadata (`originalSizeChars`, `preview`, `note`).
+  - Added test coverage in `tests/unit/mcp-fetcher.test.ts`.
 - Fixed missing Slack alerts when pipeline output requires human review:
   - Added `src/trigger/deliver-notifications.ts` fallback logic.
   - `pipeline-deliver` now ensures `needsHumanReview: true` produces at least one Slack notification.
