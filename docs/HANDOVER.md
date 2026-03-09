@@ -143,6 +143,13 @@ src/
 ## Post-Handover Progress (2026-03-06, Codex)
 
 ### Completed (non-blocked)
+- Fixed missing Slack alerts when pipeline output requires human review:
+  - Added `src/trigger/deliver-notifications.ts` fallback logic.
+  - `pipeline-deliver` now ensures `needsHumanReview: true` produces at least one Slack notification.
+  - Recipient resolution uses:
+    - `MARKETER_SLACK_CHANNEL` (preferred)
+    - `SLACK_DEFAULT_CHANNEL` (fallback)
+  - Added tests in `tests/unit/deliver-notifications.test.ts`.
 - Fixed MCP config failure for learned routes targeting `serverName: "mapp-michel"`:
   - `src/tools/mcp-client.ts` now supports both stdio and HTTP MCP transports.
   - Added automatic env-based registration for `mapp-michel` using:

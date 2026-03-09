@@ -5,6 +5,7 @@ import type {
   DeliveryResult,
   ExecutionContext,
 } from "../core/types.js";
+import { ensureHumanReviewSlackNotification } from "./deliver-notifications.js";
 
 /**
  * Deliver Task (Interface)
@@ -43,6 +44,11 @@ export const deliverTask = task({
         notifications: [],
       };
     }
+
+    deliveryResult.notifications = ensureHumanReviewSlackNotification(
+      payload.agencyResult,
+      deliveryResult.notifications ?? []
+    );
 
     return deliveryResult;
   },
