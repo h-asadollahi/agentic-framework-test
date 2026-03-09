@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "lastUpdated": "2026-03-06T17:05:00.000Z",
+  "lastUpdated": "2026-03-09T10:25:00.000Z",
   "routes": [
     {
       "id": "route-001",
@@ -207,41 +207,27 @@
     },
     {
       "id": "route-007",
-      "capability": "list available-available dimensions-dimensions metrics",
+      "capability": "mapp-mcp-list-dimensions-metrics",
       "description": "List all available dimensions and metrics in Mapp Intelligence",
       "matchPatterns": [
-        "list available",
-        "available dimensions",
-        "dimensions metrics",
-        "metrics mapp",
-        "mapp intelligence",
-        "list",
-        "available",
-        "dimensions",
-        "metrics",
-        "mapp",
-        "intelligence"
+        "list all available dimensions and metrics",
+        "available dimensions and metrics",
+        "dimensions and metrics",
+        "metrics in mapp intelligence"
       ],
-      "routeType": "api",
-      "endpoint": {
-        "url": "{{MAPP_ANALYTICS_API_URL}}/query-objects",
-        "method": "GET",
-        "headers": {
-          "X-Client-Id": "{{MAPP_ANALYTICS_API_CLIENT_ID}}",
-          "X-Client-Secret": "{{MAPP_ANALYTICS_API_CLIENT_SECRET}}",
-          "Accept": "application/json"
-        },
-        "queryParams": {
-          "from": "{{input.from}}",
-          "to": "{{input.to}}",
-          "granularity": "{{input.granularity}}",
-          "metric": "{{input.metric}}"
+      "routeType": "sub-agent",
+      "agentId": "mcp-fetcher",
+      "agentInputDefaults": {
+        "serverName": "mapp-michel",
+        "toolName": "list_dimensions_and_metrics",
+        "routeId": "route-007",
+        "args": {
+          "language": "en"
         }
       },
-      "agentInputDefaults": {},
       "inputMapping": {},
       "outputFormat": "json",
-      "addedAt": "2026-03-06T16:05:00.000Z",
+      "addedAt": "2026-03-09T10:25:00.000Z",
       "addedBy": "codex",
       "usageCount": 1,
       "lastUsedAt": "2026-03-06T15:15:18.698Z"
@@ -301,6 +287,118 @@
       "inputMapping": {},
       "outputFormat": "json",
       "addedAt": "2026-03-06T17:05:00.000Z",
+      "addedBy": "codex",
+      "usageCount": 0,
+      "lastUsedAt": null
+    },
+    {
+      "id": "route-010",
+      "capability": "mapp-mcp-page-impressions-last-7-days",
+      "description": "Show me my page impressions for the last 7 days",
+      "matchPatterns": [
+        "page impressions for the last 7 days",
+        "show page impressions",
+        "last 7 days page impressions",
+        "pages pageimpressions"
+      ],
+      "routeType": "sub-agent",
+      "agentId": "mcp-fetcher",
+      "agentInputDefaults": {
+        "serverName": "mapp-michel",
+        "toolName": "run_analysis",
+        "routeId": "route-010",
+        "args": {
+          "queryObject": {
+            "columns": [
+              {
+                "name": "session_id",
+                "scope": "OBJECT",
+                "context": "SESSION",
+                "variant": "NORMAL",
+                "lowerLimit": 1,
+                "upperLimit": 50
+              },
+              {
+                "name": "pages_pageImpressions",
+                "columnPeriod": "ANALYSIS",
+                "scope": "OBJECT",
+                "context": "PAGE",
+                "variant": "NORMAL"
+              }
+            ],
+            "variant": "LIST",
+            "predefinedContainer": {
+              "filters": [
+                {
+                  "name": "time_dynamic",
+                  "filterPredicate": "LIKE",
+                  "connector": "AND",
+                  "caseSensitive": false,
+                  "context": "NONE",
+                  "intern": false,
+                  "value1": "last_7_days",
+                  "value2": ""
+                }
+              ],
+              "containers": []
+            }
+          },
+          "resultType": "DATA_ONLY"
+        }
+      },
+      "inputMapping": {},
+      "outputFormat": "json",
+      "addedAt": "2026-03-09T10:25:00.000Z",
+      "addedBy": "codex",
+      "usageCount": 0,
+      "lastUsedAt": null
+    },
+    {
+      "id": "route-011",
+      "capability": "mapp-mcp-list-segments",
+      "description": "What segments are defined in my Mapp Intelligence account?",
+      "matchPatterns": [
+        "what segments are defined",
+        "list segments",
+        "defined segments",
+        "segments in my mapp intelligence account"
+      ],
+      "routeType": "sub-agent",
+      "agentId": "mcp-fetcher",
+      "agentInputDefaults": {
+        "serverName": "mapp-michel",
+        "toolName": "list_segments",
+        "routeId": "route-011",
+        "args": {}
+      },
+      "inputMapping": {},
+      "outputFormat": "json",
+      "addedAt": "2026-03-09T10:25:00.000Z",
+      "addedBy": "codex",
+      "usageCount": 0,
+      "lastUsedAt": null
+    },
+    {
+      "id": "route-012",
+      "capability": "mapp-mcp-analysis-usage-monthly",
+      "description": "How many API calculations have I used this month?",
+      "matchPatterns": [
+        "how many api calculations",
+        "api calculations used this month",
+        "monthly api usage",
+        "analysis usage quota"
+      ],
+      "routeType": "sub-agent",
+      "agentId": "mcp-fetcher",
+      "agentInputDefaults": {
+        "serverName": "mapp-michel",
+        "toolName": "get_analysis_usage",
+        "routeId": "route-012",
+        "args": {}
+      },
+      "inputMapping": {},
+      "outputFormat": "json",
+      "addedAt": "2026-03-09T10:25:00.000Z",
       "addedBy": "codex",
       "usageCount": 0,
       "lastUsedAt": null

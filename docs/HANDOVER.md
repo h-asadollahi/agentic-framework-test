@@ -143,6 +143,20 @@ src/
 ## Post-Handover Progress (2026-03-06, Codex)
 
 ### Completed (non-blocked)
+- Added MCP-learned-route coverage for key Mapp Intelligence questions in `knowledge/learned-routes.json`:
+  - Converted route for dimensions/metrics listing to MCP (`list_dimensions_and_metrics`)
+  - Added page impressions (last 7 days) route via MCP `run_analysis`
+  - Added segments listing route via MCP `list_segments`
+  - Added monthly API calculations usage route via MCP `get_analysis_usage`
+  - All above use `routeType: "sub-agent"`, `agentId: "mcp-fetcher"`, and `serverName: "mapp-michel"`
+- Verified remote MAPP MCP server connectivity using env credentials:
+  - Endpoint: `MAPP_MCP_SERVER_MICHEL_URL` + `/api/mcp`
+  - Auth: `Bearer` token from `MAPP_MCP_SERVER_MICHEL_TOKEN`
+  - Requirement discovered: requests must include `Accept: application/json, text/event-stream`
+  - Results:
+    - `initialize` returned HTTP 200 with server info
+    - `tools/list` returned HTTP 200 with available tools
+    - `tools/call` for `list_dimensions_and_metrics` returned HTTP 200 with metrics/dimensions payload
 - Updated git ignore rules for Trigger local artifacts:
   - Added explicit `.trigger` entry in `.gitignore` (alongside existing `.trigger/`).
 - Untracked local Claude settings file from git index:
