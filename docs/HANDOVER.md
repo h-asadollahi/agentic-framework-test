@@ -143,6 +143,10 @@ src/
 ## Post-Handover Progress (2026-03-06, Codex)
 
 ### Completed (non-blocked)
+- Beautified assistant final response rendering for markdown-style outputs in demo:
+  - `demo/app.js` now renders final `formattedResponse` as markdown-like DOM (headings, bullets, bold, inline code, paragraphs).
+  - `demo/styles.css` now styles markdown blocks for readable chat presentation.
+  - JSON extraction behavior remains in place before markdown rendering.
 - Upgraded demo trace rendering for JSON-heavy stage outputs:
   - `demo/app.js` now detects JSON (including fenced ```json blocks) in trace action/reasoning fields.
   - JSON values are rendered as collapsible object/array trees with nested expand/collapse.

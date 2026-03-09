@@ -74,6 +74,92 @@ function getReadableAssistantText(output) {
   return raw;
 }
 
+function renderInlineMarkdown(text) {
+  const fragment = document.createDocumentFragment();
+  const tokenRe = /(\*\*[^*]+\*\*|`[^`]+`)/g;
+  let last = 0;
+  let match;
+
+  while ((match = tokenRe.exec(text)) !== null) {
+    if (match.index > last) {
+      fragment.appendChild(document.createTextNode(text.slice(last, match.index)));
+    }
+
+    const token = match[0];
+    if (token.startsWith("**") && token.endsWith("**")) {
+      const strong = document.createElement("strong");
+      strong.textContent = token.slice(2, -2);
+      fragment.appendChild(strong);
+    } else if (token.startsWith("`") && token.endsWith("`")) {
+      const code = document.createElement("code");
+      code.textContent = token.slice(1, -1);
+      fragment.appendChild(code);
+    } else {
+      fragment.appendChild(document.createTextNode(token));
+    }
+
+    last = tokenRe.lastIndex;
+  }
+
+  if (last < text.length) {
+    fragment.appendChild(document.createTextNode(text.slice(last)));
+  }
+
+  return fragment;
+}
+
+function renderAssistantMarkdown(text) {
+  const root = document.createElement("div");
+  root.className = "md-content";
+
+  const normalized = String(text || "").replace(/\r\n/g, "\n");
+  const lines = normalized.split("\n");
+  let i = 0;
+
+  while (i < lines.length) {
+    const line = lines[i];
+    const trimmed = line.trim();
+
+    if (!trimmed) {
+      i++;
+      continue;
+    }
+
+    if (/^#{1,3}\s+/.test(trimmed)) {
+      const level = Math.min(3, (trimmed.match(/^#+/)?.[0]?.length ?? 1));
+      const heading = document.createElement(`h${level + 1}`);
+      heading.appendChild(renderInlineMarkdown(trimmed.replace(/^#{1,3}\s+/, "")));
+      root.appendChild(heading);
+      i++;
+      continue;
+    }
+
+    if (/^-\s+/.test(trimmed)) {
+      const ul = document.createElement("ul");
+      while (i < lines.length && /^-\s+/.test(lines[i].trim())) {
+        const li = document.createElement("li");
+        li.appendChild(renderInlineMarkdown(lines[i].trim().replace(/^-+\s+/, "")));
+        ul.appendChild(li);
+        i++;
+      }
+      root.appendChild(ul);
+      continue;
+    }
+
+    const paragraphParts = [];
+    while (i < lines.length && lines[i].trim() && !/^-\s+/.test(lines[i].trim()) && !/^#{1,3}\s+/.test(lines[i].trim())) {
+      paragraphParts.push(lines[i].trim());
+      i++;
+    }
+
+    const paragraph = document.createElement("p");
+    paragraph.appendChild(renderInlineMarkdown(paragraphParts.join(" ")));
+    root.appendChild(paragraph);
+  }
+
+  return root;
+}
+
 function renderJsonPrimitive(value) {
   const span = document.createElement("span");
   if (typeof value === "string") {
@@ -333,7 +419,7 @@ async function onSend() {
 
     const wrap = document.createElement("div");
     const finalText = document.createElement("div");
-    finalText.textContent = responseText;
+    finalText.appendChild(renderAssistantMarkdown(responseText));
     wrap.appendChild(finalText);
 
     wrap.appendChild(buildTraceBlock(output.trace || []));

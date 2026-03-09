@@ -145,6 +145,55 @@ h1 {
   line-height: 1.45;
 }
 
+.md-content {
+  white-space: normal;
+}
+
+.md-content h2,
+.md-content h3,
+.md-content h4 {
+  margin: 0.65rem 0 0.35rem;
+  line-height: 1.25;
+}
+
+.md-content h2 {
+  font-size: 1.07rem;
+}
+
+.md-content h3 {
+  font-size: 1rem;
+}
+
+.md-content h4 {
+  font-size: 0.95rem;
+}
+
+.md-content p {
+  margin: 0 0 0.65rem;
+}
+
+.md-content ul {
+  margin: 0 0 0.75rem 1.15rem;
+  padding: 0;
+}
+
+.md-content li {
+  margin: 0.2rem 0;
+}
+
+.md-content strong {
+  font-weight: 700;
+}
+
+.md-content code {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.9em;
+  background: #f1f6f3;
+  border: 1px solid #dce9df;
+  border-radius: 5px;
+  padding: 1px 5px;
+}
+
 .step-block {
   margin-top: 10px;
   border-top: 1px dashed var(--line);
