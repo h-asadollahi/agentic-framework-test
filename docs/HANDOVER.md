@@ -1,6 +1,6 @@
 # Development Handover — Continue from Here
 
-> **Last updated:** 2026-03-06
+> **Last updated:** 2026-03-09
 > **Previous AI:** Claude Opus 4.6 via Claude Code
 > **Next AI:** OpenAI Codex (or any agent picking this up)
 
@@ -258,6 +258,36 @@ src/
   - If first configured channel is invalid (`channel_not_found`), sender now tries the next configured channel.
 - Verified blocked runtime paths:
   - Scope probe success (`chat.postMessage` + `conversations.replies`)
+
+## Post-Handover Progress (2026-03-09, Codex)
+
+### Completed
+- Fixed model-output JSON parsing fragility across pipeline stages:
+  - Added `src/trigger/agent-output-parser.ts` with tolerant parsing for:
+    - plain JSON output
+    - markdown fenced JSON blocks (for example, ```json ... ```)
+    - JSON embedded after explanatory text
+- Refactored stage parsing to use the shared parser:
+  - `src/trigger/think.ts`
+  - `src/trigger/execute.ts`
+  - `src/trigger/deliver.ts`
+- Result of the fix:
+  - Cognition no longer falls back to default general subtask only because output is fenced JSON.
+  - Agency preserves structured fields (`issues`, `needsHumanReview`) when summary is fenced JSON.
+  - Interface preserves structured delivery payload (`formattedResponse`, `notifications`) when output is fenced JSON.
+  - Monitoring/HITL fallback notifications can now trigger correctly from preserved agency fields.
+
+### Tests
+- Added unit test suite for parser behavior:
+  - `tests/unit/agent-output-parser.test.ts`
+  - Covers plain JSON, fenced JSON, embedded JSON, and non-JSON fallback.
+- Verification run:
+  - `npm test`
+  - Result: `12` test files passed, `67` tests passed.
+
+### Planning Artifact
+- Added implementation plan file:
+  - `docs/ai-coding-plans/codex-plan-28.md`
   - `escalate-to-human` timeout path verified end-to-end
   - `learn-route` fallback path verified end-to-end
 - Verified interactive runtime paths:

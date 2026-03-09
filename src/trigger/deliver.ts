@@ -9,6 +9,7 @@ import {
   ensureHumanReviewSlackNotification,
   ensureMonitoringSlackNotification,
 } from "./deliver-notifications.js";
+import { parseAgentJson } from "./agent-output-parser.js";
 
 /**
  * Deliver Task (Interface)
@@ -38,9 +39,10 @@ export const deliverTask = task({
     });
 
     let deliveryResult: DeliveryResult;
-    try {
-      deliveryResult = JSON.parse(result.output as string);
-    } catch {
+    const parsedDelivery = parseAgentJson<DeliveryResult>(result.output);
+    if (parsedDelivery) {
+      deliveryResult = parsedDelivery;
+    } else {
       logger.warn("Interface agent output wasn't valid JSON, using raw text");
       deliveryResult = {
         formattedResponse: result.output as string,

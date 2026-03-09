@@ -5,6 +5,7 @@ import {
   buildRejectedCognitionResult,
   detectCognitionGuardrailRejection,
 } from "./cognition-guardrails.js";
+import { parseAgentJson } from "./agent-output-parser.js";
 
 /**
  * Think Task (Cognition)
@@ -38,9 +39,10 @@ export const thinkTask = task({
 
     // Parse the plan
     let cognitionResult: CognitionResult;
-    try {
-      cognitionResult = JSON.parse(result.output as string);
-    } catch {
+    const parsedOutput = parseAgentJson<CognitionResult>(result.output);
+    if (parsedOutput) {
+      cognitionResult = parsedOutput;
+    } else {
       logger.warn("Cognition agent output wasn't valid JSON, creating default plan");
       cognitionResult = {
         subtasks: [

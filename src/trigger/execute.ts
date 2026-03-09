@@ -4,6 +4,7 @@ import { subAgentRegistry } from "./sub-agents/registry.js";
 import { learnedRoutesStore } from "../routing/learned-routes-store.js";
 import { learnRouteTask } from "./learn-route.js";
 import { resolveUnknownSubtaskStrategy } from "./execute-routing.js";
+import { parseAgentJson } from "./agent-output-parser.js";
 // Register all plugins on import
 import "./sub-agents/plugins/index.js";
 import type {
@@ -224,11 +225,12 @@ export const executeTask = task({
     });
 
     let agencyResult: AgencyResult;
-    try {
-      agencyResult = JSON.parse(summaryResult.output as string);
+    const parsedSummary = parseAgentJson<AgencyResult>(summaryResult.output);
+    if (parsedSummary) {
+      agencyResult = parsedSummary;
       // Ensure our actual results are included
       agencyResult.results = allResults;
-    } catch {
+    } else {
       agencyResult = {
         results: allResults,
         summary: (summaryResult.output as string) ?? "Execution complete",
