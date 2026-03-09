@@ -795,3 +795,16 @@ These are prompt patterns currently covered by unit tests and useful for smoke c
 - `Draft a launch announcement email` (LLM fallback path for non-data task)
 - `Compare our campaign performance against our main competitor.` (guardrail rejection path)
 - `What is the weather in Berlin tomorrow?` (guardrail rejection path)
+
+### Alert-routing validation prompts
+
+Use these to verify Slack alert routing behavior:
+
+- `Review this campaign decision for compliance and approve before execution.`  
+  Expected: `needsHumanReview` path, notification sent to `SLACK_DEFAULT_CHANNEL`.
+
+- `Analyze daily KPI trends such as sessions, conversions, revenue, and retention.`  
+  If it returns issues/warnings (or a failed subtask), expected: monitoring notification to `SLACK_MONITORING_CHANNEL`.
+
+- `List all available dimensions and metrics in Mapp Intelligence`  
+  If response includes warnings/issues (e.g. compacted output caveats), expected: monitoring notification to `SLACK_MONITORING_CHANNEL`.

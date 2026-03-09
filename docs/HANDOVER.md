@@ -143,6 +143,12 @@ src/
 ## Post-Handover Progress (2026-03-06, Codex)
 
 ### Completed (non-blocked)
+- Added additional tests and docs for Slack alert-routing behavior:
+  - `tests/unit/deliver-notifications.test.ts` now also covers:
+    - monitoring channel fallback to `SLACK_DEFAULT_CHANNEL`
+    - no monitoring alert when there are no issues/failures
+    - monitoring alert deduplication
+  - `docs/usage-guide.md` now includes alert-routing validation prompts.
 - Refactored delivery-stage Slack routing:
   - `needsHumanReview: true` now routes to `SLACK_DEFAULT_CHANNEL` (not marketer channel override).
   - Issue monitoring now routes to `SLACK_MONITORING_CHANNEL` via deterministic fallback notification.

@@ -153,4 +153,48 @@ describe("deliver human-review notification fallback", () => {
     expect(notifications).toHaveLength(1);
     expect(notifications[0].recipient).toBe("#monitoring-alerts");
   });
+
+  it("falls back monitoring recipient to SLACK_DEFAULT_CHANNEL when monitoring channel is missing", () => {
+    delete process.env.SLACK_MONITORING_CHANNEL;
+    process.env.SLACK_DEFAULT_CHANNEL = "#default-alerts";
+
+    const agency = withAgencyExtras({
+      summary: "Completed with warnings",
+      issues: ["One warning"],
+    });
+
+    const notification = buildMonitoringSlackNotification(agency);
+    expect(notification?.recipient).toBe("#default-alerts");
+  });
+
+  it("does not build monitoring notification when there are no issues and no failed subtasks", () => {
+    const agency = withAgencyExtras({
+      summary: "Completed cleanly",
+      issues: [],
+      failedSubtask: false,
+    });
+
+    expect(buildMonitoringSlackNotification(agency)).toBeNull();
+  });
+
+  it("does not duplicate monitoring notification when one already exists", () => {
+    const agency = withAgencyExtras({
+      summary: "Completed with warnings",
+      issues: ["Issue A"],
+    });
+
+    const existing: NotificationRequest[] = [
+      {
+        channel: "slack",
+        recipient: "#monitoring-alerts",
+        subject: "Existing monitor alert",
+        body: "Existing body",
+        priority: "warning",
+      },
+    ];
+
+    const notifications = ensureMonitoringSlackNotification(agency, existing);
+    expect(notifications).toHaveLength(1);
+    expect(notifications[0].subject).toBe("Existing monitor alert");
+  });
 });
