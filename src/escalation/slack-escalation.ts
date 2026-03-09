@@ -19,11 +19,17 @@ function getSlackClient(): WebClient {
 }
 
 function getDefaultChannel(): string {
-  return process.env.MARKETER_SLACK_CHANNEL ?? process.env.SLACK_DEFAULT_CHANNEL ?? "#marketing-alerts";
+  return (
+    process.env.SLACK_HITL_CHANNEL ??
+    process.env.MARKETER_SLACK_CHANNEL ??
+    process.env.SLACK_DEFAULT_CHANNEL ??
+    "#marketing-alerts"
+  );
 }
 
 function getChannelCandidates(): string[] {
   const candidates = [
+    process.env.SLACK_HITL_CHANNEL,
     process.env.MARKETER_SLACK_CHANNEL,
     process.env.SLACK_DEFAULT_CHANNEL,
     "#marketing-alerts",

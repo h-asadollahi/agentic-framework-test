@@ -74,7 +74,7 @@ Your job is to:
 3. Determine if any notifications should be sent.
 4. For each notification, specify the channel (email/slack/webhook), recipient, and priority.
 5. If issues are present, include a Slack monitoring notification to the channel from SLACK_MONITORING_CHANNEL.
-6. If needsHumanReview is true, include a Slack notification to SLACK_DEFAULT_CHANNEL.
+6. If needsHumanReview is true, include a Slack notification to SLACK_HITL_CHANNEL.
 
 ## Output Format
 

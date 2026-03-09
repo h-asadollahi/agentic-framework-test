@@ -143,14 +143,18 @@ src/
 ## Post-Handover Progress (2026-03-06, Codex)
 
 ### Completed (non-blocked)
+- Renamed HITL channel env vars to unified `SLACK_HITL_CHANNEL`:
+  - Replaced dual usage of `MARKETER_SLACK_CHANNEL` + `SLACK_DEFAULT_CHANNEL` with `SLACK_HITL_CHANNEL` in `.env` and `.env.example`.
+  - Updated escalation/route-learning/channel defaults to prefer `SLACK_HITL_CHANNEL` (with backward-compatible fallback to old vars).
+  - Human-review routing now targets `SLACK_HITL_CHANNEL`; monitoring uses `SLACK_MONITORING_CHANNEL` then falls back to `SLACK_HITL_CHANNEL`.
 - Added additional tests and docs for Slack alert-routing behavior:
   - `tests/unit/deliver-notifications.test.ts` now also covers:
-    - monitoring channel fallback to `SLACK_DEFAULT_CHANNEL`
+    - monitoring channel fallback to `SLACK_HITL_CHANNEL`
     - no monitoring alert when there are no issues/failures
     - monitoring alert deduplication
   - `docs/usage-guide.md` now includes alert-routing validation prompts.
 - Refactored delivery-stage Slack routing:
-  - `needsHumanReview: true` now routes to `SLACK_DEFAULT_CHANNEL` (not marketer channel override).
+  - `needsHumanReview: true` now routes to `SLACK_HITL_CHANNEL`.
   - Issue monitoring now routes to `SLACK_MONITORING_CHANNEL` via deterministic fallback notification.
   - Monitoring triggers when:
     - `AgencyResult.issues` is non-empty, or
@@ -206,8 +210,7 @@ src/
   - Added `src/trigger/deliver-notifications.ts` fallback logic.
   - `pipeline-deliver` now ensures `needsHumanReview: true` produces at least one Slack notification.
   - Recipient resolution uses:
-    - `MARKETER_SLACK_CHANNEL` (preferred)
-    - `SLACK_DEFAULT_CHANNEL` (fallback)
+    - `SLACK_HITL_CHANNEL`
   - Added tests in `tests/unit/deliver-notifications.test.ts`.
 - Fixed MCP config failure for learned routes targeting `serverName: "mapp-michel"`:
   - `src/tools/mcp-client.ts` now supports both stdio and HTTP MCP transports.
@@ -363,8 +366,7 @@ TRIGGER_PROJECT_REF=proj_...
 
 # Slack
 SLACK_BOT_TOKEN=xoxe.xoxp-...
-SLACK_DEFAULT_CHANNEL=#brand-cp-test
-MARKETER_SLACK_CHANNEL=#brand-cp-test
+SLACK_HITL_CHANNEL=#brand-cp-test
 ```
 
 ### Running

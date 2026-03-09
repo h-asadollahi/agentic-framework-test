@@ -10,7 +10,7 @@ import { logger } from "../core/logger.js";
  *
  * Configuration (via environment):
  *   SLACK_BOT_TOKEN — Bot token with chat:write scope
- *   SLACK_DEFAULT_CHANNEL — Fallback channel if recipient is not a channel ID
+ *   SLACK_HITL_CHANNEL — Default Slack channel for marketer/HITL-facing notifications
  */
 export class SlackChannel implements ChannelAdapter {
   readonly channel = "slack";
@@ -19,7 +19,10 @@ export class SlackChannel implements ChannelAdapter {
 
   constructor() {
     const token = process.env.SLACK_BOT_TOKEN;
-    this.defaultChannel = process.env.SLACK_DEFAULT_CHANNEL ?? "#marketing-alerts";
+    this.defaultChannel =
+      process.env.SLACK_HITL_CHANNEL ??
+      process.env.SLACK_DEFAULT_CHANNEL ??
+      "#marketing-alerts";
 
     if (token) {
       this.client = new WebClient(token);

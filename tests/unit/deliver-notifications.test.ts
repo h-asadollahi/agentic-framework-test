@@ -36,17 +36,20 @@ function withAgencyExtras(data: {
 }
 
 describe("deliver human-review notification fallback", () => {
+  const originalHitl = process.env.SLACK_HITL_CHANNEL;
   const originalSlack = process.env.SLACK_DEFAULT_CHANNEL;
   const originalMarketer = process.env.MARKETER_SLACK_CHANNEL;
   const originalMonitoring = process.env.SLACK_MONITORING_CHANNEL;
 
   beforeEach(() => {
-    process.env.SLACK_DEFAULT_CHANNEL = "#marketing-alerts";
+    process.env.SLACK_HITL_CHANNEL = "#marketing-alerts";
+    delete process.env.SLACK_DEFAULT_CHANNEL;
     process.env.SLACK_MONITORING_CHANNEL = "#monitoring-alerts";
     delete process.env.MARKETER_SLACK_CHANNEL;
   });
 
   afterEach(() => {
+    process.env.SLACK_HITL_CHANNEL = originalHitl;
     process.env.SLACK_DEFAULT_CHANNEL = originalSlack;
     process.env.MARKETER_SLACK_CHANNEL = originalMarketer;
     process.env.SLACK_MONITORING_CHANNEL = originalMonitoring;
@@ -66,8 +69,8 @@ describe("deliver human-review notification fallback", () => {
     expect(notification?.priority).toBe("warning");
   });
 
-  it("uses SLACK_DEFAULT_CHANNEL for human review even if MARKETER_SLACK_CHANNEL is set", () => {
-    process.env.SLACK_DEFAULT_CHANNEL = "#default-review";
+  it("uses SLACK_HITL_CHANNEL for human review even if MARKETER_SLACK_CHANNEL is set", () => {
+    process.env.SLACK_HITL_CHANNEL = "#default-review";
     process.env.MARKETER_SLACK_CHANNEL = "#marketer-thread";
 
     const agency = withAgencyExtras({
@@ -154,9 +157,9 @@ describe("deliver human-review notification fallback", () => {
     expect(notifications[0].recipient).toBe("#monitoring-alerts");
   });
 
-  it("falls back monitoring recipient to SLACK_DEFAULT_CHANNEL when monitoring channel is missing", () => {
+  it("falls back monitoring recipient to SLACK_HITL_CHANNEL when monitoring channel is missing", () => {
     delete process.env.SLACK_MONITORING_CHANNEL;
-    process.env.SLACK_DEFAULT_CHANNEL = "#default-alerts";
+    process.env.SLACK_HITL_CHANNEL = "#default-alerts";
 
     const agency = withAgencyExtras({
       summary: "Completed with warnings",

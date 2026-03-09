@@ -43,6 +43,7 @@ function getSlackClient(): WebClient {
 
 function getDefaultChannel(): string {
   return (
+    process.env.SLACK_HITL_CHANNEL ??
     process.env.MARKETER_SLACK_CHANNEL ??
     process.env.SLACK_DEFAULT_CHANNEL ??
     "#marketing-alerts"
@@ -51,6 +52,7 @@ function getDefaultChannel(): string {
 
 function getChannelCandidates(): string[] {
   const candidates = [
+    process.env.SLACK_HITL_CHANNEL,
     process.env.MARKETER_SLACK_CHANNEL,
     process.env.SLACK_DEFAULT_CHANNEL,
     "#marketing-alerts",

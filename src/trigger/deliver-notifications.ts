@@ -9,12 +9,17 @@ function readIssues(value: unknown): string[] {
 }
 
 function getHumanReviewRecipient(): string {
-  return process.env.SLACK_DEFAULT_CHANNEL ?? "#marketing-alerts";
+  return (
+    process.env.SLACK_HITL_CHANNEL ??
+    process.env.SLACK_DEFAULT_CHANNEL ??
+    "#marketing-alerts"
+  );
 }
 
 function getMonitoringRecipient(): string {
   return (
     process.env.SLACK_MONITORING_CHANNEL ??
+    process.env.SLACK_HITL_CHANNEL ??
     process.env.SLACK_DEFAULT_CHANNEL ??
     "#marketing-alerts"
   );

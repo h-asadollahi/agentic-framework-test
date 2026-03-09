@@ -63,7 +63,7 @@ GOOGLE_GENERATIVE_AI_API_KEY=...
 
 # Optional — Slack notifications
 SLACK_BOT_TOKEN=xoxb-...
-SLACK_DEFAULT_CHANNEL=#marketing-alerts
+SLACK_HITL_CHANNEL=#marketing-alerts
 SLACK_MONITORING_CHANNEL=#marketing-monitoring
 
 # Optional — Email notifications (SendGrid)
@@ -75,7 +75,6 @@ EMAIL_FROM_NAME=Marketing Agent
 WEBHOOK_SECRET=your-shared-secret
 
 # Optional — Escalation recipients
-MARKETER_SLACK_CHANNEL=#marketing-alerts
 ADMIN_EMAIL=admin@company.com
 
 # Optional — MCP servers (JSON array)
@@ -453,7 +452,7 @@ Notifications with `channel: "my-channel"` will now route through your adapter.
 
 ### Delivery-stage Slack routing rules
 
-- If `needsHumanReview` is true in agency output, the system sends a Slack notification to `SLACK_DEFAULT_CHANNEL`.
+- If `needsHumanReview` is true in agency output, the system sends a Slack notification to `SLACK_HITL_CHANNEL`.
 - If issues are present (or any subtask failed), the system sends a monitoring Slack notification to `SLACK_MONITORING_CHANNEL`.
 
 ---
@@ -801,7 +800,7 @@ These are prompt patterns currently covered by unit tests and useful for smoke c
 Use these to verify Slack alert routing behavior:
 
 - `Review this campaign decision for compliance and approve before execution.`  
-  Expected: `needsHumanReview` path, notification sent to `SLACK_DEFAULT_CHANNEL`.
+  Expected: `needsHumanReview` path, notification sent to `SLACK_HITL_CHANNEL`.
 
 - `Analyze daily KPI trends such as sessions, conversions, revenue, and retention.`  
   If it returns issues/warnings (or a failed subtask), expected: monitoring notification to `SLACK_MONITORING_CHANNEL`.
