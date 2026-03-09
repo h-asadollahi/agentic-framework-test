@@ -778,3 +778,14 @@ These prompts should trigger the `cohort-monitor` sub-agent:
 - `Compare conversion performance between VIP and new-user cohorts`
 - `Show engagement changes for our at-risk cohort in the last 30 days`
 - `Give me a cohort-level summary of retention, conversion, and churn`
+
+### Additional test-derived prompts
+
+These are prompt patterns currently covered by unit tests and useful for smoke checks:
+
+- `Get conversion metrics for Q1 campaign` (learned-route matching path)
+- `Please fetch cohort retention by week` (route-pattern matching path)
+- `Analyze conversion trend by channel over the last 30 days.` (in-scope cognition path)
+- `Draft a launch announcement email` (LLM fallback path for non-data task)
+- `Compare our campaign performance against our main competitor.` (guardrail rejection path)
+- `What is the weather in Berlin tomorrow?` (guardrail rejection path)

@@ -143,6 +143,12 @@ src/
 ## Post-Handover Progress (2026-03-06, Codex)
 
 ### Completed (non-blocked)
+- Expanded `docs/usage-guide.md` prompt reference with test-derived examples:
+  - learned-route matching sample
+  - route-pattern matching sample
+  - in-scope cognition sample
+  - LLM fallback sample
+  - competitor/non-marketing guardrail rejection samples
 - Added prompt reference section to `docs/usage-guide.md`:
   - Mapp MCP prompt examples for:
     - dimensions/metrics catalog
