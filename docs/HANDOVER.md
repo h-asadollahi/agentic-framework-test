@@ -143,6 +143,9 @@ src/
 ## Post-Handover Progress (2026-03-06, Codex)
 
 ### Completed (non-blocked)
+- Updated project-wide Slack fallback default channel:
+  - Replaced hardcoded fallback `#marketing-alerts` with `#brand-cp-hitl`.
+  - Applied across escalation, route-learning, delivery notifications, Slack adapter defaults, tests, and usage docs.
 - Renamed HITL channel env vars to unified `SLACK_HITL_CHANNEL`:
   - Replaced dual usage of `MARKETER_SLACK_CHANNEL` + `SLACK_DEFAULT_CHANNEL` with `SLACK_HITL_CHANNEL` in `.env` and `.env.example`.
   - Updated escalation/route-learning/channel defaults to prefer `SLACK_HITL_CHANNEL` (with backward-compatible fallback to old vars).

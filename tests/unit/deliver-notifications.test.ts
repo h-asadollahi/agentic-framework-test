@@ -42,7 +42,7 @@ describe("deliver human-review notification fallback", () => {
   const originalMonitoring = process.env.SLACK_MONITORING_CHANNEL;
 
   beforeEach(() => {
-    process.env.SLACK_HITL_CHANNEL = "#marketing-alerts";
+    process.env.SLACK_HITL_CHANNEL = "#brand-cp-hitl";
     delete process.env.SLACK_DEFAULT_CHANNEL;
     process.env.SLACK_MONITORING_CHANNEL = "#monitoring-alerts";
     delete process.env.MARKETER_SLACK_CHANNEL;
@@ -65,7 +65,7 @@ describe("deliver human-review notification fallback", () => {
     const notification = buildHumanReviewSlackNotification(agency);
     expect(notification).not.toBeNull();
     expect(notification?.channel).toBe("slack");
-    expect(notification?.recipient).toBe("#marketing-alerts");
+    expect(notification?.recipient).toBe("#brand-cp-hitl");
     expect(notification?.priority).toBe("warning");
   });
 
@@ -111,7 +111,7 @@ describe("deliver human-review notification fallback", () => {
     const existing: NotificationRequest[] = [
       {
         channel: "slack",
-        recipient: "#marketing-alerts",
+        recipient: "#brand-cp-hitl",
         subject: "Existing",
         body: "Already present",
         priority: "info",

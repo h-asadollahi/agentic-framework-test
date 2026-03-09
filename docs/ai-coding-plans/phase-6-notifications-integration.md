@@ -154,7 +154,7 @@ await wait.completeToken(tokenId, {
 | Variable | Required | Description |
 |----------|----------|-------------|
 | `SLACK_BOT_TOKEN` | For Slack | Slack bot token with `chat:write` scope |
-| `SLACK_DEFAULT_CHANNEL` | No | Fallback channel (default: `#marketing-alerts`) |
+| `SLACK_DEFAULT_CHANNEL` | No | Fallback channel (default: `#brand-cp-hitl`) |
 | `SENDGRID_API_KEY` | For Email | SendGrid API key |
 | `EMAIL_FROM_ADDRESS` | No | Sender email (default: `noreply@example.com`) |
 | `EMAIL_FROM_NAME` | No | Sender name (default: `Marketing Agent`) |

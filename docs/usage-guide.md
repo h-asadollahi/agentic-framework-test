@@ -63,7 +63,7 @@ GOOGLE_GENERATIVE_AI_API_KEY=...
 
 # Optional — Slack notifications
 SLACK_BOT_TOKEN=xoxb-...
-SLACK_HITL_CHANNEL=#marketing-alerts
+SLACK_HITL_CHANNEL=#brand-cp-hitl
 SLACK_MONITORING_CHANNEL=#marketing-monitoring
 
 # Optional — Email notifications (SendGrid)

@@ -84,7 +84,7 @@ Return a JSON object with this structure:
   "notifications": [
     {
       "channel": "slack",
-      "recipient": "#marketing-alerts",
+      "recipient": "#brand-cp-hitl",
       "subject": "Alert subject",
       "body": "Alert body text",
       "priority": "info"

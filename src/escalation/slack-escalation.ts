@@ -23,7 +23,7 @@ function getDefaultChannel(): string {
     process.env.SLACK_HITL_CHANNEL ??
     process.env.MARKETER_SLACK_CHANNEL ??
     process.env.SLACK_DEFAULT_CHANNEL ??
-    "#marketing-alerts"
+    "#brand-cp-hitl"
   );
 }
 
@@ -32,7 +32,7 @@ function getChannelCandidates(): string[] {
     process.env.SLACK_HITL_CHANNEL,
     process.env.MARKETER_SLACK_CHANNEL,
     process.env.SLACK_DEFAULT_CHANNEL,
-    "#marketing-alerts",
+    "#brand-cp-hitl",
   ].filter((value): value is string => Boolean(value && value.trim()));
 
   return [...new Set(candidates)];

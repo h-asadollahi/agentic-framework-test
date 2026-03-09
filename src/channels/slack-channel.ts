@@ -22,7 +22,7 @@ export class SlackChannel implements ChannelAdapter {
     this.defaultChannel =
       process.env.SLACK_HITL_CHANNEL ??
       process.env.SLACK_DEFAULT_CHANNEL ??
-      "#marketing-alerts";
+      "#brand-cp-hitl";
 
     if (token) {
       this.client = new WebClient(token);
