@@ -143,6 +143,13 @@ src/
 ## Post-Handover Progress (2026-03-06, Codex)
 
 ### Completed (non-blocked)
+- Added prompt reference section to `docs/usage-guide.md`:
+  - Mapp MCP prompt examples for:
+    - dimensions/metrics catalog
+    - page impressions (last 7 days)
+    - segment listing
+    - monthly API calculations usage
+  - Additional cohort-monitor trigger prompts for retention/churn/conversion/engagement scenarios.
 - Updated `docs/usage-guide.md` with out-of-scope cognition guardrail documentation:
   - Added new section: "Out-of-Scope Requests"
   - Documented early-stop behavior and rejection/acceptance example prompts.

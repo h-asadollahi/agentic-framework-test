@@ -18,6 +18,7 @@ A step-by-step guide to setting up, running, using, and extending the platform.
 10. [Out-of-Scope Requests](#10-out-of-scope-requests)
 11. [Running Tests](#11-running-tests)
 12. [Production Considerations](#12-production-considerations)
+13. [Prompt Examples](#13-prompt-examples)
 
 ---
 
@@ -751,3 +752,29 @@ See [docs/trigger-dev-self-hosted.md](./trigger-dev-self-hosted.md) and the [off
 - **Trigger.dev dashboard** — run timeline, logs, retries, status per task
 - **API health endpoint** — `GET /health` for agent count, sessions, memory stats
 - **Structured logs** — all agents and tasks emit JSON logs captured by Trigger.dev
+
+---
+
+## 13. Prompt Examples
+
+Use these prompts in chat to validate route behavior.
+
+### Mapp MCP Server prompts
+
+These prompts should route to `mcp-fetcher` with `serverName: "mapp-michel"` (from learned routes):
+
+- `List all available dimensions and metrics in Mapp Intelligence`
+- `Show me my page impressions for the last 7 days`
+- `What segments are defined in my Mapp Intelligence account?`
+- `How many API calculations have I used this month?`
+
+### Cohort Monitor prompts
+
+These prompts should trigger the `cohort-monitor` sub-agent:
+
+- `How is our VIP cohort performing this quarter?`
+- `Analyze retention trend for the VIP cohort over the last 90 days`
+- `Which cohort has the highest churn risk this month?`
+- `Compare conversion performance between VIP and new-user cohorts`
+- `Show engagement changes for our at-risk cohort in the last 30 days`
+- `Give me a cohort-level summary of retention, conversion, and churn`
