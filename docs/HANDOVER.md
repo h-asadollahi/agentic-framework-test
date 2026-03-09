@@ -143,6 +143,9 @@ src/
 ## Post-Handover Progress (2026-03-06, Codex)
 
 ### Completed (non-blocked)
+- Improved demo assistant readability for raw JSON responses:
+  - Updated `demo/app.js` to normalize final assistant text.
+  - If `formattedResponse` contains raw JSON or fenced ```json output, the UI now extracts and renders only the human-readable `formattedResponse` field.
 - Fixed large MCP payload failures in `pipeline-execute` (Trigger.dev `Failed to generate presigned URL`):
   - `src/trigger/sub-agents/plugins/mcp-fetcher.ts` now compacts oversized tool output before returning.
   - For `list_dimensions_and_metrics`, output is normalized to names-only arrays plus counts.

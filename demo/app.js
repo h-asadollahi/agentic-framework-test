@@ -30,6 +30,45 @@ function addMessage(role, body) {
   chatLog.scrollTop = chatLog.scrollHeight;
 }
 
+function tryParseJsonString(value) {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+
+  try {
+    return JSON.parse(trimmed);
+  } catch {
+    return null;
+  }
+}
+
+function extractJsonFromFencedBlock(value) {
+  if (typeof value !== "string") return null;
+  const match = value.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
+  if (!match) return null;
+  return tryParseJsonString(match[1]);
+}
+
+function getReadableAssistantText(output) {
+  const raw = output?.formattedResponse;
+
+  if (typeof raw !== "string") {
+    return "No formatted response was returned.";
+  }
+
+  const fromDirectJson = tryParseJsonString(raw);
+  if (fromDirectJson && typeof fromDirectJson.formattedResponse === "string") {
+    return fromDirectJson.formattedResponse;
+  }
+
+  const fromFencedJson = extractJsonFromFencedBlock(raw);
+  if (fromFencedJson && typeof fromFencedJson.formattedResponse === "string") {
+    return fromFencedJson.formattedResponse;
+  }
+
+  return raw;
+}
+
 function buildTraceBlock(trace = []) {
   const wrapper = document.createElement("div");
   wrapper.className = "step-block";
@@ -163,7 +202,7 @@ async function onSend() {
     }
 
     const output = final.output || {};
-    const responseText = output.formattedResponse || "No formatted response was returned.";
+    const responseText = getReadableAssistantText(output);
 
     const wrap = document.createElement("div");
     const finalText = document.createElement("div");
