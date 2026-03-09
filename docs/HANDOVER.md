@@ -143,6 +143,17 @@ src/
 ## Post-Handover Progress (2026-03-06, Codex)
 
 ### Completed (non-blocked)
+- Added cognition-stage rejection guardrail for out-of-scope requests:
+  - `src/trigger/cognition-guardrails.ts` introduces deterministic rejection for:
+    - competitor/rival-focused asks
+    - clearly non-marketing asks (e.g. weather/recipe/sports/politics)
+  - `src/agents/cognition-agent.ts` prompt now instructs model to return:
+    - `rejected: true`
+    - `rejectionReason`
+    - no subtasks
+  - `src/trigger/think.ts` now enforces guardrail fallback even if model output is malformed.
+  - `src/trigger/orchestrate.ts` now stops the pipeline after cognition when rejected (skips agency/interface) and returns the rejection message directly.
+  - Added tests in `tests/unit/cognition-guardrails.test.ts`.
 - Beautified assistant final response rendering for markdown-style outputs in demo:
   - `demo/app.js` now renders final `formattedResponse` as markdown-like DOM (headings, bullets, bold, inline code, paragraphs).
   - `demo/styles.css` now styles markdown blocks for readable chat presentation.

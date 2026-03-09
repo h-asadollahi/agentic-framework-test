@@ -213,6 +213,8 @@ export interface CognitionResult {
   subtasks: SubTask[];
   reasoning: string;
   plan: string;
+  rejected?: boolean;
+  rejectionReason?: string;
 }
 
 // ── Agency Result ──────────────────────────────────────────

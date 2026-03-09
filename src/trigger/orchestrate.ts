@@ -110,6 +110,22 @@ export const orchestrateTask = task({
       durationMs: Date.now() - cognitionStart,
     });
 
+    if (thinkRun.output.rejected === true) {
+      const rejectionMessage =
+        thinkRun.output.rejectionReason ??
+        "I can’t help with this request because it is outside the supported marketing scope.";
+
+      logger.info("Pipeline stopped at cognition due to guardrail rejection", {
+        sessionId: payload.sessionId,
+      });
+
+      return {
+        formattedResponse: rejectionMessage,
+        notifications: [],
+        trace,
+      };
+    }
+
     // ── Stage 3: Agency ────────────────────────────────────
     logger.info("Stage 3/4: Agency", {
       subtasks: thinkRun.output.subtasks.length,

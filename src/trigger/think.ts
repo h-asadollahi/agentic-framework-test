@@ -1,6 +1,10 @@
 import { task, logger } from "@trigger.dev/sdk/v3";
 import { cognitionAgent } from "../agents/cognition-agent.js";
 import type { CognitionResult, GroundingResult } from "../core/types.js";
+import {
+  buildRejectedCognitionResult,
+  detectCognitionGuardrailRejection,
+} from "./cognition-guardrails.js";
 
 /**
  * Think Task (Cognition)
@@ -51,7 +55,26 @@ export const thinkTask = task({
         ],
         reasoning: "Could not parse agent output, falling back to single general task",
         plan: payload.userMessage,
+        rejected: false,
       };
+    }
+
+    // Deterministic guardrail fallback in case the model misses rejection policy.
+    const guardrailDecision = detectCognitionGuardrailRejection(
+      payload.userMessage
+    );
+    if (guardrailDecision.rejected) {
+      cognitionResult = buildRejectedCognitionResult(
+        guardrailDecision.reason ??
+          "Request is out of scope for this marketing assistant."
+      );
+    }
+
+    if (cognitionResult.rejected === true) {
+      const reason =
+        cognitionResult.rejectionReason ??
+        "Request rejected by cognition guardrails.";
+      cognitionResult = buildRejectedCognitionResult(reason);
     }
 
     logger.info(`Cognition produced ${cognitionResult.subtasks.length} subtasks`);
