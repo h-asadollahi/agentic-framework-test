@@ -49,6 +49,11 @@ function extractJsonFromFencedBlock(value) {
   return tryParseJsonString(match[1]);
 }
 
+function tryParsePossiblyJson(value) {
+  if (typeof value !== "string") return null;
+  return tryParseJsonString(value) || extractJsonFromFencedBlock(value);
+}
+
 function getReadableAssistantText(output) {
   const raw = output?.formattedResponse;
 
@@ -67,6 +72,120 @@ function getReadableAssistantText(output) {
   }
 
   return raw;
+}
+
+function renderJsonPrimitive(value) {
+  const span = document.createElement("span");
+  if (typeof value === "string") {
+    span.className = "json-value json-string";
+    span.textContent = `"${value}"`;
+    return span;
+  }
+  if (typeof value === "number") {
+    span.className = "json-value json-number";
+    span.textContent = String(value);
+    return span;
+  }
+  if (typeof value === "boolean") {
+    span.className = "json-value json-boolean";
+    span.textContent = String(value);
+    return span;
+  }
+  if (value === null) {
+    span.className = "json-value json-null";
+    span.textContent = "null";
+    return span;
+  }
+
+  span.className = "json-value";
+  span.textContent = String(value);
+  return span;
+}
+
+function renderJsonTree(value, depth = 0) {
+  if (value === null || typeof value !== "object") {
+    return renderJsonPrimitive(value);
+  }
+
+  if (Array.isArray(value)) {
+    const details = document.createElement("details");
+    details.className = "json-node";
+    if (depth < 2) details.open = true;
+
+    const summary = document.createElement("summary");
+    summary.textContent = `Array(${value.length})`;
+    details.appendChild(summary);
+
+    const body = document.createElement("div");
+    body.className = "json-children";
+
+    value.forEach((item, index) => {
+      const row = document.createElement("div");
+      row.className = "json-row";
+
+      const key = document.createElement("span");
+      key.className = "json-key";
+      key.textContent = `[${index}]`;
+      row.appendChild(key);
+
+      row.appendChild(renderJsonTree(item, depth + 1));
+      body.appendChild(row);
+    });
+
+    details.appendChild(body);
+    return details;
+  }
+
+  const obj = value;
+  const keys = Object.keys(obj);
+  const details = document.createElement("details");
+  details.className = "json-node";
+  if (depth < 2) details.open = true;
+
+  const summary = document.createElement("summary");
+  summary.textContent = `Object(${keys.length})`;
+  details.appendChild(summary);
+
+  const body = document.createElement("div");
+  body.className = "json-children";
+
+  keys.forEach((keyName) => {
+    const row = document.createElement("div");
+    row.className = "json-row";
+
+    const key = document.createElement("span");
+    key.className = "json-key";
+    key.textContent = keyName;
+    row.appendChild(key);
+
+    row.appendChild(renderJsonTree(obj[keyName], depth + 1));
+    body.appendChild(row);
+  });
+
+  details.appendChild(body);
+  return details;
+}
+
+function buildTraceSection(label, value) {
+  const section = document.createElement("div");
+  section.className = "trace-section";
+
+  const sectionLabel = document.createElement("div");
+  sectionLabel.className = "trace-label";
+  sectionLabel.textContent = label;
+  section.appendChild(sectionLabel);
+
+  const parsed = tryParsePossiblyJson(value);
+  if (parsed !== null) {
+    section.appendChild(renderJsonTree(parsed));
+  } else {
+    const text = document.createElement("div");
+    text.className = "trace-text";
+    text.textContent = String(value ?? "");
+    section.appendChild(text);
+  }
+
+  return section;
 }
 
 function buildTraceBlock(trace = []) {
@@ -90,11 +209,19 @@ function buildTraceBlock(trace = []) {
     row.className = "step-row";
 
     const stage = (entry.phase || "unknown").toUpperCase();
-    const action = entry.action || "";
     const duration = entry.durationMs ? ` (${entry.durationMs}ms)` : "";
-    const reasoning = entry.reasoning ? `\nReasoning: ${entry.reasoning}` : "";
 
-    row.textContent = `${stage}${duration}\n${action}${reasoning}`;
+    const heading = document.createElement("div");
+    heading.className = "trace-heading";
+    heading.textContent = `${stage}${duration}`;
+    row.appendChild(heading);
+
+    row.appendChild(buildTraceSection("Action", entry.action ?? ""));
+
+    if (entry.reasoning) {
+      row.appendChild(buildTraceSection("Reasoning", entry.reasoning));
+    }
+
     wrapper.appendChild(row);
   }
 

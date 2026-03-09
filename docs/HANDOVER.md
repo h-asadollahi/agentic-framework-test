@@ -143,6 +143,11 @@ src/
 ## Post-Handover Progress (2026-03-06, Codex)
 
 ### Completed (non-blocked)
+- Upgraded demo trace rendering for JSON-heavy stage outputs:
+  - `demo/app.js` now detects JSON (including fenced ```json blocks) in trace action/reasoning fields.
+  - JSON values are rendered as collapsible object/array trees with nested expand/collapse.
+  - Plain text still renders unchanged.
+  - `demo/styles.css` updated with readable JSON key/value styling.
 - Improved demo assistant readability for raw JSON responses:
   - Updated `demo/app.js` to normalize final assistant text.
   - If `formattedResponse` contains raw JSON or fenced ```json output, the UI now extracts and renders only the human-readable `formattedResponse` field.

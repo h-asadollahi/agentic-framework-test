@@ -159,6 +159,82 @@ h1 {
   border: 1px solid #e4ece4;
 }
 
+.trace-heading {
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+
+.trace-section + .trace-section {
+  margin-top: 8px;
+}
+
+.trace-label {
+  font-size: 12px;
+  color: var(--muted);
+  font-family: "IBM Plex Mono", monospace;
+  margin-bottom: 4px;
+}
+
+.trace-text {
+  white-space: pre-wrap;
+}
+
+.json-node {
+  border: 1px solid #d9e5da;
+  border-radius: 8px;
+  background: #fdfefd;
+  padding: 6px 8px;
+}
+
+.json-node summary {
+  cursor: pointer;
+  font-family: "IBM Plex Mono", monospace;
+  color: #355346;
+  font-size: 12px;
+}
+
+.json-children {
+  margin-top: 6px;
+  margin-left: 10px;
+  border-left: 2px solid #e7efea;
+  padding-left: 10px;
+}
+
+.json-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: 4px;
+  flex-wrap: wrap;
+}
+
+.json-key {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 12px;
+  color: #355346;
+}
+
+.json-value {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 12px;
+}
+
+.json-string {
+  color: #2b5f8b;
+}
+
+.json-number {
+  color: #8a5e00;
+}
+
+.json-boolean {
+  color: #8750a4;
+}
+
+.json-null {
+  color: #8a8f98;
+}
+
 .step-title {
   font-weight: 700;
   margin-bottom: 4px;
