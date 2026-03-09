@@ -314,6 +314,30 @@ src/
     - Prompt: `List all available dimensions and metrics in Mapp Intelligence`
     - Run: `run_c29xop2g14w6fxxjypqha`
     - Result: completed successfully via route-007 + `mcp-fetcher`; no missing `serverName/toolName` validation error.
+
+### Additional Fix (2026-03-09): Preserve Critical Agency Facts in Final Interface Output
+- Root cause addressed:
+  - The final assistant response used only Interface summarization, which could compress/omit detailed Agency findings.
+- Implemented delivery fidelity layer:
+  - Added `src/trigger/delivery-fidelity.ts`:
+    - `extractCriticalFacts()` gathers high-signal facts (metrics, time window, ranked findings, issues) from Agency summary + subtask outputs.
+    - `buildHumanReadableRenderRequirements()` builds readable rendering requirements from Grounding guardrails (`alwaysDo`) plus Cognition plan context.
+    - `enforceCriticalFactsInResponse()` appends missing critical facts under a human-readable markdown section (`## Detailed Findings`).
+- Pipeline changes:
+  - `src/trigger/deliver.ts`
+    - Passes `criticalFacts`, `renderRequirements`, `issues`, `needsHumanReview`, and cognition context into Interface input.
+    - Applies deterministic post-check to prevent dropping critical facts.
+  - `src/trigger/orchestrate.ts`
+    - Now passes `cognitionResult` to `pipeline-deliver`.
+  - `src/agents/interface-agent.ts`
+    - Prompt now explicitly requires readable markdown sections and preserving `criticalFacts`.
+- Tests:
+  - Added `tests/unit/delivery-fidelity.test.ts` for fact extraction, human-readable requirements, and missing-fact appendix behavior.
+  - `npm test` passed (`14` files, `74` tests).
+- Live verification:
+  - Prompt: `Show me my page impressions for the last 7 days`
+  - Run: `run_i6crxc4d64buk8j6j4tof`
+  - Result: final response now includes structured sections (`Executive Summary`, `Key Findings`, table + metrics) with Agency-level detail retained.
   - `escalate-to-human` timeout path verified end-to-end
   - `learn-route` fallback path verified end-to-end
 - Verified interactive runtime paths:

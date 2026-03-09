@@ -2,6 +2,7 @@ import { task, logger } from "@trigger.dev/sdk/v3";
 import { interfaceAgent } from "../agents/interface-agent.js";
 import type {
   AgencyResult,
+  CognitionResult,
   DeliveryResult,
   ExecutionContext,
 } from "../core/types.js";
@@ -10,6 +11,11 @@ import {
   ensureMonitoringSlackNotification,
 } from "./deliver-notifications.js";
 import { parseAgentJson } from "./agent-output-parser.js";
+import {
+  buildHumanReadableRenderRequirements,
+  enforceCriticalFactsInResponse,
+  extractCriticalFacts,
+} from "./delivery-fidelity.js";
 
 /**
  * Deliver Task (Interface)
@@ -22,13 +28,30 @@ export const deliverTask = task({
   retry: { maxAttempts: 2 },
   run: async (payload: {
     agencyResult: AgencyResult;
+    cognitionResult?: CognitionResult;
     context: ExecutionContext;
   }) => {
     logger.info("Starting interface phase");
 
+    const criticalFacts = extractCriticalFacts(payload.agencyResult);
+    const renderRequirements = buildHumanReadableRenderRequirements(
+      payload.context.guardrails,
+      payload.cognitionResult
+    );
+
     const input = JSON.stringify({
       results: payload.agencyResult.results,
       summary: payload.agencyResult.summary,
+      issues: payload.agencyResult.issues ?? [],
+      needsHumanReview: payload.agencyResult.needsHumanReview ?? false,
+      criticalFacts,
+      renderRequirements,
+      cognition: payload.cognitionResult
+        ? {
+            reasoning: payload.cognitionResult.reasoning,
+            plan: payload.cognitionResult.plan,
+          }
+        : null,
     });
 
     const result = await interfaceAgent.execute(input, payload.context);
@@ -49,6 +72,11 @@ export const deliverTask = task({
         notifications: [],
       };
     }
+
+    deliveryResult.formattedResponse = enforceCriticalFactsInResponse(
+      String(deliveryResult.formattedResponse ?? ""),
+      criticalFacts
+    );
 
     deliveryResult.notifications = ensureHumanReviewSlackNotification(
       payload.agencyResult,

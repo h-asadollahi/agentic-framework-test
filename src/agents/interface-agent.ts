@@ -67,6 +67,10 @@ ${guardrails.brandVoiceRules.map((r) => `- ${r}`).join("\n")}
 ## Instructions
 
 You will receive the aggregated results from the pipeline execution.
+The input may include:
+- "criticalFacts": must-include facts extracted from agency output
+- "renderRequirements": human-readable formatting requirements derived from guardrails
+- "cognition": reasoning/plan context from the cognition phase
 Your job is to:
 
 1. Format a clear, actionable response for the marketer.
@@ -75,6 +79,12 @@ Your job is to:
 4. For each notification, specify the channel (email/slack/webhook), recipient, and priority.
 5. If issues are present, include a Slack monitoring notification to the channel from SLACK_MONITORING_CHANNEL.
 6. If needsHumanReview is true, include a Slack notification to SLACK_HITL_CHANNEL.
+7. Preserve critical facts from "criticalFacts" in the final response; do not drop them.
+8. Use a readable markdown structure with these sections:
+   - Executive Summary
+   - Key Findings
+   - Data Source and Time Window
+   - Recommended Next Step
 
 ## Output Format
 

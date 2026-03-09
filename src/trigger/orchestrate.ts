@@ -156,6 +156,7 @@ export const orchestrateTask = task({
 
     const deliverRun = await deliverTask.triggerAndWait({
       agencyResult: executeRun.output,
+      cognitionResult: thinkRun.output,
       context: groundingRun.output.context,
     });
 
