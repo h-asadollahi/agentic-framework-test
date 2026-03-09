@@ -460,6 +460,17 @@ MCP (Model Context Protocol) lets you connect external tool servers to your agen
 MCP_SERVERS=[{"name":"analytics","command":"npx","args":["-y","@analytics/mcp-server"]}]
 ```
 
+### Option A2 — Hosted MAPP MCP shortcut
+
+If you use the hosted MAPP MCP server, set:
+
+```bash
+MAPP_MCP_SERVER_MICHEL_URL=https://mapp-intelligence-mcp-remote.vercel.app
+MAPP_MCP_SERVER_MICHEL_TOKEN=eyJ...
+```
+
+The platform auto-registers this as MCP server name `mapp-michel`, which matches the learned routes that target `mcp-fetcher`.
+
 ### Option B — Programmatic
 
 ```typescript

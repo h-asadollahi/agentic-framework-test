@@ -143,6 +143,13 @@ src/
 ## Post-Handover Progress (2026-03-06, Codex)
 
 ### Completed (non-blocked)
+- Fixed MCP config failure for learned routes targeting `serverName: "mapp-michel"`:
+  - `src/tools/mcp-client.ts` now supports both stdio and HTTP MCP transports.
+  - Added automatic env-based registration for `mapp-michel` using:
+    - `MAPP_MCP_SERVER_MICHEL_URL`
+    - `MAPP_MCP_SERVER_MICHEL_TOKEN`
+  - HTTP transport includes required header: `Accept: application/json, text/event-stream`.
+  - This removes the need to manually define `mapp-michel` inside `MCP_SERVERS`.
 - Added MCP-learned-route coverage for key Mapp Intelligence questions in `knowledge/learned-routes.json`:
   - Converted route for dimensions/metrics listing to MCP (`list_dimensions_and_metrics`)
   - Added page impressions (last 7 days) route via MCP `run_analysis`

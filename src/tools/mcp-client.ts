@@ -18,12 +18,21 @@ import { logger } from "../core/logger.js";
  *   the addServer() method.
  */
 
-interface MCPServerConfig {
+interface MCPStdioServerConfig {
   name: string;
   command: string;
   args: string[];
   env?: Record<string, string>;
 }
+
+interface MCPHttpServerConfig {
+  name: string;
+  transport: "http" | "sse";
+  url: string;
+  headers?: Record<string, string>;
+}
+
+type MCPServerConfig = MCPStdioServerConfig | MCPHttpServerConfig;
 
 class MCPClientManager {
   private clients: Map<string, Awaited<ReturnType<typeof createMCPClient>>> =
@@ -36,19 +45,48 @@ class MCPClientManager {
 
   private loadFromEnv(): void {
     const serversJson = process.env.MCP_SERVERS;
-    if (!serversJson) return;
-
-    try {
-      const servers: MCPServerConfig[] = JSON.parse(serversJson);
-      for (const server of servers) {
-        this.configs.set(server.name, server);
+    if (serversJson) {
+      try {
+        const servers: MCPServerConfig[] = JSON.parse(serversJson);
+        for (const server of servers) {
+          this.configs.set(server.name, server);
+        }
+        logger.info(`Loaded ${servers.length} MCP server config(s) from env`);
+      } catch (error) {
+        logger.warn("Failed to parse MCP_SERVERS env var", {
+          error: error instanceof Error ? error.message : String(error),
+        });
       }
-      logger.info(`Loaded ${servers.length} MCP server config(s) from env`);
-    } catch (error) {
-      logger.warn("Failed to parse MCP_SERVERS env var", {
-        error: error instanceof Error ? error.message : String(error),
-      });
     }
+
+    this.loadMappMichelServerFromEnv();
+  }
+
+  /**
+   * Auto-register the hosted MAPP MCP server used by learned routes.
+   * This avoids requiring a JSON-encoded MCP_SERVERS entry for the common case.
+   */
+  private loadMappMichelServerFromEnv(): void {
+    const url = process.env.MAPP_MCP_SERVER_MICHEL_URL?.trim();
+    const token = process.env.MAPP_MCP_SERVER_MICHEL_TOKEN?.trim();
+
+    if (!url || !token) return;
+
+    if (this.configs.has("mapp-michel")) {
+      return;
+    }
+
+    this.configs.set("mapp-michel", {
+      name: "mapp-michel",
+      transport: "http",
+      url: url.replace(/\/$/, "") + "/api/mcp",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: "application/json, text/event-stream",
+      },
+    });
+
+    logger.info('Loaded MCP server config "mapp-michel" from env');
   }
 
   /**
@@ -71,18 +109,29 @@ class MCPClientManager {
 
     const config = this.configs.get(serverName);
     if (!config) {
-      logger.warn(`MCP server "${serverName}" not configured`);
+      logger.warn(`MCP server "${serverName}" not configured`, {
+        configuredServers: this.listServers(),
+      });
       return {};
     }
 
     try {
-      const client = await createMCPClient({
-        transport: new StdioMCPTransport({
-          command: config.command,
-          args: config.args,
-          env: config.env,
-        }),
-      });
+      const client =
+        "command" in config
+          ? await createMCPClient({
+              transport: new StdioMCPTransport({
+                command: config.command,
+                args: config.args,
+                env: config.env,
+              }),
+            })
+          : await createMCPClient({
+              transport: {
+                type: config.transport,
+                url: config.url,
+                headers: config.headers,
+              },
+            });
 
       this.clients.set(serverName, client);
 
