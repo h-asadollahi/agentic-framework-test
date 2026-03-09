@@ -143,6 +143,9 @@ src/
 ## Post-Handover Progress (2026-03-06, Codex)
 
 ### Completed (non-blocked)
+- Updated `docs/usage-guide.md` with out-of-scope cognition guardrail documentation:
+  - Added new section: "Out-of-Scope Requests"
+  - Documented early-stop behavior and rejection/acceptance example prompts.
 - Added cognition-stage rejection guardrail for out-of-scope requests:
   - `src/trigger/cognition-guardrails.ts` introduces deterministic rejection for:
     - competitor/rival-focused asks

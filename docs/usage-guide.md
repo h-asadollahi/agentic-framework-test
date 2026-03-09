@@ -15,8 +15,9 @@ A step-by-step guide to setting up, running, using, and extending the platform.
 7. [Connecting MCP Servers](#7-connecting-mcp-servers)
 8. [Human-in-the-Loop Escalation](#8-human-in-the-loop-escalation)
 9. [Memory System](#9-memory-system)
-10. [Running Tests](#10-running-tests)
-11. [Production Considerations](#11-production-considerations)
+10. [Out-of-Scope Requests](#10-out-of-scope-requests)
+11. [Running Tests](#11-running-tests)
+12. [Production Considerations](#12-production-considerations)
 
 ---
 
@@ -646,7 +647,38 @@ Limits: 100 learnings, 200 decisions.
 
 ---
 
-## 10. Running Tests
+## 10. Out-of-Scope Requests
+
+The cognition stage now enforces request-scope guardrails.
+
+If the marketer asks for:
+- competitor/rival-focused requests, or
+- clearly non-marketing topics,
+
+the request is rejected at cognition, and the workflow stops early (agency/interface stages are skipped).
+
+### Behavior
+
+- Pipeline returns a rejection `formattedResponse`
+- No subtasks are executed
+- No notifications are sent by default for this path
+
+### Example prompts that should be rejected
+
+- `Compare our Q1 campaign performance with our top competitor.`
+- `Give me a strategy based on what our rivals are doing on Instagram.`
+- `What is the weather in Berlin tomorrow?`
+- `Give me a pasta recipe for dinner.`
+
+### Example prompts that should be accepted
+
+- `Analyze conversion trends by channel in the last 30 days.`
+- `Show me my page impressions for the last 7 days.`
+- `What segments are defined in my Mapp Intelligence account?`
+
+---
+
+## 11. Running Tests
 
 ### Commands
 
@@ -686,7 +718,7 @@ Vitest picks up any `**/*.test.ts` file in the `tests/` directory.
 
 ---
 
-## 11. Production Considerations
+## 12. Production Considerations
 
 ### Memory persistence
 
