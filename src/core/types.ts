@@ -225,6 +225,8 @@ export interface AgencyResult {
     result: AgentResult;
   }>;
   summary: string;
+  issues?: string[];
+  needsHumanReview?: boolean;
 }
 
 // ── Interface/Delivery Result ──────────────────────────────

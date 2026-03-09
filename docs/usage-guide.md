@@ -64,6 +64,7 @@ GOOGLE_GENERATIVE_AI_API_KEY=...
 # Optional — Slack notifications
 SLACK_BOT_TOKEN=xoxb-...
 SLACK_DEFAULT_CHANNEL=#marketing-alerts
+SLACK_MONITORING_CHANNEL=#marketing-monitoring
 
 # Optional — Email notifications (SendGrid)
 SENDGRID_API_KEY=SG...
@@ -449,6 +450,11 @@ channelRegistry.register(myChannel);
 ### Step 3 — Use it
 
 Notifications with `channel: "my-channel"` will now route through your adapter.
+
+### Delivery-stage Slack routing rules
+
+- If `needsHumanReview` is true in agency output, the system sends a Slack notification to `SLACK_DEFAULT_CHANNEL`.
+- If issues are present (or any subtask failed), the system sends a monitoring Slack notification to `SLACK_MONITORING_CHANNEL`.
 
 ---
 

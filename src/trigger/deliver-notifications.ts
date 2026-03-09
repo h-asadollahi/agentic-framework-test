@@ -1,12 +1,5 @@
 import type { AgencyResult, NotificationRequest } from "../core/types.js";
 
-function toRecord(value: unknown): Record<string, unknown> | null {
-  if (value && typeof value === "object") {
-    return value as Record<string, unknown>;
-  }
-  return null;
-}
-
 function readIssues(value: unknown): string[] {
   if (!Array.isArray(value)) return [];
   return value
@@ -15,25 +8,46 @@ function readIssues(value: unknown): string[] {
     .filter(Boolean);
 }
 
-/**
- * Agency output may contain additional fields (e.g. needsHumanReview, issues)
- * beyond the strict AgencyResult type. This helper extracts those safely.
- */
+function getHumanReviewRecipient(): string {
+  return process.env.SLACK_DEFAULT_CHANNEL ?? "#marketing-alerts";
+}
+
+function getMonitoringRecipient(): string {
+  return (
+    process.env.SLACK_MONITORING_CHANNEL ??
+    process.env.SLACK_DEFAULT_CHANNEL ??
+    "#marketing-alerts"
+  );
+}
+
+function getResultFailureIssues(agencyResult: AgencyResult): string[] {
+  return agencyResult.results
+    .filter((entry) => entry.result.success === false)
+    .map(
+      (entry) =>
+        `Subtask "${entry.subtaskId}" (${entry.agentId}) failed: ${String(
+          entry.result.output ?? "unknown error"
+        ).slice(0, 240)}`
+    );
+}
+
+function getAllIssues(agencyResult: AgencyResult): string[] {
+  const explicitIssues = readIssues(agencyResult.issues);
+  const failureIssues = getResultFailureIssues(agencyResult);
+  return [...explicitIssues, ...failureIssues];
+}
+
 export function buildHumanReviewSlackNotification(
   agencyResult: AgencyResult
 ): NotificationRequest | null {
-  const raw = toRecord(agencyResult);
-  if (!raw || raw.needsHumanReview !== true) {
+  if (agencyResult.needsHumanReview !== true) {
     return null;
   }
 
-  const recipient =
-    process.env.MARKETER_SLACK_CHANNEL ??
-    process.env.SLACK_DEFAULT_CHANNEL ??
-    "#marketing-alerts";
+  const recipient = getHumanReviewRecipient();
 
   const summary = String(agencyResult.summary ?? "Human review requested");
-  const issues = readIssues(raw.issues);
+  const issues = getAllIssues(agencyResult);
   const issueSection =
     issues.length > 0
       ? `\n\nIssues:\n${issues.map((issue) => `- ${issue}`).join("\n")}`
@@ -55,10 +69,56 @@ export function ensureHumanReviewSlackNotification(
   agencyResult: AgencyResult,
   notifications: NotificationRequest[]
 ): NotificationRequest[] {
-  const hasSlack = notifications.some((n) => n.channel === "slack");
-  if (hasSlack) return notifications;
+  const recipient = getHumanReviewRecipient();
+  const alreadyHasHumanReviewSlack = notifications.some(
+    (n) =>
+      n.channel === "slack" &&
+      (n.recipient === recipient ||
+        n.metadata?.source === "deliver-human-review-fallback")
+  );
+  if (alreadyHasHumanReviewSlack) return notifications;
 
   const fallback = buildHumanReviewSlackNotification(agencyResult);
+  if (!fallback) return notifications;
+
+  return [...notifications, fallback];
+}
+
+export function buildMonitoringSlackNotification(
+  agencyResult: AgencyResult
+): NotificationRequest | null {
+  const issues = getAllIssues(agencyResult);
+  if (issues.length === 0) return null;
+
+  const recipient = getMonitoringRecipient();
+  const summary = String(agencyResult.summary ?? "Pipeline completed with issues");
+
+  return {
+    channel: "slack",
+    recipient,
+    subject: "Pipeline Monitoring Alert",
+    body: `${summary}\n\nIssues:\n${issues.map((issue) => `- ${issue}`).join("\n")}`,
+    priority: "warning",
+    metadata: {
+      source: "deliver-monitoring-fallback",
+    },
+  };
+}
+
+export function ensureMonitoringSlackNotification(
+  agencyResult: AgencyResult,
+  notifications: NotificationRequest[]
+): NotificationRequest[] {
+  const recipient = getMonitoringRecipient();
+  const alreadyHasMonitoringSlack = notifications.some(
+    (n) =>
+      n.channel === "slack" &&
+      (n.recipient === recipient ||
+        n.metadata?.source === "deliver-monitoring-fallback")
+  );
+  if (alreadyHasMonitoringSlack) return notifications;
+
+  const fallback = buildMonitoringSlackNotification(agencyResult);
   if (!fallback) return notifications;
 
   return [...notifications, fallback];

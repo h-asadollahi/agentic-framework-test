@@ -143,6 +143,15 @@ src/
 ## Post-Handover Progress (2026-03-06, Codex)
 
 ### Completed (non-blocked)
+- Refactored delivery-stage Slack routing:
+  - `needsHumanReview: true` now routes to `SLACK_DEFAULT_CHANNEL` (not marketer channel override).
+  - Issue monitoring now routes to `SLACK_MONITORING_CHANNEL` via deterministic fallback notification.
+  - Monitoring triggers when:
+    - `AgencyResult.issues` is non-empty, or
+    - any subtask result has `success: false`.
+  - Updated types with `AgencyResult.issues` and `AgencyResult.needsHumanReview`.
+  - Added tests in `tests/unit/deliver-notifications.test.ts`.
+  - Updated docs/env template to include `SLACK_MONITORING_CHANNEL`.
 - Expanded `docs/usage-guide.md` prompt reference with test-derived examples:
   - learned-route matching sample
   - route-pattern matching sample
