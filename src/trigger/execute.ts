@@ -5,6 +5,7 @@ import { learnedRoutesStore } from "../routing/learned-routes-store.js";
 import { learnRouteTask } from "./learn-route.js";
 import { resolveUnknownSubtaskStrategy } from "./execute-routing.js";
 import { parseAgentJson } from "./agent-output-parser.js";
+import { hydrateRegisteredSubtaskInput } from "./learned-route-input-hydration.js";
 // Register all plugins on import
 import "./sub-agents/plugins/index.js";
 import type {
@@ -62,10 +63,22 @@ export const executeTask = task({
           let result: AgentResult;
 
           if (subAgentRegistry.has(subtask.agentId)) {
+            const routeIdFromInput =
+              typeof subtask.input?.routeId === "string"
+                ? subtask.input.routeId
+                : null;
+            const learnedRoute = routeIdFromInput
+              ? learnedRoutesStore.getById(routeIdFromInput)
+              : learnedRoutesStore.findByCapability(subtask.description);
+            const hydratedInput = hydrateRegisteredSubtaskInput(
+              subtask,
+              learnedRoute
+            );
+
             // ── Registered sub-agent plugin ───────────────
             result = await subAgentRegistry.execute(
               subtask.agentId,
-              subtask.input,
+              hydratedInput,
               payload.context
             );
           } else {

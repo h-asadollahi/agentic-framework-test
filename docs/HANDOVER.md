@@ -288,6 +288,32 @@ src/
 ### Planning Artifact
 - Added implementation plan file:
   - `docs/ai-coding-plans/codex-plan-28.md`
+
+### Additional Fix (2026-03-09): Learned Route Defaults for Registered Sub-Agents
+- Root cause addressed:
+  - When Cognition directly assigned a registered sub-agent (for example `mcp-fetcher`), Agency executed it directly and skipped learned-route default hydration.
+  - This caused missing required `mcp-fetcher` fields (`serverName`, `toolName`) even though they existed in `knowledge/learned-routes.json` (route-007).
+- Implemented deterministic hydration in Agency:
+  - Added `src/trigger/learned-route-input-hydration.ts`.
+  - `src/trigger/execute.ts` now hydrates registered sub-agent input from learned route defaults by:
+    - `routeId` in subtask input, or
+    - description-based learned-route match.
+  - Defaults are applied only when learned route target matches the same sub-agent.
+- Added defensive fallback in MCP fetcher:
+  - `src/trigger/sub-agents/plugins/mcp-fetcher.ts` now hydrates input from learned route defaults (via `routeId`) before schema validation.
+  - This prevents hard failures when Cognition omits required fields but supplies route reference.
+- Prompt guidance improved:
+  - `src/agents/cognition-agent.ts` learned-route hints now explicitly instruct sub-agent route input to include:
+    - `{ "routeId": "<route-id>", ... }`
+- Tests added:
+  - `tests/unit/learned-route-input-hydration.test.ts`
+  - `tests/unit/mcp-fetcher.test.ts` expanded with route-default hydration case
+- Verification:
+  - `npm test` passed (`13` files, `71` tests).
+  - Live E2E prompt re-test:
+    - Prompt: `List all available dimensions and metrics in Mapp Intelligence`
+    - Run: `run_c29xop2g14w6fxxjypqha`
+    - Result: completed successfully via route-007 + `mcp-fetcher`; no missing `serverName/toolName` validation error.
   - `escalate-to-human` timeout path verified end-to-end
   - `learn-route` fallback path verified end-to-end
 - Verified interactive runtime paths:

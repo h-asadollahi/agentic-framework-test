@@ -147,7 +147,7 @@ Be specific about what each subtask should accomplish. Subtasks without dependen
               : `api:${r.endpointUrl ?? "unknown-endpoint"}`;
           const inputHint =
             r.routeType === "sub-agent" && r.agentId
-              ? `{ ...relevant params for ${r.agentId}... }`
+              ? `{ "routeId": "${r.id}", ...relevant params for ${r.agentId}... }`
               : `{ "routeId": "${r.id}", "params": { ...relevant params... } }`;
 
           return (

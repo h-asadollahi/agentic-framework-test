@@ -48,6 +48,47 @@ function asRecord(value: unknown): JsonRecord | null {
   return null;
 }
 
+export function hydrateMcpInputFromLearnedRoute(input: unknown): unknown {
+  const inputRecord = asRecord(input);
+  if (!inputRecord) return input;
+
+  const hasServerName =
+    typeof inputRecord.serverName === "string" &&
+    inputRecord.serverName.trim().length > 0;
+  const hasToolName =
+    typeof inputRecord.toolName === "string" &&
+    inputRecord.toolName.trim().length > 0;
+  if (hasServerName && hasToolName) return input;
+
+  const routeId =
+    typeof inputRecord.routeId === "string" && inputRecord.routeId.trim().length > 0
+      ? inputRecord.routeId
+      : null;
+  if (!routeId) return input;
+
+  const route = learnedRoutesStore.getById(routeId);
+  if (!route || route.routeType !== "sub-agent" || route.agentId !== "mcp-fetcher") {
+    return input;
+  }
+
+  const defaults = asRecord(route.agentInputDefaults) ?? {};
+  const merged: JsonRecord = {
+    ...defaults,
+    ...inputRecord,
+  };
+
+  const defaultArgs = asRecord(defaults.args) ?? {};
+  const inputArgs = asRecord(inputRecord.args) ?? {};
+  if (Object.keys(defaultArgs).length > 0 || Object.keys(inputArgs).length > 0) {
+    merged.args = {
+      ...defaultArgs,
+      ...inputArgs,
+    };
+  }
+
+  return merged;
+}
+
 function asStringArray(value: unknown): string[] {
   if (!Array.isArray(value)) return [];
   return value.filter((item): item is string => typeof item === "string");
@@ -205,7 +246,8 @@ export class McpFetcherAgent extends BaseSubAgent {
   }
 
   async execute(input: unknown, _context: ExecutionContext): Promise<AgentResult> {
-    const parsed = McpFetcherInput.safeParse(input);
+    const hydratedInput = hydrateMcpInputFromLearnedRoute(input);
+    const parsed = McpFetcherInput.safeParse(hydratedInput);
     if (!parsed.success) {
       return {
         success: false,

@@ -1,9 +1,15 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi, afterEach } from "vitest";
 import {
   buildMcpToolArgs,
+  hydrateMcpInputFromLearnedRoute,
   resolveMcpTemplateValue,
   shapeMcpOutputData,
 } from "../../src/trigger/sub-agents/plugins/mcp-fetcher.js";
+import { learnedRoutesStore } from "../../src/routing/learned-routes-store.js";
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 describe("mcp-fetcher mapping helpers", () => {
   it("resolves exact input placeholders to original value types", () => {
@@ -76,5 +82,39 @@ describe("mcp-fetcher mapping helpers", () => {
     expect(shaped.compacted).toBe(true);
     expect(shaped.note).toBeTruthy();
     expect(typeof shaped.preview).toBe("string");
+  });
+
+  it("hydrates missing server/tool from learned route defaults by routeId", () => {
+    vi.spyOn(learnedRoutesStore, "getById").mockReturnValue({
+      id: "route-007",
+      capability: "mapp-mcp-list-dimensions-metrics",
+      description: "List all available dimensions and metrics in Mapp Intelligence",
+      matchPatterns: ["dimensions and metrics"],
+      routeType: "sub-agent",
+      agentId: "mcp-fetcher",
+      agentInputDefaults: {
+        serverName: "mapp-michel",
+        toolName: "list_dimensions_and_metrics",
+        routeId: "route-007",
+        args: { language: "en" },
+      },
+      inputMapping: {},
+      outputFormat: "json",
+      addedAt: "2026-03-09T00:00:00.000Z",
+      addedBy: "test",
+      usageCount: 0,
+      lastUsedAt: null,
+    });
+
+    const hydrated = hydrateMcpInputFromLearnedRoute({
+      routeId: "route-007",
+      params: { period: "7d" },
+    }) as Record<string, unknown>;
+
+    expect(hydrated.serverName).toBe("mapp-michel");
+    expect(hydrated.toolName).toBe("list_dimensions_and_metrics");
+    expect(hydrated.routeId).toBe("route-007");
+    expect(hydrated.args).toEqual({ language: "en" });
+    expect(hydrated.params).toEqual({ period: "7d" });
   });
 });
