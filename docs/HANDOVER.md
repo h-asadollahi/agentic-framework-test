@@ -334,10 +334,23 @@ src/
 - Tests:
   - Added `tests/unit/delivery-fidelity.test.ts` for fact extraction, human-readable requirements, and missing-fact appendix behavior.
   - `npm test` passed (`14` files, `74` tests).
-- Live verification:
+  - Live verification:
   - Prompt: `Show me my page impressions for the last 7 days`
   - Run: `run_i6crxc4d64buk8j6j4tof`
   - Result: final response now includes structured sections (`Executive Summary`, `Key Findings`, table + metrics) with Agency-level detail retained.
+
+### Additional Fix (2026-03-09): Demo Markdown Table Rendering
+- Root cause addressed:
+  - Demo markdown renderer handled headings/lists/paragraphs but not markdown tables, so `| ... |` blocks rendered as raw text.
+- Implemented in UI:
+  - `demo/app.js`
+    - Added markdown table parser for GitHub-style tables (header row + separator row + body rows).
+    - Table parsing is evaluated before paragraph fallback, preventing table lines from being merged into plain text.
+  - `demo/styles.css`
+    - Added `.md-table-wrap` and `.md-table` styles with readable header/body formatting and horizontal overflow support.
+- Validation:
+  - `node --check demo/app.js`
+  - `npm test` (full suite) passed (`14` files, `74` tests).
   - `escalate-to-human` timeout path verified end-to-end
   - `learn-route` fallback path verified end-to-end
 - Verified interactive runtime paths:

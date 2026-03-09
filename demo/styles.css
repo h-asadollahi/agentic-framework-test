@@ -194,6 +194,39 @@ h1 {
   padding: 1px 5px;
 }
 
+.md-table-wrap {
+  margin: 0.45rem 0 0.9rem;
+  overflow-x: auto;
+  border: 1px solid #dce7de;
+  border-radius: 8px;
+  background: #fbfdfb;
+}
+
+.md-table {
+  width: 100%;
+  min-width: 520px;
+  border-collapse: collapse;
+}
+
+.md-table thead th {
+  text-align: left;
+  font-weight: 700;
+  background: #eef6f0;
+  color: #244535;
+  border-bottom: 1px solid #d7e6da;
+}
+
+.md-table th,
+.md-table td {
+  padding: 8px 10px;
+  border-bottom: 1px solid #e5eee7;
+  vertical-align: top;
+}
+
+.md-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
 .step-block {
   margin-top: 10px;
   border-top: 1px dashed var(--line);

@@ -108,6 +108,73 @@ function renderInlineMarkdown(text) {
   return fragment;
 }
 
+function splitTableCells(line) {
+  const trimmed = line.trim().replace(/^\|/, "").replace(/\|$/, "");
+  return trimmed.split("|").map((cell) => cell.trim());
+}
+
+function isTableSeparatorLine(line) {
+  const cells = splitTableCells(line);
+  if (cells.length === 0) return false;
+  return cells.every((cell) => /^:?-{3,}:?$/.test(cell.replace(/\s+/g, "")));
+}
+
+function renderMarkdownTable(lines, startIndex) {
+  if (startIndex + 1 >= lines.length) return null;
+
+  const headerLine = lines[startIndex].trim();
+  const separatorLine = lines[startIndex + 1].trim();
+  if (!headerLine.includes("|") || !separatorLine.includes("|")) return null;
+  if (!isTableSeparatorLine(separatorLine)) return null;
+
+  const headerCells = splitTableCells(headerLine);
+  if (headerCells.length < 2) return null;
+
+  let endIndex = startIndex + 2;
+  while (endIndex < lines.length) {
+    const rowLine = lines[endIndex].trim();
+    if (!rowLine || !rowLine.includes("|")) break;
+    endIndex++;
+  }
+
+  const tableWrap = document.createElement("div");
+  tableWrap.className = "md-table-wrap";
+
+  const table = document.createElement("table");
+  table.className = "md-table";
+
+  const thead = document.createElement("thead");
+  const headRow = document.createElement("tr");
+  headerCells.forEach((cell) => {
+    const th = document.createElement("th");
+    th.appendChild(renderInlineMarkdown(cell));
+    headRow.appendChild(th);
+  });
+  thead.appendChild(headRow);
+  table.appendChild(thead);
+
+  const tbody = document.createElement("tbody");
+  for (let i = startIndex + 2; i < endIndex; i++) {
+    const rowCells = splitTableCells(lines[i]);
+    if (rowCells.length === 0) continue;
+
+    const row = document.createElement("tr");
+    for (let col = 0; col < headerCells.length; col++) {
+      const td = document.createElement("td");
+      td.appendChild(renderInlineMarkdown(rowCells[col] ?? ""));
+      row.appendChild(td);
+    }
+    tbody.appendChild(row);
+  }
+  table.appendChild(tbody);
+  tableWrap.appendChild(table);
+
+  return {
+    node: tableWrap,
+    nextIndex: endIndex,
+  };
+}
+
 function renderAssistantMarkdown(text) {
   const root = document.createElement("div");
   root.className = "md-content";
@@ -146,8 +213,21 @@ function renderAssistantMarkdown(text) {
       continue;
     }
 
+    const tableBlock = renderMarkdownTable(lines, i);
+    if (tableBlock) {
+      root.appendChild(tableBlock.node);
+      i = tableBlock.nextIndex;
+      continue;
+    }
+
     const paragraphParts = [];
-    while (i < lines.length && lines[i].trim() && !/^-\s+/.test(lines[i].trim()) && !/^#{1,3}\s+/.test(lines[i].trim())) {
+    while (
+      i < lines.length &&
+      lines[i].trim() &&
+      !/^-\s+/.test(lines[i].trim()) &&
+      !/^#{1,3}\s+/.test(lines[i].trim()) &&
+      !renderMarkdownTable(lines, i)
+    ) {
       paragraphParts.push(lines[i].trim());
       i++;
     }
