@@ -33,7 +33,7 @@ After execution:
 2. If summary output is not valid JSON, runtime falls back to:
    - direct `results`
    - raw summary text as `summary`
-3. Structured `skillSuggestions` are validated, persisted to `knowledge/skill-candidates.json`, and autonomously materialized to `./skills/*.md` (no human review gate for this skill lifecycle).
+3. Structured `skillSuggestions` are validated, persisted to `knowledge/skill-candidates.json`, and autonomously materialized to `./skills/learned/*.md` (no human review gate for this skill lifecycle).
 
 ## Why This Exists
 

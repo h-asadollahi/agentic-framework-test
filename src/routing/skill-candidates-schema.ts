@@ -7,7 +7,7 @@ export const SkillCandidateSchema = z.object({
   suggestedSkillFile: z
     .string()
     .min(1)
-    .default("skills/new-agent-skill.md"),
+    .default("skills/learned/new-agent-skill.md"),
   triggerPatterns: z.array(z.string()).default([]),
   confidence: z.enum(["low", "medium", "high"]).default("medium"),
   requiresApproval: z.boolean().default(false),

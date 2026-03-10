@@ -480,16 +480,6 @@ export function persistAndMaterializeSkillSuggestions(
   const issues: string[] = [];
 
   for (const suggestion of suggestions) {
-    const persisted = skillCandidatesStore.upsertCandidate({
-      capability: suggestion.capability,
-      description: suggestion.description,
-      suggestedSkillFile: suggestion.suggestedSkillFile,
-      triggerPatterns: suggestion.triggerPatterns,
-      confidence: suggestion.confidence,
-      requiresApproval: false,
-      source: "autonomous",
-    });
-
     const materialization = materializeUniversalSkillFromSuggestion(
       {
         capability: suggestion.capability,
@@ -500,6 +490,16 @@ export function persistAndMaterializeSkillSuggestions(
       context,
       "autonomous"
     );
+
+    const persisted = skillCandidatesStore.upsertCandidate({
+      capability: suggestion.capability,
+      description: suggestion.description,
+      suggestedSkillFile: materialization.skillFile,
+      triggerPatterns: suggestion.triggerPatterns,
+      confidence: suggestion.confidence,
+      requiresApproval: false,
+      source: "autonomous",
+    });
 
     materializations.push({
       candidateId: persisted.id,

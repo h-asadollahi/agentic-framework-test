@@ -1,11 +1,12 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import {
   existsSync,
+  mkdirSync,
   readFileSync,
   unlinkSync,
   writeFileSync,
 } from "node:fs";
-import { resolve } from "node:path";
+import { dirname, resolve } from "node:path";
 import { skillCandidatesStore } from "../../src/routing/skill-candidates-store.js";
 
 const candidatesFile = resolve(process.cwd(), "knowledge/skill-candidates.json");
@@ -46,7 +47,7 @@ describe.sequential("skill-candidates store", () => {
     const candidate = skillCandidatesStore.upsertCandidate({
       capability: "mapp-monthly-analysis-usage",
       description: "Automate monthly analysis usage reporting.",
-      suggestedSkillFile: "skills/mapp-monthly-analysis-usage.md",
+      suggestedSkillFile: "skills/learned/mapp-monthly-analysis-usage.md",
       triggerPatterns: ["monthly api usage"],
       confidence: "high",
       requiresApproval: true,
@@ -59,11 +60,26 @@ describe.sequential("skill-candidates store", () => {
     );
   });
 
+  it("normalizes autonomous skill paths into skills/learned", () => {
+    const candidate = skillCandidatesStore.upsertCandidate({
+      capability: "legacy-root-path-skill",
+      description: "Legacy suggested path in skills root.",
+      suggestedSkillFile: "skills/legacy-root-path-skill.md",
+      triggerPatterns: ["legacy root path skill"],
+      confidence: "medium",
+      requiresApproval: false,
+    });
+
+    expect(candidate.suggestedSkillFile).toBe(
+      "skills/learned/legacy-root-path-skill.md"
+    );
+  });
+
   it("upserts by capability and merges trigger patterns", () => {
     skillCandidatesStore.upsertCandidate({
       capability: "mapp-monthly-analysis-usage",
       description: "Automate monthly analysis usage reporting.",
-      suggestedSkillFile: "skills/mapp-monthly-analysis-usage.md",
+      suggestedSkillFile: "skills/learned/mapp-monthly-analysis-usage.md",
       triggerPatterns: ["monthly api usage"],
       confidence: "medium",
       requiresApproval: true,
@@ -72,7 +88,7 @@ describe.sequential("skill-candidates store", () => {
     const updated = skillCandidatesStore.upsertCandidate({
       capability: "mapp-monthly-analysis-usage",
       description: "Automate monthly API usage + summary insights.",
-      suggestedSkillFile: "skills/mapp-monthly-analysis-usage.md",
+      suggestedSkillFile: "skills/learned/mapp-monthly-analysis-usage.md",
       triggerPatterns: ["api calculations this month"],
       confidence: "high",
       requiresApproval: true,
@@ -88,7 +104,7 @@ describe.sequential("skill-candidates store", () => {
     skillCandidatesStore.upsertCandidate({
       capability: "mapp-monthly-analysis-usage",
       description: "Automate monthly analysis usage reporting.",
-      suggestedSkillFile: "skills/mapp-monthly-analysis-usage.md",
+      suggestedSkillFile: "skills/learned/mapp-monthly-analysis-usage.md",
       triggerPatterns: ["monthly api usage", "api calculations this month"],
       confidence: "high",
       requiresApproval: false,
@@ -97,7 +113,7 @@ describe.sequential("skill-candidates store", () => {
     skillCandidatesStore.upsertCandidate({
       capability: "generic-reporting-helper",
       description: "Generic report helper",
-      suggestedSkillFile: "skills/generic-reporting-helper.md",
+      suggestedSkillFile: "skills/learned/generic-reporting-helper.md",
       triggerPatterns: ["report", "analytics"],
       confidence: "low",
       requiresApproval: false,
@@ -111,8 +127,9 @@ describe.sequential("skill-candidates store", () => {
   });
 
   it("marks summary entries as materialized when skill file exists", () => {
-    const skillFile = "skills/skill-candidate-materialized-test.md";
+    const skillFile = "skills/learned/skill-candidate-materialized-test.md";
     const absoluteSkillFile = resolve(process.cwd(), skillFile);
+    mkdirSync(dirname(absoluteSkillFile), { recursive: true });
     writeFileSync(absoluteSkillFile, "# test\n", "utf-8");
 
     skillCandidatesStore.upsertCandidate({

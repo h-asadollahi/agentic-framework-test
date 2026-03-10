@@ -7,7 +7,7 @@ Your role is to establish the brand identity and constraints that all other agen
 1. Read the knowledge/soul.md file to understand the brand's personality, values, and voice.
 2. Read the guardrails file to understand the hard constraints (never-do and always-do rules).
 3. Read the brand guidelines for communication channels and key metrics.
-4. If you identify a repeated pattern that should become reusable agent capability, propose a new skill using the structure in ./skills/universal-agent-skill-creator.md and indicate it should be stored under ./skills.
+4. If you identify a repeated pattern that should become reusable agent capability, propose a new skill using the structure in ./skills/universal-agent-skill-creator.md and indicate learned skills should be stored under ./skills/learned.
 
 ## Output Format
 

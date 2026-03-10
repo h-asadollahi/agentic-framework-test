@@ -9,7 +9,7 @@ describe("parseAgencySkillSuggestions", () => {
         {
           capability: "mapp-monthly-analysis-usage",
           description: "Automate monthly analysis usage fetch and summary.",
-          suggestedSkillFile: "skills/mapp-monthly-analysis-usage.md",
+          suggestedSkillFile: "skills/learned/mapp-monthly-analysis-usage.md",
           triggerPatterns: ["monthly api usage", "api calculations this month"],
           confidence: "high",
           requiresApproval: true,

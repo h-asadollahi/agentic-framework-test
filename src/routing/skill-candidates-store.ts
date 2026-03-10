@@ -55,6 +55,25 @@ function normalizePatterns(patterns: string[]): string[] {
   return [...deduped];
 }
 
+function normalizeSuggestedSkillFilePath(rawPath: string): string {
+  const fallback = "skills/learned/new-agent-skill.md";
+  const trimmed = rawPath.trim();
+  const sanitized = (trimmed.length > 0 ? trimmed : fallback)
+    .replace(/\\/g, "/")
+    .replace(/^\.\//, "");
+
+  const withExtension = sanitized.toLowerCase().endsWith(".md")
+    ? sanitized
+    : `${sanitized}.md`;
+
+  if (withExtension.startsWith("skills/learned/")) {
+    return withExtension;
+  }
+
+  const fileName = withExtension.split("/").pop() || "new-agent-skill.md";
+  return `skills/learned/${fileName}`;
+}
+
 function tokenize(text: string): string[] {
   return text
     .toLowerCase()
@@ -145,7 +164,7 @@ class SkillCandidatesStoreImpl {
     this.ensureLoaded();
 
     const capability = data.capability.trim();
-    const skillFile = data.suggestedSkillFile.trim();
+    const skillFile = normalizeSuggestedSkillFilePath(data.suggestedSkillFile);
     const description = data.description.trim();
     const confidence = data.confidence ?? "medium";
 
@@ -174,7 +193,7 @@ class SkillCandidatesStoreImpl {
       id: nextCandidateId(this.candidates),
       capability,
       description,
-      suggestedSkillFile: skillFile || "skills/new-agent-skill.md",
+      suggestedSkillFile: skillFile || "skills/learned/new-agent-skill.md",
       triggerPatterns: normalizePatterns(data.triggerPatterns ?? []),
       confidence,
       requiresApproval: data.requiresApproval ?? false,

@@ -61,7 +61,7 @@ describe.sequential("autonomous skill loop", () => {
 
   it("materializes universal skill file and keeps it unchanged on second run", () => {
     const context = buildExecutionContext("autonomous-skill-materialize-test");
-    const skillFile = "skills/autonomous-skill-materialize-test.md";
+    const skillFile = "skills/learned/autonomous-skill-materialize-test.md";
     cleanupSkillFile(skillFile);
 
     const created = materializeUniversalSkill({
@@ -91,7 +91,7 @@ describe.sequential("autonomous skill loop", () => {
   });
 
   it("prepends a skill-creator task when matched candidate skill file is missing", () => {
-    const skillFile = "skills/autonomous-missing-skill-test.md";
+    const skillFile = "skills/learned/autonomous-missing-skill-test.md";
     cleanupSkillFile(skillFile);
 
     skillCandidatesStore.upsertCandidate({
@@ -134,14 +134,14 @@ describe.sequential("autonomous skill loop", () => {
 
   it("persists and materializes skill suggestions without human-approval gating", () => {
     const context = buildExecutionContext("autonomous-skill-suggestion-test");
-    const skillFile = "skills/autonomous-suggestion-materialized.md";
+    const skillFile = "skills/learned/autonomous-suggestion-materialized.md";
     cleanupSkillFile(skillFile);
 
     const suggestions: SkillSuggestion[] = [
       {
         capability: "mapp-monthly-analysis-usage",
         description: "Automate monthly API usage retrieval and summary.",
-        suggestedSkillFile: skillFile,
+        suggestedSkillFile: "skills/autonomous-suggestion-materialized.md",
         triggerPatterns: ["monthly api usage", "api calculations this month"],
         confidence: "high",
         requiresApproval: true,
@@ -159,6 +159,7 @@ describe.sequential("autonomous skill loop", () => {
     expect(summary).toHaveLength(1);
     expect(summary[0].requiresApproval).toBe(false);
     expect(summary[0].materialized).toBe(true);
+    expect(summary[0].suggestedSkillFile).toBe(skillFile);
 
     cleanupSkillFile(skillFile);
   });

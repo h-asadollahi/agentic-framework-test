@@ -75,7 +75,8 @@ function resolveProjectRoot(): string {
 }
 
 const PROJECT_ROOT = resolveProjectRoot();
-const SKILLS_DIR = resolve(PROJECT_ROOT, "skills");
+const LEARNED_SKILLS_RELATIVE_DIR = "skills/learned";
+const LEARNED_SKILLS_DIR = resolve(PROJECT_ROOT, LEARNED_SKILLS_RELATIVE_DIR);
 const DEFAULT_SKILL_PATH = resolve(
   PROJECT_ROOT,
   "skills/universal-agent-skill-creator.md"
@@ -138,7 +139,8 @@ function sanitizeRelativeSkillFilePath(
   requestedPath: string | undefined,
   fallbackSlug: string
 ): { relativePath: string; absolutePath: string } {
-  const fallback = `skills/${fallbackSlug || "new-agent-skill"}.md`;
+  const fallbackFileName = `${fallbackSlug || "new-agent-skill"}.md`;
+  const fallback = `${LEARNED_SKILLS_RELATIVE_DIR}/${fallbackFileName}`;
   const raw = normalizeText(requestedPath);
 
   let candidate = raw.length > 0 ? raw : fallback;
@@ -152,17 +154,22 @@ function sanitizeRelativeSkillFilePath(
     candidate = `${candidate}.md`;
   }
 
-  if (!candidate.startsWith("skills/")) {
-    const fileName = candidate.split("/").pop() || `${fallbackSlug}.md`;
-    candidate = `skills/${fileName}`;
+  if (candidate.startsWith("skills/")) {
+    if (!candidate.startsWith(`${LEARNED_SKILLS_RELATIVE_DIR}/`)) {
+      const fileName = candidate.split("/").pop() || fallbackFileName;
+      candidate = `${LEARNED_SKILLS_RELATIVE_DIR}/${fileName}`;
+    }
+  } else {
+    const fileName = candidate.split("/").pop() || fallbackFileName;
+    candidate = `${LEARNED_SKILLS_RELATIVE_DIR}/${fileName}`;
   }
 
   candidate = normalize(candidate).replace(/\\/g, "/");
 
   const absoluteCandidate = resolve(PROJECT_ROOT, candidate);
-  const skillsPrefix = `${SKILLS_DIR}${sep}`;
+  const learnedSkillsPrefix = `${LEARNED_SKILLS_DIR}${sep}`;
 
-  if (!absoluteCandidate.startsWith(skillsPrefix)) {
+  if (!absoluteCandidate.startsWith(learnedSkillsPrefix)) {
     const absoluteFallback = resolve(PROJECT_ROOT, fallback);
     return { relativePath: fallback, absolutePath: absoluteFallback };
   }
@@ -228,7 +235,7 @@ skillFile: ${skillFile}
 
 # ${capabilityTitle} Skill
 
-Auto-generated using [skills/universal-agent-skill-creator.md](./universal-agent-skill-creator.md) for autonomous self-improvement.
+Auto-generated using \`skills/universal-agent-skill-creator.md\` for autonomous self-improvement.
 
 ## Intent
 ${description}
@@ -415,8 +422,10 @@ export function buildUniversalSkillGuidance(
   return {
     workflow: "universal-agent-skill-creator",
     request: subtask.description,
-    destinationFolder: "skills",
-    suggestedSkillFile: materialization.skillFile || `skills/${baseName}.md`,
+    destinationFolder: LEARNED_SKILLS_RELATIVE_DIR,
+    suggestedSkillFile:
+      materialization.skillFile ||
+      `${LEARNED_SKILLS_RELATIVE_DIR}/${baseName}.md`,
     requiredSections: [
       "Intent capture",
       "System prompt and guardrails",
@@ -437,7 +446,7 @@ export function buildUniversalSkillGuidance(
       "Use generated skill for matching future prompts without human review.",
       "Keep trigger patterns updated when new prompt variants appear.",
       "Run evaluation prompts to validate output quality.",
-      "Store finalized skill under ./skills for deterministic reuse.",
+      "Store finalized learned skill under ./skills/learned for deterministic reuse.",
     ],
     references: ["skills/universal-agent-skill-creator.md"],
     materialization,

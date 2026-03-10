@@ -59,7 +59,7 @@ export abstract class BaseSubAgent implements SubAgentPlugin {
   protected getSkillCreationInstruction(): string {
     return (
       "If you detect a reusable workflow pattern, propose creating a new skill using " +
-      "./skills/universal-agent-skill-creator.md and save new skills under ./skills."
+      "./skills/universal-agent-skill-creator.md and save learned skills under ./skills/learned."
     );
   }
 

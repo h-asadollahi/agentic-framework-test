@@ -43,7 +43,7 @@ describe.sequential("CognitionAgent skill candidate injection", () => {
     skillCandidatesStore.upsertCandidate({
       capability: "mapp-monthly-analysis-usage",
       description: "Automate monthly API usage reporting workflow.",
-      suggestedSkillFile: "skills/mapp-monthly-analysis-usage.md",
+      suggestedSkillFile: "skills/learned/mapp-monthly-analysis-usage.md",
       triggerPatterns: ["monthly api usage", "api calculations this month"],
       confidence: "high",
       requiresApproval: false,

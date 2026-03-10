@@ -56,7 +56,7 @@ What changed:
   - `requiresApproval` defaults to `false` in skill schemas/parsers.
   - Agency suggestions are persisted as autonomous candidates.
 - Added deterministic skill-file materialization using `skills/universal-agent-skill-creator.md`:
-  - `src/trigger/universal-skill-creator.ts` now writes/updates skill files in `./skills`.
+  - `src/trigger/universal-skill-creator.ts` now writes/updates skill files in `./skills/learned`.
   - Supports safe path normalization and skips overwriting manually maintained skill files.
 - Agency execution now auto-materializes suggested skills:
   - `pipeline-execute` persists suggestions and materializes files immediately.
@@ -77,6 +77,26 @@ Tests added/updated:
   - materialized flag in summary
 - Updated skill-candidate cognition injection expectations in:
   - `tests/unit/cognition-skill-candidates.test.ts`
+
+### Plan 59: Learned Skill Folder Split (`./skills/learned`)
+
+Status: Implemented in code and tests.
+
+What changed:
+- Autonomous/on-the-fly skills are now normalized and materialized under `./skills/learned` only.
+- `src/trigger/universal-skill-creator.ts` now enforces `skills/learned/*.md` destinations even if legacy root paths are suggested.
+- `src/routing/skill-candidates-schema.ts` + `src/routing/skill-candidates-store.ts` default skill paths now point to `skills/learned/new-agent-skill.md`.
+- `pipeline-execute` now persists candidate file paths using post-normalization materialization outputs.
+- Existing learned skill files moved from `skills/*.md` to `skills/learned/*.md`.
+- `knowledge/skill-candidates.json` path entries migrated to `skills/learned/...`.
+- Human-readable prompts/spec docs updated to distinguish static skill files vs learned skill files.
+
+Tests updated:
+- `tests/unit/autonomous-skill-loop.test.ts`
+- `tests/unit/universal-skill-creator.test.ts`
+- `tests/unit/skill-candidates-store.test.ts`
+- `tests/unit/cognition-skill-candidates.test.ts`
+- `tests/unit/agency-skill-suggestions.test.ts`
 
 ### Plan 56: Mapp Intelligence API Workflows + `api-fetcher` skill preflight
 
@@ -614,11 +634,11 @@ Tests added/updated:
 - Added universal skill-creator workflow module:
   - `src/trigger/universal-skill-creator.ts`
   - Detects skill-creation intent and returns structured guidance based on `skills/universal-agent-skill-creator.md`.
-  - Guidance explicitly targets `./skills` as destination for new reusable skills.
+  - Guidance explicitly targets `./skills/learned` as destination for autonomous learned skills.
 - Agency routing update:
   - `src/trigger/execute.ts` now routes unknown subtasks with skill-creation intent to universal skill-creator workflow before generic fallback.
 - Prompt-level behavior update across agents and sub-agents:
-  - Main agents updated (`grounding`, `cognition`, `agency`, `interface`) to explicitly recommend creating reusable skills via `./skills/universal-agent-skill-creator.md` and storing new skills under `./skills`.
+  - Main agents updated (`grounding`, `cognition`, `agency`, `interface`) to explicitly recommend creating reusable skills via `./skills/universal-agent-skill-creator.md` and storing learned skills under `./skills/learned`.
   - Sub-agent base class adds shared skill-creation instruction helper.
   - Sub-agent prompts updated (`cohort-monitor`, `api-fetcher`, `mcp-fetcher`) to include this instruction.
 - Tests added:
@@ -820,7 +840,7 @@ Key interfaces: `PipelinePayload`, `PipelineResult`, `SubTask`, `AgentResult`, `
 - Added a new **Self-Improving Skills** section to `demo/README.md`.
 - Documented `skills/universal-agent-skill-creator.md` as the reusable skill-generation mechanism for future agent/sub-agent capability growth.
 - Clarified developer expectations:
-  - new generated skills should be stored under `skills/`
+  - new generated skills should be stored under `skills/learned/`
   - adopted skills should also be reflected in this handover file.
 
 ### Grounding Spec Migration (Plan 37) — Completed

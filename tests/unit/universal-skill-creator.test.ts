@@ -44,8 +44,8 @@ function makeContext(): ExecutionContext {
 }
 
 const generatedSkillFiles = [
-  resolve(process.cwd(), "skills/build-new-agent-skill-for-campaign-qa.md"),
-  resolve(process.cwd(), "skills/create-reusable-skill-for-email-qa.md"),
+  resolve(process.cwd(), "skills/learned/build-new-agent-skill-for-campaign-qa.md"),
+  resolve(process.cwd(), "skills/learned/create-reusable-skill-for-email-qa.md"),
 ];
 
 afterEach(() => {
@@ -73,7 +73,7 @@ describe("universal skill creator helpers", () => {
     ).toBe(false);
   });
 
-  it("builds guidance that points to ./skills folder", () => {
+  it("builds guidance that points to ./skills/learned folder", () => {
     const guidance = buildUniversalSkillGuidance(
       {
         description: "Build new agent skill for campaign QA",
@@ -84,8 +84,8 @@ describe("universal skill creator helpers", () => {
     );
 
     expect(guidance.workflow).toBe("universal-agent-skill-creator");
-    expect(guidance.destinationFolder).toBe("skills");
-    expect(String(guidance.suggestedSkillFile)).toContain("skills/");
+    expect(guidance.destinationFolder).toBe("skills/learned");
+    expect(String(guidance.suggestedSkillFile)).toContain("skills/learned/");
   });
 
   it("returns agency-compatible result", () => {
