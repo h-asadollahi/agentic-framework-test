@@ -416,6 +416,25 @@ src/
   - admin monitoring prompt
   - no-alert success prompt
 - This section is intended for fast manual validation after config changes in `.env`.
+
+### Additional Fix (2026-03-10): Agency MCP-Builder Skill Branch
+- Added Agency-side API/MCP builder intent routing:
+  - `src/trigger/mcp-builder.ts`
+    - Detects MCP-builder style subtasks (API integration / create MCP server intents).
+    - Loads and uses `skills/mcp-builder-SKILL.md` to generate structured implementation guidance.
+    - Returns Agency-compatible result output with workflow phases, required inputs, and next steps.
+  - `src/trigger/execute.ts`
+    - For unknown agent subtasks with no learned route, routes API/MCP builder intents to the MCP-builder branch instead of generic fallback.
+    - Existing learned-route and registered sub-agent behavior remains unchanged.
+- Tests added:
+  - `tests/unit/mcp-builder.test.ts`
+    - intent detection positive/negative cases
+    - guidance structure validation
+    - Agency-compatible result validation
+- Docs updated:
+  - `docs/usage-guide.md` now includes MCP-builder trigger prompts.
+- Validation:
+  - `npm test` passed (`15` files, `87` tests).
   - `escalate-to-human` timeout path verified end-to-end
   - `learn-route` fallback path verified end-to-end
 - Verified interactive runtime paths:

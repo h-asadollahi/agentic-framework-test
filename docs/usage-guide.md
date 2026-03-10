@@ -799,6 +799,14 @@ These are prompt patterns currently covered by unit tests and useful for smoke c
 - `Compare our campaign performance against our main competitor.` (guardrail rejection path)
 - `What is the weather in Berlin tomorrow?` (guardrail rejection path)
 
+### MCP Builder prompts
+
+These prompts should trigger the Agency MCP-builder workflow (skill-guided response using `skills/mcp-builder-SKILL.md`):
+
+- `Create an MCP server for our internal CRM API so agents can fetch customer lifecycle data.`
+- `Build an MCP server integration for this REST API with OAuth and pagination.`
+- `Help me expose our support platform API as MCP tools in TypeScript.`
+
 ### Alert-routing validation prompts
 
 Use these to verify Slack alert routing behavior:

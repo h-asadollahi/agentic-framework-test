@@ -6,6 +6,10 @@ import { learnRouteTask } from "./learn-route.js";
 import { resolveUnknownSubtaskStrategy } from "./execute-routing.js";
 import { parseAgentJson } from "./agent-output-parser.js";
 import { hydrateRegisteredSubtaskInput } from "./learned-route-input-hydration.js";
+import {
+  buildMcpBuilderAgentResult,
+  isMcpBuilderIntent,
+} from "./mcp-builder.js";
 // Register all plugins on import
 import "./sub-agents/plugins/index.js";
 import type {
@@ -91,6 +95,19 @@ export const executeTask = task({
             const learnedRoute = learnedRoutesStore.findByCapability(
               subtask.description
             );
+
+            if (!learnedRoute && isMcpBuilderIntent(subtask)) {
+              logger.info(
+                `No learned route for "${subtask.agentId}", using MCP builder skill workflow`
+              );
+              result = buildMcpBuilderAgentResult(subtask, payload.context);
+              return {
+                subtaskId: subtask.id,
+                agentId: subtask.agentId,
+                result: { ...result, durationMs: Date.now() - startTime },
+              };
+            }
+
             const strategy = resolveUnknownSubtaskStrategy(
               subtask,
               Boolean(learnedRoute)
