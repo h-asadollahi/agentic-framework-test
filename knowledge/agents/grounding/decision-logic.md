@@ -8,7 +8,7 @@ The runtime logic is implemented in:
 - `src/trigger/ground.ts`
 
 Grounding stage flow:
-1. Build execution context from `soul.md` and `knowledge/guardrails.md`.
+1. Build execution context from `knowledge/soul.md` and `knowledge/guardrails.md`.
 2. Execute Grounding Agent with the user message.
 3. Parse Grounding output as JSON.
 4. If parse succeeds:

@@ -17,7 +17,7 @@ Multi-agent marketing platform built with **Trigger.dev v3** (orchestration) + *
 ```
 POST /message → Hono API (port 3001)
   → tasks.trigger("orchestrate-pipeline")
-    → Stage 1: Grounding   (loads soul.md, guardrails)
+    → Stage 1: Grounding   (loads knowledge/soul.md, guardrails)
     → Stage 2: Cognition   (decomposes into subtasks, assigns sub-agents)
     → Stage 3: Agency      (executes subtasks via sub-agent registry)
     → Stage 4: Interface   (formats response, determines notifications)
@@ -36,7 +36,7 @@ src/
 ├── memory/              # Short-term (per-session) and long-term (cross-session) memory
 ├── providers/           # Model router (resolves "anthropic:fast" → LanguageModel)
 ├── routing/             # Smart fallback router (learned API routes)
-├── tools/               # Knowledge file readers (soul.md, guardrails.md)
+├── tools/               # Knowledge file readers (knowledge/soul.md, guardrails.md)
 ├── trigger/             # Trigger.dev tasks (orchestrate, ground, think, execute, deliver, notify, escalate, learn-route)
 │   └── sub-agents/      # Plugin system (registry, base class, plugins/)
 │       └── plugins/     # cohort-monitor, api-fetcher
@@ -619,7 +619,7 @@ curl http://localhost:3001/status/<runId>
 | File | Task ID | Purpose |
 |------|---------|---------|
 | `orchestrate.ts` | `orchestrate-pipeline` | Top-level: Ground → Think → Execute → Deliver → Notify |
-| `ground.ts` | `pipeline-ground` | Loads brand context from soul.md + guardrails.md |
+| `ground.ts` | `pipeline-ground` | Loads brand context from knowledge/soul.md + guardrails.md |
 | `think.ts` | `pipeline-think` | Cognition: decomposes into subtasks |
 | `execute.ts` | `pipeline-execute` | Agency: runs subtasks (smart fallback router here) |
 | `deliver.ts` | `pipeline-deliver` | Interface: formats response |
@@ -710,6 +710,19 @@ Key interfaces: `PipelinePayload`, `PipelineResult`, `SubTask`, `AgentResult`, `
   - `tests/fixtures/interface-system-prompt-custom.md`
 - Updated docs:
   - `docs/usage-guide.md` now includes interface in the `knowledge/agents/...` runtime spec pattern.
+
+### Soul File Migration (Plan 41) — Completed
+- Moved brand identity source file from repo root to:
+  - `knowledge/soul.md`
+- Updated runtime loaders to use `knowledge/soul.md` as the primary source:
+  - `src/core/context.ts`
+  - `src/tools/knowledge-tools.ts`
+- Kept backward-compatible legacy fallback to root `soul.md` if present.
+- Updated tests/docs references:
+  - `tests/unit/context.test.ts`
+  - `docs/usage-guide.md`
+  - `docs/sequence-diagram-swimlanes.md`
+  - this handover file.
 
 ### Next Planned Migration
 - Sub-agent prompt/spec migration starting with `cohort-monitor` under `knowledge/sub-agents/` using the same runtime loader pattern.

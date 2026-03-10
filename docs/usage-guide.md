@@ -704,7 +704,7 @@ npx vitest run --reporter=verbose           # verbose output
 
 | File | Tests | Covers |
 |------|-------|--------|
-| `tests/unit/context.test.ts` | 4 | soul.md + guardrails.md parsing, defaults |
+| `tests/unit/context.test.ts` | 5 | knowledge/soul.md + guardrails.md parsing, defaults |
 | `tests/unit/registry.test.ts` | 5 | Plugin register, lookup, capability search |
 | `tests/unit/memory.test.ts` | 12 | Short-term + long-term memory CRUD and search |
 | `tests/unit/errors.test.ts` | 6 | Custom error types, escalation builder |

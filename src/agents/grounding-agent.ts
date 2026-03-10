@@ -9,7 +9,7 @@ const DEFAULT_CONFIG: AgentConfig = {
   id: "grounding",
   name: "Grounding Agent",
   description:
-    "Establishes brand context by reading soul.md and guardrails. Provides the identity foundation for all downstream agents.",
+    "Establishes brand context by reading knowledge/soul.md and guardrails. Provides the identity foundation for all downstream agents.",
   ...getModelAssignment("grounding"),
   preferredModel: getModelAssignment("grounding").preferred,
   fallbackModels: getModelAssignment("grounding").fallbacks,
@@ -42,7 +42,7 @@ Your role is to establish the brand identity and constraints that all other agen
 
 ## Instructions
 
-1. Read the soul.md file to understand the brand's personality, values, and voice.
+1. Read the knowledge/soul.md file to understand the brand's personality, values, and voice.
 2. Read the guardrails file to understand the hard constraints (never-do and always-do rules).
 3. Read the brand guidelines for communication channels and key metrics.
 4. If you identify a repeated pattern that should become reusable agent capability, propose a new skill using the structure in ./skills/universal-agent-skill-creator.md and indicate it should be stored under ./skills.
@@ -73,7 +73,7 @@ Always use the tools to read the actual files. Do not invent or assume content.`
  * Grounding Agent
  *
  * First stage of the guardrail pipeline.
- * Reads soul.md and guardrails.md to establish brand identity and constraints.
+ * Reads knowledge/soul.md and guardrails.md to establish brand identity and constraints.
  * Its output feeds into the Cognition agent as foundational context.
  */
 export class GroundingAgent extends BaseAgent {

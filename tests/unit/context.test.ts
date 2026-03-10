@@ -5,8 +5,8 @@ import { resolve } from "node:path";
 const PROJECT_ROOT = resolve(import.meta.dirname, "../..");
 
 describe("parseSoulFile", () => {
-  it("parses the project soul.md correctly", () => {
-    const identity = parseSoulFile(resolve(PROJECT_ROOT, "soul.md"));
+  it("parses the project knowledge/soul.md correctly", () => {
+    const identity = parseSoulFile(resolve(PROJECT_ROOT, "knowledge/soul.md"));
 
     expect(identity.name).toBeTruthy();
     expect(identity.name).not.toBe("Brand"); // should have a real name
@@ -14,6 +14,12 @@ describe("parseSoulFile", () => {
     expect(identity.values.length).toBeGreaterThan(0);
     expect(identity.voice.tone).toBeTruthy();
     expect(identity.guidelines).toContain("#"); // raw markdown
+  });
+
+  it("reads knowledge/soul.md by default", () => {
+    const identity = parseSoulFile();
+    expect(identity.name).toBeTruthy();
+    expect(identity.name).not.toBe("Brand");
   });
 
   it("returns defaults for missing file", () => {

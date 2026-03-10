@@ -7,7 +7,7 @@ import type { GroundingResult } from "../core/types.js";
  * Grounding Task
  *
  * First stage of the guardrail pipeline.
- * Reads soul.md and guardrails to establish brand context.
+ * Reads knowledge/soul.md and guardrails to establish brand context.
  */
 export const groundTask = task({
   id: "pipeline-ground",

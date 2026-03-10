@@ -11,13 +11,17 @@ import type {
 const PROJECT_ROOT = resolve(import.meta.dirname, "../..");
 
 /**
- * Parse soul.md into a BrandIdentity object.
+ * Parse knowledge/soul.md into a BrandIdentity object.
  *
  * Expects a markdown file with H2 sections:
  *   ## Personality, ## Values, ## Voice, ## Target Audience, etc.
  */
 export function parseSoulFile(filePath?: string): BrandIdentity {
-  const soulPath = filePath ?? resolve(PROJECT_ROOT, "soul.md");
+  const defaultSoulPath = resolve(PROJECT_ROOT, "knowledge/soul.md");
+  const legacySoulPath = resolve(PROJECT_ROOT, "soul.md");
+  const soulPath =
+    filePath ??
+    (existsSync(defaultSoulPath) ? defaultSoulPath : legacySoulPath);
   if (!existsSync(soulPath)) {
     return getDefaultBrandIdentity();
   }

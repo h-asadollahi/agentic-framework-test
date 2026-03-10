@@ -23,7 +23,7 @@ Trigger.dev -> Orchestrator: Run task: **orchestrate-pipeline**
 
 Orchestrator -> Grounding: triggerAndWait({ userMessage, sessionId })
 note Grounding:
-Reads **soul.md** and **guardrails.md**
+Reads **knowledge/soul.md** and **guardrails.md**
 via knowledge tools to establish
 brand context and constraints.
 Grounding -> Grounding: buildExecutionContext(sessionId)

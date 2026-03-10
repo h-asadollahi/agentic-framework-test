@@ -14,10 +14,12 @@ const PROJECT_ROOT = resolve(import.meta.dirname, "../..");
 
 export const readSoulFile = tool({
   description:
-    "Read the brand identity file (soul.md). Returns the full markdown content defining brand personality, values, voice, and guidelines.",
+    "Read the brand identity file (knowledge/soul.md). Returns the full markdown content defining brand personality, values, voice, and guidelines.",
   inputSchema: z.object({}),
   execute: async () => {
-    const filePath = resolve(PROJECT_ROOT, "soul.md");
+    const defaultPath = resolve(PROJECT_ROOT, "knowledge/soul.md");
+    const legacyPath = resolve(PROJECT_ROOT, "soul.md");
+    const filePath = existsSync(defaultPath) ? defaultPath : legacyPath;
     if (!existsSync(filePath)) {
       return { content: "", found: false };
     }

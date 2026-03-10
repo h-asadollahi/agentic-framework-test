@@ -11,7 +11,7 @@ export type SubAgentStatus =
   | "failed"
   | "escalated";
 
-// ── Brand Identity (parsed from soul.md) ───────────────────
+// ── Brand Identity (parsed from knowledge/soul.md) ─────────
 export interface BrandIdentity {
   name: string;
   personality: string[];
