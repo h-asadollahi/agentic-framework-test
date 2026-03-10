@@ -1,12 +1,12 @@
 :root {
-  --bg: #f6f7f2;
+  --bg: #f4f6f7;
   --surface: #ffffff;
-  --ink: #13211a;
-  --muted: #5f7467;
-  --accent: #0e8f5b;
-  --accent-2: #f0b43c;
-  --line: #dde5dd;
-  --shadow: 0 16px 40px rgba(19, 33, 26, 0.08);
+  --ink: #1a2330;
+  --muted: #5f6d7a;
+  --accent: #00999f;
+  --accent-2: #e81e75;
+  --line: #dce2e6;
+  --shadow: 0 16px 40px rgba(0, 50, 60, 0.08);
 }
 
 * {
@@ -16,8 +16,8 @@
 body {
   margin: 0;
   min-height: 100vh;
-  background: radial-gradient(circle at 20% 20%, #fef9ea 0%, transparent 35%),
-    radial-gradient(circle at 80% 10%, #e8f7ef 0%, transparent 35%),
+  background: radial-gradient(circle at 20% 20%, #e6f7f7 0%, transparent 35%),
+    radial-gradient(circle at 80% 10%, #fce8f0 0%, transparent 35%),
     var(--bg);
   color: var(--ink);
   font-family: "Space Grotesk", system-ui, sans-serif;
@@ -36,13 +36,13 @@ body {
 .orb-a {
   top: -120px;
   left: -90px;
-  background: #6de3a8;
+  background: #00999f;
 }
 
 .orb-b {
   bottom: -150px;
   right: -100px;
-  background: #ffd067;
+  background: #e81e75;
 }
 
 .app-shell {
@@ -116,18 +116,18 @@ h1 {
 }
 
 .message.user {
-  background: #ecfff5;
-  border-color: #c7f1dd;
+  background: #e9f7f7;
+  border-color: #b8e5e6;
 }
 
 .message.assistant {
-  background: #fffcf2;
-  border-color: #f6e3b8;
+  background: #fdf2f6;
+  border-color: #f3c4d8;
 }
 
 .message.system {
-  background: #f4f7ff;
-  border-color: #d7dff9;
+  background: #f2f5f8;
+  border-color: #d5dce5;
 }
 
 .message-head {
@@ -188,8 +188,8 @@ h1 {
 .md-content code {
   font-family: "IBM Plex Mono", monospace;
   font-size: 0.9em;
-  background: #f1f6f3;
-  border: 1px solid #dce9df;
+  background: #edf5f5;
+  border: 1px solid #cde3e4;
   border-radius: 5px;
   padding: 1px 5px;
 }
@@ -197,9 +197,9 @@ h1 {
 .md-table-wrap {
   margin: 0.45rem 0 0.9rem;
   overflow-x: auto;
-  border: 1px solid #dce7de;
+  border: 1px solid #cfe0e3;
   border-radius: 8px;
-  background: #fbfdfb;
+  background: #f8fcfc;
 }
 
 .md-table {
@@ -211,15 +211,15 @@ h1 {
 .md-table thead th {
   text-align: left;
   font-weight: 700;
-  background: #eef6f0;
-  color: #244535;
-  border-bottom: 1px solid #d7e6da;
+  background: #e8f3f3;
+  color: #1a4045;
+  border-bottom: 1px solid #c8dee0;
 }
 
 .md-table th,
 .md-table td {
   padding: 8px 10px;
-  border-bottom: 1px solid #e5eee7;
+  border-bottom: 1px solid #dee9eb;
   vertical-align: top;
 }
 
@@ -235,9 +235,9 @@ h1 {
 
 .raw-json-panel {
   margin-top: 8px;
-  border: 1px solid #d9e5da;
+  border: 1px solid #cddfe1;
   border-radius: 8px;
-  background: #f8fbf9;
+  background: #f6fbfb;
   padding: 8px;
 }
 
@@ -245,15 +245,15 @@ h1 {
   cursor: pointer;
   font-family: "IBM Plex Mono", monospace;
   font-size: 12px;
-  color: #355346;
+  color: #1a5560;
 }
 
 .step-row {
   padding: 8px;
   border-radius: 8px;
   margin-bottom: 8px;
-  background: #f7faf7;
-  border: 1px solid #e4ece4;
+  background: #f5fafa;
+  border: 1px solid #d4e5e6;
 }
 
 .trace-heading {
@@ -277,23 +277,23 @@ h1 {
 }
 
 .json-node {
-  border: 1px solid #d9e5da;
+  border: 1px solid #cddfe1;
   border-radius: 8px;
-  background: #fdfefd;
+  background: #fafcfd;
   padding: 6px 8px;
 }
 
 .json-node summary {
   cursor: pointer;
   font-family: "IBM Plex Mono", monospace;
-  color: #355346;
+  color: #1a5560;
   font-size: 12px;
 }
 
 .json-children {
   margin-top: 6px;
   margin-left: 10px;
-  border-left: 2px solid #e7efea;
+  border-left: 2px solid #d4e8ea;
   padding-left: 10px;
 }
 
@@ -308,7 +308,7 @@ h1 {
 .json-key {
   font-family: "IBM Plex Mono", monospace;
   font-size: 12px;
-  color: #355346;
+  color: #1a5560;
 }
 
 .json-value {
@@ -317,11 +317,11 @@ h1 {
 }
 
 .json-string {
-  color: #2b5f8b;
+  color: #007a7f;
 }
 
 .json-number {
-  color: #8a5e00;
+  color: #b8156a;
 }
 
 .json-boolean {
@@ -343,12 +343,12 @@ h1 {
   gap: 10px;
   padding: 12px 14px;
   margin-bottom: 10px;
-  border: 1px solid #c7d8f1;
+  border: 1px solid #b8e5e6;
   border-radius: 10px;
-  background: #f0f4ff;
+  background: #e9f7f7;
   font-family: "IBM Plex Mono", monospace;
   font-size: 13px;
-  color: #3a5a8c;
+  color: #1a5560;
   animation: loader-fade-in 0.25s ease;
 }
 
@@ -360,7 +360,7 @@ h1 {
 .pipeline-loader .spinner {
   width: 18px;
   height: 18px;
-  border: 2.5px solid #c7d8f1;
+  border: 2.5px solid #b8e5e6;
   border-top-color: var(--accent);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
@@ -401,7 +401,7 @@ button {
   border: 0;
   border-radius: 10px;
   padding: 9px 14px;
-  background: linear-gradient(135deg, var(--accent), #0c6a46);
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
   color: #fff;
   font-weight: 700;
   cursor: pointer;
