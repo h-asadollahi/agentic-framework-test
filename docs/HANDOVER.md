@@ -724,5 +724,19 @@ Key interfaces: `PipelinePayload`, `PipelineResult`, `SubTask`, `AgentResult`, `
   - `docs/sequence-diagram-swimlanes.md`
   - this handover file.
 
+### Sub-Agent Spec Migration (Plan 42) — Completed (Phase 1)
+- Migrated first sub-agent (`cohort-monitor`) prompt/docs into knowledge runtime specs:
+  - `knowledge/sub-agents/cohort-monitor/system-prompt.md`
+  - `knowledge/sub-agents/cohort-monitor/decision-logic.md`
+- Refactored sub-agent prompt loading:
+  - `src/trigger/sub-agents/plugins/cohort-monitor.ts` now loads prompt via `loadAgentPromptSpec()` with placeholder interpolation and fallback.
+- Kept runtime-authoritative behavior unchanged:
+  - `cohort-monitor` still executes deterministic mock-first logic in `execute()`.
+- Added tests and fixture:
+  - `tests/unit/cohort-monitor-sub-agent.test.ts`
+  - `tests/fixtures/cohort-monitor-system-prompt-custom.md`
+- Updated docs:
+  - `docs/usage-guide.md` now documents `knowledge/sub-agents/...` pattern.
+
 ### Next Planned Migration
-- Sub-agent prompt/spec migration starting with `cohort-monitor` under `knowledge/sub-agents/` using the same runtime loader pattern.
+- Continue sub-agent prompt/spec migration with `api-fetcher` and then `mcp-fetcher` under `knowledge/sub-agents/`.

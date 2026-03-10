@@ -857,7 +857,8 @@ These prompts map to the current notification-policy tests and help verify the n
 
 ## 14. Agent Specs in Knowledge
 
-Grounding, Cognition, Agency, and Interface agent prompt/specs are runtime-loaded from the `knowledge` folder:
+Grounding, Cognition, Agency, and Interface agent prompt/specs are runtime-loaded from the `knowledge` folder.
+Sub-agent specs are now also being migrated there (starting with `cohort-monitor`).
 
 - `knowledge/agents/grounding/system-prompt.md`
 - `knowledge/agents/grounding/decision-logic.md`
@@ -867,6 +868,8 @@ Grounding, Cognition, Agency, and Interface agent prompt/specs are runtime-loade
 - `knowledge/agents/agency/decision-logic.md`
 - `knowledge/agents/interface/system-prompt.md`
 - `knowledge/agents/interface/decision-logic.md`
+- `knowledge/sub-agents/cohort-monitor/system-prompt.md`
+- `knowledge/sub-agents/cohort-monitor/decision-logic.md`
 
 How it works:
 
@@ -879,9 +882,16 @@ How it works:
 - `src/trigger/think.ts` + `src/trigger/cognition-guardrails.ts` remain authoritative for cognition parse fallback and deterministic out-of-scope rejection logic.
 - `src/trigger/execute.ts` + `src/trigger/execute-routing.ts` remain authoritative for Agency execution routing, summarization, and fallback behavior.
 - `src/trigger/deliver.ts` + `src/trigger/deliver-notifications.ts` + `src/trigger/delivery-fidelity.ts` remain authoritative for Interface rendering, notification routing, and fidelity safeguards.
+- `src/trigger/sub-agents/plugins/cohort-monitor.ts` remains authoritative for current mock-first sub-agent execution behavior.
 
 Extension pattern for future agents:
 
 1. Add a new folder under `knowledge/agents/<agent-id>/`.
 2. Add `system-prompt.md` (and optional `decision-logic.md`).
 3. Use `loadAgentPromptSpec()` in the corresponding agent class with a safe fallback string.
+
+Sub-agent pattern:
+
+1. Add a folder under `knowledge/sub-agents/<sub-agent-id>/`.
+2. Add `system-prompt.md` and `decision-logic.md`.
+3. Load prompt at runtime in the sub-agent plugin with `loadAgentPromptSpec()` and keep execution logic deterministic/safe in code.

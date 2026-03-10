@@ -4,6 +4,7 @@ import { BaseSubAgent } from "../base-sub-agent.js";
 import type { ExecutionContext, AgentResult } from "../../../core/types.js";
 import { getMockCohortData, getMockCohortOverview } from "./cohort-monitor-mock.js";
 import { logger } from "../../../core/logger.js";
+import { loadAgentPromptSpec } from "../../../tools/agent-spec-loader.js";
 
 // ── Schemas ────────────────────────────────────────────────────
 // All fields are OPTIONAL with sensible defaults so the cognition
@@ -47,6 +48,46 @@ const CohortMonitorOutput = z.object({
   dataSource: z.string().optional(),
 });
 
+type PromptLoader = typeof loadAgentPromptSpec;
+
+export const COHORT_MONITOR_SYSTEM_PROMPT_FILE =
+  "knowledge/sub-agents/cohort-monitor/system-prompt.md";
+
+export const COHORT_MONITOR_SYSTEM_PROMPT_FALLBACK = `You are the Cohort Monitor sub-agent for {{BRAND_NAME}}.
+
+Your role is to analyze audience cohort data and surface actionable marketing insights.
+
+## What you do
+- Analyze engagement, retention, conversion, churn, and LTV metrics
+- Compare cohort performance against baselines
+- Detect trends (improving / stable / declining)
+- Generate concise, actionable recommendations
+- Flag alerts when metrics cross critical thresholds
+
+## Output format
+Respond with a JSON object matching this structure:
+{
+  "cohortId": string,
+  "metric": string,
+  "currentValue": number,
+  "baselineValue": number | null,
+  "percentChange": number | null,
+  "trend": "improving" | "stable" | "declining",
+  "insight": "One-sentence insight about the cohort",
+  "recommendation": "One actionable recommendation",
+  "alertLevel": "none" | "info" | "warning" | "critical"
+}
+
+## Brand voice
+Tone: {{BRAND_TONE}}
+Style: {{BRAND_STYLE}}
+
+## Rules
+- Always ground analysis in data
+- Flag declining metrics proactively
+- Recommendations should be specific and actionable
+- {{SKILL_CREATION_INSTRUCTION}}`;
+
 // ── Plugin ─────────────────────────────────────────────────────
 
 export class CohortMonitorAgent extends BaseSubAgent {
@@ -66,14 +107,18 @@ export class CohortMonitorAgent extends BaseSubAgent {
 
   inputSchema = CohortMonitorInput;
   outputSchema = CohortMonitorOutput;
+  private promptLoader: PromptLoader;
+  private promptFile: string;
 
-  constructor() {
+  constructor(options?: { promptLoader?: PromptLoader; promptFile?: string }) {
     super(
       "anthropic:fast",              // preferred (used only in AI mode)
       ["openai:fast", "google:fast"],
       5,
       0.1
     );
+    this.promptLoader = options?.promptLoader ?? loadAgentPromptSpec;
+    this.promptFile = options?.promptFile ?? COHORT_MONITOR_SYSTEM_PROMPT_FILE;
   }
 
   // ── Mock-based execution (no AI model calls) ──────────────
@@ -134,40 +179,19 @@ export class CohortMonitorAgent extends BaseSubAgent {
   // ── AI-based methods (kept for future real-data mode) ──────
 
   getSystemPrompt(context: ExecutionContext): string {
-    return `You are the Cohort Monitor sub-agent for ${context.brandIdentity.name}.
+    const vars = {
+      BRAND_NAME: context.brandIdentity.name,
+      BRAND_TONE: context.brandIdentity.voice.tone,
+      BRAND_STYLE: context.brandIdentity.voice.style,
+      SKILL_CREATION_INSTRUCTION: this.getSkillCreationInstruction(),
+    };
 
-Your role is to analyze audience cohort data and surface actionable marketing insights.
-
-## What you do
-- Analyze engagement, retention, conversion, churn, and LTV metrics
-- Compare cohort performance against baselines
-- Detect trends (improving / stable / declining)
-- Generate concise, actionable recommendations
-- Flag alerts when metrics cross critical thresholds
-
-## Output format
-Respond with a JSON object matching this structure:
-{
-  "cohortId": string,
-  "metric": string,
-  "currentValue": number,
-  "baselineValue": number | null,
-  "percentChange": number | null,
-  "trend": "improving" | "stable" | "declining",
-  "insight": "One-sentence insight about the cohort",
-  "recommendation": "One actionable recommendation",
-  "alertLevel": "none" | "info" | "warning" | "critical"
-}
-
-## Brand voice
-Tone: ${context.brandIdentity.voice.tone}
-Style: ${context.brandIdentity.voice.style}
-
-## Rules
-- Always ground analysis in data
-- Flag declining metrics proactively
-- Recommendations should be specific and actionable
-- ${this.getSkillCreationInstruction()}`;
+    return this.promptLoader(
+      this.id,
+      this.promptFile,
+      COHORT_MONITOR_SYSTEM_PROMPT_FALLBACK,
+      vars
+    );
   }
 
   getTools(_context: ExecutionContext): Record<string, Tool> {
