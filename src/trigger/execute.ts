@@ -198,7 +198,9 @@ export const executeTask = task({
                     },
                     payload.context
                   );
-                  learnedRoutesStore.incrementUsage(learnedRoute.id);
+                  await learnedRoutesStore.incrementUsage(learnedRoute.id, {
+                    agentId: learnedRoute.agentId,
+                  });
                 } else {
                   logger.warn(
                     `Learned route "${learnedRoute.id}" points to unknown sub-agent "${learnedRoute.agentId}", falling back to LLM`

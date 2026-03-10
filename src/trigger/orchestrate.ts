@@ -27,7 +27,7 @@ export const orchestrateTask = task({
   retry: { maxAttempts: 1 }, // orchestrator itself doesn't retry; stages do
   run: async (payload: PipelinePayload): Promise<PipelineResult> => {
     // Reload learned routes from disk (picks up manual edits)
-    learnedRoutesStore.load();
+    await learnedRoutesStore.load();
     // Reload skill candidates from disk (picks up manual edits / admin curation)
     skillCandidatesStore.load();
 

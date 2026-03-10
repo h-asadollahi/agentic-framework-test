@@ -98,6 +98,54 @@ Tests updated:
 - `tests/unit/cognition-skill-candidates.test.ts`
 - `tests/unit/agency-skill-suggestions.test.ts`
 
+### Plan 60: Learned Routes DB + Admin Observability
+
+Status: Implemented in code and tests.
+
+What changed:
+- Added Postgres + Drizzle data model for learned-route persistence:
+  - `src/routing/learned-routes-db-schema.ts`
+  - `src/routing/learned-routes-db-repository.ts`
+  - Tables:
+    - `learned_routes`
+    - `learned_route_events`
+- Added env-driven storage/auth configuration:
+  - `DATABASE_URL`
+  - `LEARNED_ROUTES_DUAL_WRITE_JSON`
+  - `ADMIN_ALLOWED_IPS`
+  - `ADMIN_API_TOKEN`
+  - (documented in `.env.example`)
+- Refactored learned-routes store to support DB-authoritative mode:
+  - `src/routing/learned-routes-store.ts`
+  - `load()` is now async and DB-backed when `DATABASE_URL` is set.
+  - in-memory cache retained for route matching performance.
+  - optional JSON dual-write on DB mode via `LEARNED_ROUTES_DUAL_WRITE_JSON=true`.
+  - usage/match/update events are recorded into `learned_route_events` when DB mode is enabled.
+- Added migration/backfill utilities:
+  - `src/routing/learned-routes-migration.ts`
+  - `scripts/learned-routes-backfill.ts`
+  - npm scripts:
+    - `npm run routes:backfill`
+    - `npm run routes:export`
+- Added protected admin API:
+  - `src/admin/auth.ts`
+  - `src/admin/routes.ts`
+  - wired into `src/index.ts` under `/admin/*`
+  - supports route CRUD, route/event observability, run summary, and import/export operations.
+- Added separate admin app scaffold:
+  - `admin/server.mjs`
+  - `admin/public/index.html`
+  - `admin/public/app.js`
+  - `admin/README.md`
+
+Tests added/updated:
+- Added:
+  - `tests/unit/admin-auth.test.ts`
+  - `tests/unit/admin-routes.test.ts`
+  - `tests/unit/learned-routes-migration.test.ts`
+- Updated:
+  - `tests/unit/learned-routes-store.test.ts` (async load/add/increment paths)
+
 ### Plan 56: Mapp Intelligence API Workflows + `api-fetcher` skill preflight
 
 Status: Implemented in code and tests.

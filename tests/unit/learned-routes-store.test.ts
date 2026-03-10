@@ -16,6 +16,7 @@ const initialRoutesFile = JSON.stringify(
 
 let backupContent: string | null = null;
 let backupExisted = false;
+const originalDatabaseUrl = process.env.DATABASE_URL;
 
 describe.sequential("learned-routes store", () => {
   beforeAll(() => {
@@ -23,22 +24,23 @@ describe.sequential("learned-routes store", () => {
     backupContent = backupExisted ? readFileSync(routesFile, "utf-8") : null;
   });
 
-  beforeEach(() => {
+  beforeEach(async () => {
     writeFileSync(routesFile, initialRoutesFile, "utf-8");
-    learnedRoutesStore.load();
+    delete process.env.DATABASE_URL;
+    await learnedRoutesStore.load();
   });
 
   afterAll(() => {
     if (backupExisted && backupContent !== null) {
       writeFileSync(routesFile, backupContent, "utf-8");
-      return;
+    } else {
+      writeFileSync(routesFile, initialRoutesFile, "utf-8");
     }
-
-    writeFileSync(routesFile, initialRoutesFile, "utf-8");
+    process.env.DATABASE_URL = originalDatabaseUrl;
   });
 
-  it("adds and retrieves a route", () => {
-    const added = learnedRoutesStore.addRoute({
+  it("adds and retrieves a route", async () => {
+    const added = await learnedRoutesStore.addRoute({
       capability: "clv-analysis",
       description: "Fetch CLV for current quarter",
       matchPatterns: ["clv", "customer lifetime value"],
@@ -58,8 +60,8 @@ describe.sequential("learned-routes store", () => {
     );
   });
 
-  it("matches route by description patterns", () => {
-    learnedRoutesStore.addRoute({
+  it("matches route by description patterns", async () => {
+    await learnedRoutesStore.addRoute({
       capability: "retention-analysis",
       description: "Retention API route",
       matchPatterns: ["retention", "cohort retention"],
@@ -78,8 +80,8 @@ describe.sequential("learned-routes store", () => {
     expect(match?.id).toBe("route-001");
   });
 
-  it("increments usage and summary ordering", () => {
-    learnedRoutesStore.addRoute({
+  it("increments usage and summary ordering", async () => {
+    await learnedRoutesStore.addRoute({
       capability: "one",
       description: "Route one",
       matchPatterns: ["one"],
@@ -87,7 +89,7 @@ describe.sequential("learned-routes store", () => {
       addedBy: "tester",
     });
 
-    learnedRoutesStore.addRoute({
+    await learnedRoutesStore.addRoute({
       capability: "two",
       description: "Route two",
       matchPatterns: ["two"],
@@ -95,17 +97,17 @@ describe.sequential("learned-routes store", () => {
       addedBy: "tester",
     });
 
-    learnedRoutesStore.incrementUsage("route-002");
-    learnedRoutesStore.incrementUsage("route-002");
-    learnedRoutesStore.incrementUsage("route-001");
+    await learnedRoutesStore.incrementUsage("route-002");
+    await learnedRoutesStore.incrementUsage("route-002");
+    await learnedRoutesStore.incrementUsage("route-001");
 
     const summary = learnedRoutesStore.getSummary();
     expect(summary[0].id).toBe("route-002");
     expect(summary[1].id).toBe("route-001");
   });
 
-  it("supports sub-agent learned routes", () => {
-    const added = learnedRoutesStore.addRoute({
+  it("supports sub-agent learned routes", async () => {
+    const added = await learnedRoutesStore.addRoute({
       capability: "vip-cohort-performance",
       description: "How is our VIP cohort performing this quarter?",
       matchPatterns: ["vip cohort", "cohort performing", "quarter"],
@@ -125,8 +127,8 @@ describe.sequential("learned-routes store", () => {
     expect(added.endpoint).toBeUndefined();
   });
 
-  it("prefers mcp-fetcher when api and mcp routes tie on match score", () => {
-    learnedRoutesStore.addRoute({
+  it("prefers mcp-fetcher when api and mcp routes tie on match score", async () => {
+    await learnedRoutesStore.addRoute({
       capability: "segments-via-api",
       description: "Segments via API route",
       matchPatterns: ["segments", "mapp intelligence account"],
@@ -139,7 +141,7 @@ describe.sequential("learned-routes store", () => {
       addedBy: "tester",
     });
 
-    learnedRoutesStore.addRoute({
+    await learnedRoutesStore.addRoute({
       capability: "segments-via-mcp",
       description: "Segments via MCP route",
       matchPatterns: ["segments", "mapp intelligence account"],
@@ -161,8 +163,8 @@ describe.sequential("learned-routes store", () => {
     expect(match?.agentId).toBe("mcp-fetcher");
   });
 
-  it("includes api workflow metadata in summary for template-backed routes", () => {
-    learnedRoutesStore.addRoute({
+  it("includes api workflow metadata in summary for template-backed routes", async () => {
+    await learnedRoutesStore.addRoute({
       capability: "daily-report-template",
       description: "Daily report template route",
       matchPatterns: ["daily report", "kpi report"],

@@ -873,7 +873,9 @@ export class ApiFetcherAgent extends BaseSubAgent {
         data: workflowData,
       };
 
-      learnedRoutesStore.incrementUsage(routeId);
+      await learnedRoutesStore.incrementUsage(routeId, {
+        agentId: this.id,
+      });
 
       logger.info(`api-fetcher: route "${routeId}" completed`, {
         success,

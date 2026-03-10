@@ -7,10 +7,13 @@
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "demo": "node demo/server.mjs",
+    "admin:ui": "node admin/server.mjs",
     "build": "tsc",
     "start": "node dist/index.js",
     "test": "vitest run",
     "test:watch": "vitest",
+    "routes:backfill": "tsx scripts/learned-routes-backfill.ts import",
+    "routes:export": "tsx scripts/learned-routes-backfill.ts export",
     "trigger:login": "npx trigger.dev@3 login --api-url http://localhost:3040",
     "trigger:dev": "npx trigger.dev@3 dev --api-url http://localhost:3040",
     "test:email": "tsx scripts/test-email.ts"
@@ -38,12 +41,15 @@
     "@slack/web-api": "^7.14.1",
     "@trigger.dev/sdk": "^4.4.1",
     "ai": "^6.0.103",
+    "drizzle-orm": "^0.44.6",
     "dotenv": "^17.3.1",
     "hono": "^4.12.3",
+    "pg": "^8.16.3",
     "zod": "^3.25.76"
   },
   "devDependencies": {
     "@types/node": "^25.3.2",
+    "@types/pg": "^8.15.6",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3",
     "vitest": "^4.0.18"

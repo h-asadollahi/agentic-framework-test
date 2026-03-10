@@ -7,7 +7,9 @@ import { z } from "zod";
 import { logger } from "./core/logger.js";
 import { shortTermMemory } from "./memory/short-term.js";
 import { longTermMemory } from "./memory/long-term.js";
+import { learnedRoutesStore } from "./routing/learned-routes-store.js";
 import { subAgentRegistry } from "./trigger/sub-agents/registry.js";
+import { registerAdminRoutes } from "./admin/routes.js";
 // Register all sub-agent plugins
 import "./trigger/sub-agents/plugins/index.js";
 
@@ -154,8 +156,19 @@ app.get("/memory/stats", (c) => {
   });
 });
 
+// ── Admin API ────────────────────────────────────────────────
+registerAdminRoutes(app);
+
 // ── Start Server ─────────────────────────────────────────────
 const port = Number(process.env.PORT) || 3000;
+
+try {
+  await learnedRoutesStore.load();
+} catch (error) {
+  logger.warn("Failed to preload learned routes on API startup", {
+    error: error instanceof Error ? error.message : String(error),
+  });
+}
 
 serve({ fetch: app.fetch, port }, () => {
   logger.info(`Server running on http://localhost:${port}`);

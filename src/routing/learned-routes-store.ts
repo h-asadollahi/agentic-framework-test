@@ -9,9 +9,11 @@ import {
   type ApiWorkflow,
   type Endpoint,
 } from "./learned-routes-schema.js";
+import {
+  LearnedRoutesDbRepository,
+  type LearnedRouteEventRecord,
+} from "./learned-routes-db-repository.js";
 import { logger } from "../core/logger.js";
-
-// ── File path resolution ────────────────────────────────────
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -42,20 +44,53 @@ const PROJECT_ROOT =
 
 const ROUTES_FILE = resolve(PROJECT_ROOT, "knowledge/learned-routes.json");
 
-// ── Store Implementation ────────────────────────────────────
+function isTrue(value: string | undefined): boolean {
+  const normalized = value?.trim().toLowerCase();
+  return normalized === "1" || normalized === "true" || normalized === "yes";
+}
+
+type RouteSummary = {
+  id: string;
+  capability: string;
+  description: string;
+  matchPatterns: string[];
+  routeType: "api" | "sub-agent";
+  agentId?: string;
+  endpointUrl?: string;
+  workflowType?: NonNullable<ApiWorkflow>["workflowType"];
+};
 
 class LearnedRoutesStoreImpl {
   private routes: LearnedRoute[] = [];
   private loaded = false;
+  private dbRepository: LearnedRoutesDbRepository | null = null;
+  private dbEnabled = false;
 
-  /**
-   * Load routes from disk. Safe to call multiple times (re-reads file).
-   */
-  load(): void {
+  private getDatabaseUrl(): string | null {
+    const value = process.env.DATABASE_URL?.trim();
+    return value && value.length > 0 ? value : null;
+  }
+
+  private dualWriteJsonEnabled(): boolean {
+    return isTrue(process.env.LEARNED_ROUTES_DUAL_WRITE_JSON);
+  }
+
+  private resolveDbRepository(): LearnedRoutesDbRepository | null {
+    if (this.dbRepository) return this.dbRepository;
+
+    const databaseUrl = this.getDatabaseUrl();
+    if (!databaseUrl) return null;
+
+    this.dbRepository = new LearnedRoutesDbRepository(databaseUrl);
+    return this.dbRepository;
+  }
+
+  private loadFromJsonSync(): void {
     if (!existsSync(ROUTES_FILE)) {
       logger.info("No learned-routes.json found, starting with empty routes");
       this.routes = [];
       this.loaded = true;
+      this.dbEnabled = false;
       return;
     }
 
@@ -65,6 +100,7 @@ class LearnedRoutesStoreImpl {
       const validated = LearnedRoutesFileSchema.parse(parsed);
       this.routes = validated.routes;
       this.loaded = true;
+      this.dbEnabled = false;
       logger.info(`Loaded ${this.routes.length} learned route(s) from disk`);
     } catch (error) {
       logger.error("Failed to load learned-routes.json", {
@@ -72,13 +108,11 @@ class LearnedRoutesStoreImpl {
       });
       this.routes = [];
       this.loaded = true;
+      this.dbEnabled = false;
     }
   }
 
-  /**
-   * Persist current routes to disk.
-   */
-  private save(): void {
+  private saveJson(): void {
     const file: LearnedRoutesFile = {
       version: "1.0.0",
       lastUpdated: new Date().toISOString(),
@@ -96,19 +130,77 @@ class LearnedRoutesStoreImpl {
     }
   }
 
-  /**
-   * Ensure routes are loaded before any operation.
-   */
-  private ensureLoaded(): void {
-    if (!this.loaded) {
-      this.load();
+  async load(): Promise<void> {
+    const repo = this.resolveDbRepository();
+
+    if (!repo) {
+      this.loadFromJsonSync();
+      return;
+    }
+
+    try {
+      await repo.init();
+      this.routes = await repo.listRoutes({ limit: 1000, offset: 0 });
+      this.loaded = true;
+      this.dbEnabled = true;
+      logger.info(`Loaded ${this.routes.length} learned route(s) from DB`);
+
+      if (this.dualWriteJsonEnabled()) {
+        this.saveJson();
+      }
+    } catch (error) {
+      logger.error("Failed to load learned routes from DB, falling back to JSON", {
+        error: error instanceof Error ? error.message : String(error),
+      });
+      this.loadFromJsonSync();
     }
   }
 
-  /**
-   * Find a route whose matchPatterns overlap with the given description.
-   * Uses a simple keyword-match scoring (longer pattern matches = higher score).
-   */
+  private ensureLoaded(): void {
+    if (this.loaded) return;
+
+    if (this.getDatabaseUrl()) {
+      throw new Error(
+        "learnedRoutesStore.load() must be awaited before using DB-backed routes"
+      );
+    }
+
+    this.loadFromJsonSync();
+  }
+
+  private nextRouteId(): string {
+    let max = 0;
+
+    for (const route of this.routes) {
+      const match = route.id.match(/^route-(\d+)$/i);
+      if (!match) continue;
+      const value = Number(match[1]);
+      if (Number.isFinite(value) && value > max) max = value;
+    }
+
+    return `route-${String(max + 1).padStart(3, "0")}`;
+  }
+
+  private async persistRoute(route: LearnedRoute, eventType: string): Promise<void> {
+    const repo = this.dbEnabled ? this.resolveDbRepository() : null;
+
+    if (repo) {
+      await repo.upsertRoute(route);
+      await repo.recordEvent({
+        routeId: route.id,
+        eventType,
+        details: {
+          routeType: route.routeType,
+          capability: route.capability,
+        },
+      });
+    }
+
+    if (!repo || this.dualWriteJsonEnabled()) {
+      this.saveJson();
+    }
+  }
+
   findByCapability(description: string): LearnedRoute | null {
     this.ensureLoaded();
 
@@ -120,7 +212,7 @@ class LearnedRoutesStoreImpl {
       let score = 0;
       for (const pattern of route.matchPatterns) {
         if (lower.includes(pattern.toLowerCase())) {
-          score += pattern.length; // longer matches → higher confidence
+          score += pattern.length;
         }
       }
       if (score > bestScore) {
@@ -141,23 +233,29 @@ class LearnedRoutesStoreImpl {
         capability: bestMatch.capability,
         description: description.slice(0, 80),
       });
+
+      const repo = this.dbEnabled ? this.resolveDbRepository() : null;
+      if (repo) {
+        void repo.recordEvent({
+          routeId: bestMatch.id,
+          eventType: "route_matched",
+          details: {
+            descriptionPreview: description.slice(0, 200),
+            matchScore: bestScore,
+          },
+        });
+      }
     }
 
     return bestMatch;
   }
 
-  /**
-   * Get a route by its ID.
-   */
   getById(routeId: string): LearnedRoute | null {
     this.ensureLoaded();
     return this.routes.find((r) => r.id === routeId) ?? null;
   }
 
-  /**
-   * Add a new learned route and persist to disk.
-   */
-  addRoute(data: {
+  async addRoute(data: {
     capability: string;
     description: string;
     matchPatterns: string[];
@@ -169,10 +267,10 @@ class LearnedRoutesStoreImpl {
     inputMapping?: Record<string, string>;
     outputFormat?: "json" | "text" | "csv";
     addedBy: string;
-  }): LearnedRoute {
+  }): Promise<LearnedRoute> {
     this.ensureLoaded();
 
-    const id = `route-${String(this.routes.length + 1).padStart(3, "0")}`;
+    const id = this.nextRouteId();
 
     const newRoute: LearnedRoute = {
       id,
@@ -193,7 +291,7 @@ class LearnedRoutesStoreImpl {
     };
 
     this.routes.push(newRoute);
-    this.save();
+    await this.persistRoute(newRoute, "route_added");
 
     logger.info(`New learned route added: "${id}" (${data.capability})`, {
       matchPatterns: data.matchPatterns.slice(0, 5),
@@ -207,45 +305,175 @@ class LearnedRoutesStoreImpl {
     return newRoute;
   }
 
-  /**
-   * Increment usage counter for a route and persist.
-   */
-  incrementUsage(routeId: string): void {
+  async upsertRouteForAdmin(route: LearnedRoute): Promise<LearnedRoute> {
+    this.ensureLoaded();
+    const existingIndex = this.routes.findIndex((r) => r.id === route.id);
+    if (existingIndex >= 0) {
+      this.routes[existingIndex] = route;
+    } else {
+      this.routes.push(route);
+    }
+
+    await this.persistRoute(route, existingIndex >= 0 ? "route_updated" : "route_added");
+    return route;
+  }
+
+  async deleteRouteForAdmin(routeId: string): Promise<boolean> {
+    this.ensureLoaded();
+
+    const existing = this.routes.find((r) => r.id === routeId);
+    if (!existing) return false;
+
+    this.routes = this.routes.filter((route) => route.id !== routeId);
+
+    const repo = this.dbEnabled ? this.resolveDbRepository() : null;
+    if (repo) {
+      await repo.deleteRoute(routeId);
+      await repo.recordEvent({
+        routeId,
+        eventType: "route_deleted",
+        details: { capability: existing.capability },
+      });
+    }
+
+    if (!repo || this.dualWriteJsonEnabled()) {
+      this.saveJson();
+    }
+
+    return true;
+  }
+
+  async incrementUsage(
+    routeId: string,
+    metadata?: { runId?: string; agentId?: string }
+  ): Promise<void> {
     this.ensureLoaded();
 
     const route = this.routes.find((r) => r.id === routeId);
-    if (route) {
-      route.usageCount += 1;
-      route.lastUsedAt = new Date().toISOString();
-      this.save();
+    if (!route) return;
+
+    route.usageCount += 1;
+    route.lastUsedAt = new Date().toISOString();
+
+    const repo = this.dbEnabled ? this.resolveDbRepository() : null;
+    if (repo) {
+      const updated = await repo.incrementUsage(routeId);
+      if (updated) {
+        const idx = this.routes.findIndex((r) => r.id === routeId);
+        if (idx >= 0) this.routes[idx] = updated;
+      }
+
+      await repo.recordEvent({
+        routeId,
+        eventType: "route_used",
+        runId: metadata?.runId,
+        agentId: metadata?.agentId,
+        details: { usageCount: route.usageCount },
+      });
+    }
+
+    if (!repo || this.dualWriteJsonEnabled()) {
+      this.saveJson();
     }
   }
 
-  /**
-   * Get all routes.
-   */
+  async listEventsForAdmin(options: {
+    routeId?: string;
+    eventType?: string;
+    limit?: number;
+    offset?: number;
+  } = {}): Promise<LearnedRouteEventRecord[]> {
+    this.ensureLoaded();
+
+    const repo = this.dbEnabled ? this.resolveDbRepository() : null;
+    if (!repo) return [];
+
+    return repo.listEvents(options);
+  }
+
+  async listRoutesForAdmin(options: {
+    q?: string;
+    routeType?: "api" | "sub-agent";
+    limit?: number;
+    offset?: number;
+  } = {}): Promise<LearnedRoute[]> {
+    this.ensureLoaded();
+
+    const repo = this.dbEnabled ? this.resolveDbRepository() : null;
+    if (!repo) {
+      const q = options.q?.trim().toLowerCase();
+      const routeType = options.routeType;
+      const limit = Math.min(Math.max(options.limit ?? 100, 1), 500);
+      const offset = Math.max(options.offset ?? 0, 0);
+
+      return this.routes
+        .filter((route) => {
+          if (routeType && route.routeType !== routeType) return false;
+          if (!q) return true;
+          return (
+            route.capability.toLowerCase().includes(q) ||
+            route.description.toLowerCase().includes(q)
+          );
+        })
+        .sort((a, b) => b.usageCount - a.usageCount)
+        .slice(offset, offset + limit);
+    }
+
+    const rows = await repo.listRoutes(options);
+    return rows;
+  }
+
+  async getRouteByIdForAdmin(routeId: string): Promise<LearnedRoute | null> {
+    this.ensureLoaded();
+
+    const repo = this.dbEnabled ? this.resolveDbRepository() : null;
+    if (!repo) {
+      return this.getById(routeId);
+    }
+
+    const route = await repo.getRouteById(routeId);
+    if (!route) return null;
+
+    const existing = this.routes.findIndex((item) => item.id === route.id);
+    if (existing >= 0) this.routes[existing] = route;
+    else this.routes.push(route);
+
+    return route;
+  }
+
+  async getAdminStats(): Promise<{
+    total: number;
+    apiRoutes: number;
+    subAgentRoutes: number;
+    dbEnabled: boolean;
+    dualWriteJson: boolean;
+  }> {
+    this.ensureLoaded();
+
+    const total = this.routes.length;
+    const apiRoutes = this.routes.filter((route) => route.routeType === "api").length;
+    const subAgentRoutes = this.routes.filter(
+      (route) => route.routeType === "sub-agent"
+    ).length;
+
+    return {
+      total,
+      apiRoutes,
+      subAgentRoutes,
+      dbEnabled: this.dbEnabled,
+      dualWriteJson: this.dualWriteJsonEnabled(),
+    };
+  }
+
   getAll(): LearnedRoute[] {
     this.ensureLoaded();
     return [...this.routes];
   }
 
-  /**
-   * Compact summary for injection into the cognition agent's system prompt.
-   * Returns the top 20 routes sorted by usage (most used first).
-   */
-  getSummary(): Array<{
-    id: string;
-    capability: string;
-    description: string;
-    matchPatterns: string[];
-    routeType: "api" | "sub-agent";
-    agentId?: string;
-    endpointUrl?: string;
-    workflowType?: ApiWorkflow["workflowType"];
-  }> {
+  getSummary(): RouteSummary[] {
     this.ensureLoaded();
 
-    return this.routes
+    return [...this.routes]
       .sort((a, b) => b.usageCount - a.usageCount)
       .slice(0, 20)
       .map((r) => ({
@@ -260,18 +488,16 @@ class LearnedRoutesStoreImpl {
       }));
   }
 
-  /**
-   * Number of learned routes.
-   */
   count(): number {
     this.ensureLoaded();
     return this.routes.length;
   }
+
+  isDbBacked(): boolean {
+    return this.dbEnabled;
+  }
 }
 
-/**
- * Singleton store instance.
- */
 export const learnedRoutesStore = new LearnedRoutesStoreImpl();
 
 function compareRoutePriority(a: LearnedRoute, b: LearnedRoute): number {
@@ -283,7 +509,6 @@ function compareRoutePriority(a: LearnedRoute, b: LearnedRoute): number {
 }
 
 function routePriorityRank(route: LearnedRoute): number {
-  // Higher number = higher priority in tie-break
   if (route.routeType === "sub-agent" && route.agentId === "mcp-fetcher") return 4;
   if (route.routeType === "sub-agent") return 3;
   if (route.routeType === "api" && route.apiWorkflow?.workflowType) return 2;

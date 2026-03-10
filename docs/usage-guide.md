@@ -939,6 +939,45 @@ Extension pattern for future agents:
 2. Add `system-prompt.md` (and optional `decision-logic.md`).
 3. Use `loadAgentPromptSpec()` in the corresponding agent class with a safe fallback string.
 
+---
+
+## 15. Learned Routes DB + Admin Observability
+
+The platform now supports DB-backed learned routes for better observability and admin operations.
+
+### Env vars
+
+- `DATABASE_URL`: Postgres connection string. When set, learned routes are loaded from DB.
+- `LEARNED_ROUTES_DUAL_WRITE_JSON`: `true|false`. If `true`, DB writes are mirrored to `knowledge/learned-routes.json` during migration.
+- `ADMIN_ALLOWED_IPS`: comma-separated allowlist for `/admin/*` access (e.g., `127.0.0.1,::1`).
+- `ADMIN_API_TOKEN`: bearer token fallback for `/admin/*` access when IP is not allowlisted.
+
+### Admin API endpoints
+
+- `GET /admin/health`
+- `GET /admin/routes`
+- `GET /admin/routes/:routeId`
+- `POST /admin/routes`
+- `PUT /admin/routes/:routeId`
+- `DELETE /admin/routes/:routeId`
+- `GET /admin/events`
+- `GET /admin/runs/summary`
+- `POST /admin/backfill/import` (JSON -> DB)
+- `POST /admin/backfill/export` (DB -> JSON)
+
+### Backfill scripts
+
+- `npm run routes:backfill` (imports `knowledge/learned-routes.json` into DB)
+- `npm run routes:export` (exports DB routes to JSON backup)
+
+### Separate admin app
+
+- Start admin UI:
+  - `npm run admin:ui`
+- Open:
+  - `http://localhost:4174`
+- Configure API base and token in the UI to manage routes/events.
+
 Sub-agent pattern:
 
 1. Add a folder under `knowledge/sub-agents/<sub-agent-id>/`.

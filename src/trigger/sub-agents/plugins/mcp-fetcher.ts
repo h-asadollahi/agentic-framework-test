@@ -327,7 +327,9 @@ export class McpFetcherAgent extends BaseSubAgent {
       const data = shapeMcpOutputData(toolName, rawData);
 
       if (routeId) {
-        learnedRoutesStore.incrementUsage(routeId);
+        await learnedRoutesStore.incrementUsage(routeId, {
+          agentId: this.id,
+        });
       }
 
       const output = {

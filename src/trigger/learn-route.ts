@@ -136,7 +136,7 @@ export const learnRouteTask = task({
     }
 
     // ── 3. Save the learned route ───────────────────────────
-    const newRoute = learnedRoutesStore.addRoute({
+    const newRoute = await learnedRoutesStore.addRoute({
       capability: agentId !== "general" ? agentId : extractKeywords(subtaskDescription).slice(0, 3).join("-"),
       description: subtaskDescription,
       matchPatterns: extractKeywords(subtaskDescription),
@@ -197,7 +197,10 @@ export const learnRouteTask = task({
         ? await response.json()
         : await response.text();
 
-      learnedRoutesStore.incrementUsage(newRoute.id);
+      await learnedRoutesStore.incrementUsage(newRoute.id, {
+        runId,
+        agentId,
+      });
 
       fetchResult = {
         success: response.ok,
