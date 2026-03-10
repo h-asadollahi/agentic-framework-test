@@ -1,4 +1,6 @@
 import { describe, expect, it } from "vitest";
+import { mkdirSync, mkdtempSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import { loadAgentPromptSpec } from "../../src/tools/agent-spec-loader.js";
 
@@ -51,5 +53,24 @@ describe("loadAgentPromptSpec", () => {
     );
 
     expect(prompt).toBe("Agent: Interface");
+  });
+
+  it("still resolves knowledge prompts when cwd is outside the project root", () => {
+    const originalCwd = process.cwd();
+    const isolatedCwd = mkdtempSync(resolve(tmpdir(), "agent-spec-loader-"));
+    const triggerBuildDir = resolve(isolatedCwd, ".trigger", "build");
+    mkdirSync(triggerBuildDir, { recursive: true });
+
+    try {
+      process.chdir(triggerBuildDir);
+      const prompt = loadAgentPromptSpec(
+        "grounding",
+        "knowledge/agents/grounding/system-prompt.md",
+        "fallback"
+      );
+      expect(prompt).toContain("You are the Grounding Agent");
+    } finally {
+      process.chdir(originalCwd);
+    }
   });
 });

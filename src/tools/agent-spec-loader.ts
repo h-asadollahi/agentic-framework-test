@@ -1,13 +1,39 @@
 import { existsSync, readFileSync } from "node:fs";
-import { isAbsolute, resolve } from "node:path";
+import { isAbsolute, join, resolve } from "node:path";
 import { logger } from "../core/logger.js";
 
-const PROJECT_ROOT = resolve(import.meta.dirname, "../..");
 const PLACEHOLDER_PATTERN = /\{\{\s*([A-Z0-9_]+)\s*\}\}/g;
+
+function findProjectRoot(startDir: string): string | null {
+  let current = startDir;
+
+  while (true) {
+    const hasPackageJson = existsSync(join(current, "package.json"));
+    const hasKnowledgeDir = existsSync(join(current, "knowledge"));
+
+    if (hasPackageJson && hasKnowledgeDir) {
+      return current;
+    }
+
+    const parent = resolve(current, "..");
+    if (parent === current) {
+      return null;
+    }
+    current = parent;
+  }
+}
+
+function resolveProjectRoot(): string {
+  return (
+    findProjectRoot(process.cwd()) ??
+    findProjectRoot(import.meta.dirname) ??
+    resolve(import.meta.dirname, "../..")
+  );
+}
 
 function resolvePromptPath(promptFile: string): string {
   if (isAbsolute(promptFile)) return promptFile;
-  return resolve(PROJECT_ROOT, promptFile);
+  return resolve(resolveProjectRoot(), promptFile);
 }
 
 function interpolatePrompt(content: string, vars: Record<string, string>): string {

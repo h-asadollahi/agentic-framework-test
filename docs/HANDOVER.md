@@ -768,3 +768,18 @@ Key interfaces: `PipelinePayload`, `PipelineResult`, `SubTask`, `AgentResult`, `
 
 ### Next Planned Migration
 - Current migration batch complete for existing registered sub-agents (`cohort-monitor`, `api-fetcher`, `mcp-fetcher`).
+
+### Runtime Bugfix (Plan 46) — Completed
+- Fixed knowledge prompt path resolution in Trigger runtime:
+  - `src/tools/agent-spec-loader.ts` now discovers project root by walking upward for `package.json` + `knowledge`.
+  - Resolution order:
+    1. from `process.cwd()` (runtime cwd)
+    2. from loader module directory
+    3. final fallback to relative `../..`
+- This resolves warnings such as:
+  - `Agent prompt file missing, using fallback`
+  - path incorrectly pointing to `.trigger/knowledge/...`
+- Added regression coverage:
+  - `tests/unit/agent-spec-loader.test.ts` now includes a `.trigger`-style external cwd scenario and verifies that `knowledge/agents/grounding/system-prompt.md` still loads.
+- Validation:
+  - Full unit suite passed after patch (`24` test files, `114` tests).
