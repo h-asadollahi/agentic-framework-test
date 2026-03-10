@@ -826,3 +826,13 @@ Key interfaces: `PipelinePayload`, `PipelineResult`, `SubTask`, `AgentResult`, `
 - Validation:
   - focused tests passed
   - full unit suite passed (`25` test files, `119` tests).
+
+### Learned Routes Maintenance — ID Renumbering (Plan 49) — Completed
+- Normalized route numbering in `knowledge/learned-routes.json` after manual cleanup:
+  - old sparse IDs (`route-001`, `route-007`...`route-012`) were renumbered to contiguous IDs (`route-001`...`route-007`) based on current route order.
+- Updated embedded internal references:
+  - `agentInputDefaults.routeId` values were rewritten to match the new route IDs.
+- Refreshed `lastUpdated` timestamp in learned-routes file.
+- Validation:
+  - schema parse check passed (`LearnedRoutesFileSchema`)
+  - `tests/unit/learned-routes-store.test.ts` passed.

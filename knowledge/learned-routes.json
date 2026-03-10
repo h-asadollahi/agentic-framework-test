@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "lastUpdated": "2026-03-09T14:31:33.928Z",
+  "lastUpdated": "2026-03-10T14:02:35.315Z",
   "routes": [
     {
       "id": "route-001",
@@ -26,187 +26,11 @@
       "outputFormat": "json",
       "addedAt": "2026-03-06T15:05:00.000Z",
       "addedBy": "codex",
-      "usageCount": 2,
-      "lastUsedAt": "2026-03-06T14:58:12.165Z"
+      "usageCount": 3,
+      "lastUsedAt": "2026-03-10T09:15:36.972Z"
     },
     {
       "id": "route-002",
-      "capability": "campaign-performance-overview",
-      "description": "Analyze campaign performance by impressions, clicks, conversions, and revenue.",
-      "matchPatterns": [
-        "campaign performance",
-        "top campaign",
-        "best performing campaign",
-        "campaign roi",
-        "campaign conversion"
-      ],
-      "routeType": "api",
-      "endpoint": {
-        "url": "{{MAPP_ANALYTICS_API_URL}}/campaigns/performance",
-        "method": "GET",
-        "headers": {
-          "X-Client-Id": "{{MAPP_ANALYTICS_API_CLIENT_ID}}",
-          "X-Client-Secret": "{{MAPP_ANALYTICS_API_CLIENT_SECRET}}",
-          "Accept": "application/json"
-        },
-        "queryParams": {
-          "from": "{{input.from}}",
-          "to": "{{input.to}}",
-          "campaignId": "{{input.campaignId}}",
-          "channel": "{{input.channel}}",
-          "metric": "{{input.metric}}"
-        }
-      },
-      "agentInputDefaults": {},
-      "inputMapping": {},
-      "outputFormat": "json",
-      "addedAt": "2026-03-06T16:05:00.000Z",
-      "addedBy": "codex",
-      "usageCount": 0,
-      "lastUsedAt": null
-    },
-    {
-      "id": "route-003",
-      "capability": "conversion-funnel-analysis",
-      "description": "Analyze funnel performance across stages and identify drop-off points.",
-      "matchPatterns": [
-        "funnel conversion",
-        "drop off",
-        "conversion funnel",
-        "where users drop",
-        "funnel performance"
-      ],
-      "routeType": "api",
-      "endpoint": {
-        "url": "{{MAPP_ANALYTICS_API_URL}}/funnels/conversion",
-        "method": "GET",
-        "headers": {
-          "X-Client-Id": "{{MAPP_ANALYTICS_API_CLIENT_ID}}",
-          "X-Client-Secret": "{{MAPP_ANALYTICS_API_CLIENT_SECRET}}",
-          "Accept": "application/json"
-        },
-        "queryParams": {
-          "from": "{{input.from}}",
-          "to": "{{input.to}}",
-          "segment": "{{input.segment}}",
-          "funnelId": "{{input.funnelId}}"
-        }
-      },
-      "agentInputDefaults": {},
-      "inputMapping": {},
-      "outputFormat": "json",
-      "addedAt": "2026-03-06T16:05:00.000Z",
-      "addedBy": "codex",
-      "usageCount": 0,
-      "lastUsedAt": null
-    },
-    {
-      "id": "route-004",
-      "capability": "channel-attribution-analysis",
-      "description": "Analyze channel contribution and attribution performance for conversions/revenue.",
-      "matchPatterns": [
-        "channel performance",
-        "attribution",
-        "top channel",
-        "which channel",
-        "source performance"
-      ],
-      "routeType": "api",
-      "endpoint": {
-        "url": "{{MAPP_ANALYTICS_API_URL}}/channels/attribution",
-        "method": "GET",
-        "headers": {
-          "X-Client-Id": "{{MAPP_ANALYTICS_API_CLIENT_ID}}",
-          "X-Client-Secret": "{{MAPP_ANALYTICS_API_CLIENT_SECRET}}",
-          "Accept": "application/json"
-        },
-        "queryParams": {
-          "from": "{{input.from}}",
-          "to": "{{input.to}}",
-          "model": "{{input.model}}",
-          "metric": "{{input.metric}}"
-        }
-      },
-      "agentInputDefaults": {},
-      "inputMapping": {},
-      "outputFormat": "json",
-      "addedAt": "2026-03-06T16:05:00.000Z",
-      "addedBy": "codex",
-      "usageCount": 0,
-      "lastUsedAt": null
-    },
-    {
-      "id": "route-005",
-      "capability": "segment-performance-analysis",
-      "description": "Analyze customer segment performance across engagement, conversion, and revenue.",
-      "matchPatterns": [
-        "segment performance",
-        "which segment",
-        "audience segment",
-        "high value segment",
-        "segment conversion"
-      ],
-      "routeType": "api",
-      "endpoint": {
-        "url": "{{MAPP_ANALYTICS_API_URL}}/segments/performance",
-        "method": "GET",
-        "headers": {
-          "X-Client-Id": "{{MAPP_ANALYTICS_API_CLIENT_ID}}",
-          "X-Client-Secret": "{{MAPP_ANALYTICS_API_CLIENT_SECRET}}",
-          "Accept": "application/json"
-        },
-        "queryParams": {
-          "from": "{{input.from}}",
-          "to": "{{input.to}}",
-          "segmentId": "{{input.segmentId}}",
-          "metric": "{{input.metric}}"
-        }
-      },
-      "agentInputDefaults": {},
-      "inputMapping": {},
-      "outputFormat": "json",
-      "addedAt": "2026-03-06T16:05:00.000Z",
-      "addedBy": "codex",
-      "usageCount": 0,
-      "lastUsedAt": null
-    },
-    {
-      "id": "route-006",
-      "capability": "daily-kpi-trend-analysis",
-      "description": "Analyze daily KPI trends such as sessions, conversions, revenue, and retention.",
-      "matchPatterns": [
-        "daily trend",
-        "kpi trend",
-        "trend over time",
-        "weekly trend",
-        "monthly trend"
-      ],
-      "routeType": "api",
-      "endpoint": {
-        "url": "{{MAPP_ANALYTICS_API_URL}}/kpis/trends",
-        "method": "GET",
-        "headers": {
-          "X-Client-Id": "{{MAPP_ANALYTICS_API_CLIENT_ID}}",
-          "X-Client-Secret": "{{MAPP_ANALYTICS_API_CLIENT_SECRET}}",
-          "Accept": "application/json"
-        },
-        "queryParams": {
-          "from": "{{input.from}}",
-          "to": "{{input.to}}",
-          "granularity": "{{input.granularity}}",
-          "metric": "{{input.metric}}"
-        }
-      },
-      "agentInputDefaults": {},
-      "inputMapping": {},
-      "outputFormat": "json",
-      "addedAt": "2026-03-06T16:05:00.000Z",
-      "addedBy": "codex",
-      "usageCount": 1,
-      "lastUsedAt": "2026-03-06T15:16:32.752Z"
-    },
-    {
-      "id": "route-007",
       "capability": "mapp-mcp-list-dimensions-metrics",
       "description": "List all available dimensions and metrics in Mapp Intelligence",
       "matchPatterns": [
@@ -220,7 +44,7 @@
       "agentInputDefaults": {
         "serverName": "mapp-michel",
         "toolName": "list_dimensions_and_metrics",
-        "routeId": "route-007",
+        "routeId": "route-002",
         "args": {
           "language": "en"
         }
@@ -229,11 +53,11 @@
       "outputFormat": "json",
       "addedAt": "2026-03-09T10:25:00.000Z",
       "addedBy": "codex",
-      "usageCount": 14,
-      "lastUsedAt": "2026-03-09T14:31:33.928Z"
+      "usageCount": 25,
+      "lastUsedAt": "2026-03-10T12:57:50.709Z"
     },
     {
-      "id": "route-008",
+      "id": "route-003",
       "capability": "analytics-kpi-benchmark-via-mcp",
       "description": "Compare KPI performance against benchmarks using MCP analytics tools.",
       "matchPatterns": [
@@ -247,7 +71,7 @@
       "agentInputDefaults": {
         "serverName": "analytics",
         "toolName": "kpi_benchmark",
-        "routeId": "route-008",
+        "routeId": "route-003",
         "args": {
           "from": "{{input.from}}",
           "to": "{{input.to}}",
@@ -263,7 +87,7 @@
       "lastUsedAt": null
     },
     {
-      "id": "route-009",
+      "id": "route-004",
       "capability": "analytics-retention-drivers-via-mcp",
       "description": "Find retention drivers and churn risks with MCP analytics tools.",
       "matchPatterns": [
@@ -277,7 +101,7 @@
       "agentInputDefaults": {
         "serverName": "analytics",
         "toolName": "retention_drivers",
-        "routeId": "route-009",
+        "routeId": "route-004",
         "args": {
           "period": "{{input.period}}",
           "cohort": "{{input.cohort}}",
@@ -292,7 +116,7 @@
       "lastUsedAt": null
     },
     {
-      "id": "route-010",
+      "id": "route-005",
       "capability": "mapp-mcp-page-impressions-last-7-days",
       "description": "Show me my page impressions for the last 7 days",
       "matchPatterns": [
@@ -306,7 +130,7 @@
       "agentInputDefaults": {
         "serverName": "mapp-michel",
         "toolName": "run_analysis",
-        "routeId": "route-010",
+        "routeId": "route-005",
         "args": {
           "queryObject": {
             "columns": [
@@ -350,11 +174,11 @@
       "outputFormat": "json",
       "addedAt": "2026-03-09T10:25:00.000Z",
       "addedBy": "codex",
-      "usageCount": 0,
-      "lastUsedAt": null
+      "usageCount": 6,
+      "lastUsedAt": "2026-03-10T08:23:14.632Z"
     },
     {
-      "id": "route-011",
+      "id": "route-006",
       "capability": "mapp-mcp-list-segments",
       "description": "What segments are defined in my Mapp Intelligence account?",
       "matchPatterns": [
@@ -368,18 +192,18 @@
       "agentInputDefaults": {
         "serverName": "mapp-michel",
         "toolName": "list_segments",
-        "routeId": "route-011",
+        "routeId": "route-006",
         "args": {}
       },
       "inputMapping": {},
       "outputFormat": "json",
       "addedAt": "2026-03-09T10:25:00.000Z",
       "addedBy": "codex",
-      "usageCount": 0,
-      "lastUsedAt": null
+      "usageCount": 2,
+      "lastUsedAt": "2026-03-10T09:06:20.288Z"
     },
     {
-      "id": "route-012",
+      "id": "route-007",
       "capability": "mapp-mcp-analysis-usage-monthly",
       "description": "How many API calculations have I used this month?",
       "matchPatterns": [
@@ -393,15 +217,15 @@
       "agentInputDefaults": {
         "serverName": "mapp-michel",
         "toolName": "get_analysis_usage",
-        "routeId": "route-012",
+        "routeId": "route-007",
         "args": {}
       },
       "inputMapping": {},
       "outputFormat": "json",
       "addedAt": "2026-03-09T10:25:00.000Z",
       "addedBy": "codex",
-      "usageCount": 0,
-      "lastUsedAt": null
+      "usageCount": 4,
+      "lastUsedAt": "2026-03-10T13:07:50.563Z"
     }
   ]
 }
