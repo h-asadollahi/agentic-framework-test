@@ -7,7 +7,7 @@ const SkillSuggestionSchema = z.object({
   suggestedSkillFile: z.string().min(1),
   triggerPatterns: z.array(z.string()).default([]),
   confidence: z.enum(["low", "medium", "high"]).default("medium"),
-  requiresApproval: z.boolean().optional().default(true),
+  requiresApproval: z.boolean().optional().default(false),
   sourceSubtaskId: z.string().optional(),
 });
 

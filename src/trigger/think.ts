@@ -1,6 +1,7 @@
 import { task, logger } from "@trigger.dev/sdk/v3";
 import { cognitionAgent } from "../agents/cognition-agent.js";
-import type { CognitionResult, GroundingResult } from "../core/types.js";
+import type { CognitionResult, GroundingResult, SubTask } from "../core/types.js";
+import { skillCandidatesStore } from "../routing/skill-candidates-store.js";
 import {
   buildRejectedCognitionResult,
   detectCognitionGuardrailRejection,
@@ -79,7 +80,111 @@ export const thinkTask = task({
       cognitionResult = buildRejectedCognitionResult(reason);
     }
 
+    if (cognitionResult.rejected !== true) {
+      cognitionResult = applyAutonomousSkillCreation(
+        cognitionResult,
+        payload.userMessage
+      );
+    }
+
     logger.info(`Cognition produced ${cognitionResult.subtasks.length} subtasks`);
     return cognitionResult;
   },
 });
+
+export function applyAutonomousSkillCreation(
+  cognitionResult: CognitionResult,
+  userMessage: string
+): CognitionResult {
+  const matchedCandidate = skillCandidatesStore.findBestMatchByPrompt(userMessage);
+  if (!matchedCandidate) return cognitionResult;
+
+  skillCandidatesStore.incrementUsage(matchedCandidate.id);
+
+  const alreadyHasSkillCreatorTask = cognitionResult.subtasks.some((subtask) => {
+    if (!isSkillCreatorAgent(subtask.agentId)) return false;
+    const candidateId =
+      typeof subtask.input?.candidateId === "string"
+        ? subtask.input.candidateId
+        : null;
+    if (candidateId && candidateId === matchedCandidate.id) return true;
+
+    const skillFile =
+      typeof subtask.input?.suggestedSkillFile === "string"
+        ? subtask.input.suggestedSkillFile
+        : null;
+    return Boolean(skillFile && skillFile === matchedCandidate.suggestedSkillFile);
+  });
+
+  if (alreadyHasSkillCreatorTask) return cognitionResult;
+
+  const isMaterialized = skillCandidatesStore.isMaterialized(
+    matchedCandidate.suggestedSkillFile
+  );
+  if (isMaterialized) return cognitionResult;
+
+  const autoTaskId = nextAutonomousSkillTaskId(cognitionResult.subtasks);
+  const autonomousSkillTask: SubTask = {
+    id: autoTaskId,
+    agentId: "skill-creator",
+    description: `Create missing reusable skill "${matchedCandidate.capability}" for this prompt`,
+    input: {
+      candidateId: matchedCandidate.id,
+      capability: matchedCandidate.capability,
+      description: matchedCandidate.description,
+      suggestedSkillFile: matchedCandidate.suggestedSkillFile,
+      triggerPatterns: matchedCandidate.triggerPatterns,
+      autoCreate: true,
+      source: "autonomous",
+      matchedPrompt: userMessage,
+    },
+    dependencies: [],
+    priority: "high",
+  };
+
+  const updatedSubtasks = [
+    autonomousSkillTask,
+    ...cognitionResult.subtasks.map((subtask) => {
+      if (isSkillCreatorAgent(subtask.agentId)) return subtask;
+      if (subtask.id === autoTaskId) return subtask;
+      if (subtask.dependencies.includes(autoTaskId)) return subtask;
+      return {
+        ...subtask,
+        dependencies: [...subtask.dependencies, autoTaskId],
+      };
+    }),
+  ];
+
+  logger.info("Cognition autonomous self-learning activated", {
+    candidateId: matchedCandidate.id,
+    capability: matchedCandidate.capability,
+    skillFile: matchedCandidate.suggestedSkillFile,
+  });
+
+  return {
+    ...cognitionResult,
+    subtasks: updatedSubtasks,
+    reasoning: `${cognitionResult.reasoning} | Autonomous self-learning: missing skill "${matchedCandidate.capability}" will be created via skill-creator before execution.`,
+  };
+}
+
+function isSkillCreatorAgent(agentId: string): boolean {
+  const normalized = agentId.trim().toLowerCase();
+  return (
+    normalized === "skill-creator" ||
+    normalized === "skill_creator" ||
+    normalized === "universal-skill-creator"
+  );
+}
+
+function nextAutonomousSkillTaskId(subtasks: SubTask[]): string {
+  const base = "task-skill-autonomous";
+  const ids = new Set(subtasks.map((task) => task.id));
+  if (!ids.has(base)) return base;
+
+  let index = 1;
+  while (ids.has(`${base}-${index}`)) {
+    index += 1;
+  }
+  return `${base}-${index}`;
+}

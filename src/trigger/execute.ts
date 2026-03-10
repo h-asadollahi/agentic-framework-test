@@ -15,6 +15,7 @@ import {
 import {
   buildUniversalSkillCreatorAgentResult,
   isUniversalSkillCreationIntent,
+  materializeUniversalSkillFromSuggestion,
 } from "./universal-skill-creator.js";
 import { skillCandidatesStore } from "../routing/skill-candidates-store.js";
 // Register all plugins on import
@@ -24,6 +25,7 @@ import type {
   AgentResult,
   CognitionResult,
   ExecutionContext,
+  SkillSuggestion,
   SubTask,
 } from "../core/types.js";
 
@@ -343,19 +345,21 @@ export const executeTask = task({
     if (suggestions.length > 0) {
       agencyResult.skillSuggestions = suggestions;
       try {
-        for (const suggestion of suggestions) {
-          skillCandidatesStore.upsertCandidate({
-            capability: suggestion.capability,
-            description: suggestion.description,
-            suggestedSkillFile: suggestion.suggestedSkillFile,
-            triggerPatterns: suggestion.triggerPatterns,
-            confidence: suggestion.confidence,
-            requiresApproval: suggestion.requiresApproval,
-            source: "agency",
-          });
+        const { materializations, issues } =
+          persistAndMaterializeSkillSuggestions(
+            suggestions,
+            payload.context
+          );
+        agencyResult.skillMaterializations = materializations;
+        if (issues.length > 0) {
+          agencyResult.issues = [...(agencyResult.issues ?? []), ...issues];
         }
         logger.info(`Persisted ${suggestions.length} skill suggestion(s)`, {
           suggestions: suggestions.map((item) => item.capability).slice(0, 5),
+          materialized: materializations
+            .filter((item) => item.success)
+            .map((item) => `${item.capability}:${item.action}`)
+            .slice(0, 5),
         });
       } catch (error) {
         logger.error("Failed to persist agency skill suggestions", {
@@ -463,4 +467,57 @@ function isDeterministicSkillCreatorAgent(agentId: string): boolean {
     normalized === "skill_creator" ||
     normalized === "universal-skill-creator"
   );
+}
+
+export function persistAndMaterializeSkillSuggestions(
+  suggestions: SkillSuggestion[],
+  context: ExecutionContext
+): {
+  materializations: NonNullable<AgencyResult["skillMaterializations"]>;
+  issues: string[];
+} {
+  const materializations: NonNullable<AgencyResult["skillMaterializations"]> = [];
+  const issues: string[] = [];
+
+  for (const suggestion of suggestions) {
+    const persisted = skillCandidatesStore.upsertCandidate({
+      capability: suggestion.capability,
+      description: suggestion.description,
+      suggestedSkillFile: suggestion.suggestedSkillFile,
+      triggerPatterns: suggestion.triggerPatterns,
+      confidence: suggestion.confidence,
+      requiresApproval: false,
+      source: "autonomous",
+    });
+
+    const materialization = materializeUniversalSkillFromSuggestion(
+      {
+        capability: suggestion.capability,
+        description: suggestion.description,
+        suggestedSkillFile: suggestion.suggestedSkillFile,
+        triggerPatterns: suggestion.triggerPatterns,
+      },
+      context,
+      "autonomous"
+    );
+
+    materializations.push({
+      candidateId: persisted.id,
+      capability: suggestion.capability,
+      skillFile: materialization.skillFile,
+      action: materialization.action,
+      success: materialization.success,
+      reason: materialization.reason,
+    });
+
+    if (!materialization.success) {
+      issues.push(
+        `Autonomous skill materialization failed for ${suggestion.capability}: ${
+          materialization.reason ?? "unknown error"
+        }`
+      );
+    }
+  }
+
+  return { materializations, issues };
 }

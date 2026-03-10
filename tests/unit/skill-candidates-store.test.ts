@@ -1,5 +1,10 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  readFileSync,
+  unlinkSync,
+  writeFileSync,
+} from "node:fs";
 import { resolve } from "node:path";
 import { skillCandidatesStore } from "../../src/routing/skill-candidates-store.js";
 
@@ -77,5 +82,53 @@ describe.sequential("skill-candidates store", () => {
     expect(updated.confidence).toBe("high");
     expect(updated.triggerPatterns).toContain("monthly api usage");
     expect(updated.triggerPatterns).toContain("api calculations this month");
+  });
+
+  it("finds best matching candidate by prompt text", () => {
+    skillCandidatesStore.upsertCandidate({
+      capability: "mapp-monthly-analysis-usage",
+      description: "Automate monthly analysis usage reporting.",
+      suggestedSkillFile: "skills/mapp-monthly-analysis-usage.md",
+      triggerPatterns: ["monthly api usage", "api calculations this month"],
+      confidence: "high",
+      requiresApproval: false,
+    });
+
+    skillCandidatesStore.upsertCandidate({
+      capability: "generic-reporting-helper",
+      description: "Generic report helper",
+      suggestedSkillFile: "skills/generic-reporting-helper.md",
+      triggerPatterns: ["report", "analytics"],
+      confidence: "low",
+      requiresApproval: false,
+    });
+
+    const match = skillCandidatesStore.findBestMatchByPrompt(
+      "How many API calculations have I used this month?"
+    );
+
+    expect(match?.capability).toBe("mapp-monthly-analysis-usage");
+  });
+
+  it("marks summary entries as materialized when skill file exists", () => {
+    const skillFile = "skills/skill-candidate-materialized-test.md";
+    const absoluteSkillFile = resolve(process.cwd(), skillFile);
+    writeFileSync(absoluteSkillFile, "# test\n", "utf-8");
+
+    skillCandidatesStore.upsertCandidate({
+      capability: "materialized-skill-test",
+      description: "Materialized skill candidate test.",
+      suggestedSkillFile: skillFile,
+      triggerPatterns: ["materialized skill test"],
+      confidence: "medium",
+      requiresApproval: false,
+    });
+
+    const summary = skillCandidatesStore.getSummary();
+    expect(summary[0].materialized).toBe(true);
+
+    if (existsSync(absoluteSkillFile)) {
+      unlinkSync(absoluteSkillFile);
+    }
   });
 });

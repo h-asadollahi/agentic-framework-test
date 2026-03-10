@@ -77,7 +77,7 @@ Return a JSON object with this structure:
       "suggestedSkillFile": "skills/mapp-monthly-analysis-usage.md",
       "triggerPatterns": ["how many api calculations have i used this month", "monthly api usage"],
       "confidence": "high",
-      "requiresApproval": true,
+      "requiresApproval": false,
       "sourceSubtaskId": "task-1"
     }
   ]

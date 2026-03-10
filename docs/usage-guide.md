@@ -836,23 +836,25 @@ These prompts should trigger the universal skill-creator workflow (using `skills
 - `Build a new agent skill for onboarding marketers to KPI analysis workflows.`
 - `Generate a skill template for handling weekly retention reporting requests.`
 
-### Agency-to-Cognition Skill Feedback Loop prompts
+### Autonomous Skill Self-Learning prompts
 
-Use these prompts in sequence to validate skill recommendation persistence and reuse:
+Use these prompts to validate zero-HITL autonomous skill creation and reuse:
 
-1. Generate a reusable recommendation from Agency:
+1. Trigger a reusable pattern:
 - `How many API calculations have I used this month?`
 
-2. Ask Cognition to create the reusable skill from stored candidate:
-- `Create a reusable skill for that monthly API usage workflow.`
-- `Use the saved Mapp monthly usage skill candidate and generate the skill definition.`
+2. Verify automatic skill materialization:
+- Expected behavior: Agency emits `skillSuggestions`, execute stage persists candidate(s), and skill file is auto-created under `./skills` using `skills/universal-agent-skill-creator.md`.
 
-3. Verify deterministic `skill-creator` routing:
-- `Build the skill file plan for monthly API calculation usage reporting.`
+3. Verify cognition auto-adaptation on similar prompt:
+- `Show me this month's API calculation usage summary and status.`
+- Expected behavior: if matching candidate skill file is missing, cognition prepends a `skill-creator` subtask automatically before normal execution.
+- If matching skill file already exists, cognition continues normal execution without extra skill-creation task.
 
 Notes:
-- Agency `skillSuggestions` are persisted in `knowledge/skill-candidates.json`.
-- Cognition receives candidates in its runtime prompt and can assign `agentId: "skill-creator"` for automation requests.
+- Skill candidates are persisted in `knowledge/skill-candidates.json`.
+- Skill approval is disabled for this autonomous lifecycle (`requiresApproval: false`).
+- Materialized skills are written to `./skills/*.md`.
 
 ### Alert-routing validation prompts
 
@@ -924,7 +926,8 @@ How it works:
 - `src/trigger/ground.ts` remains authoritative for parse/fallback decision logic; the markdown decision file mirrors behavior for human maintainability.
 - `src/trigger/think.ts` + `src/trigger/cognition-guardrails.ts` remain authoritative for cognition parse fallback and deterministic out-of-scope rejection logic.
 - `src/trigger/execute.ts` + `src/trigger/execute-routing.ts` remain authoritative for Agency execution routing, summarization, and fallback behavior.
-- `src/routing/skill-candidates-store.ts` is authoritative for skill recommendation persistence and cognition prompt injection data.
+- `src/routing/skill-candidates-store.ts` is authoritative for skill recommendation persistence, prompt-match scoring, and materialization-state checks.
+- `src/trigger/universal-skill-creator.ts` is authoritative for deterministic autonomous skill-file materialization under `./skills`.
 - `src/trigger/deliver.ts` + `src/trigger/deliver-notifications.ts` + `src/trigger/delivery-fidelity.ts` remain authoritative for Interface rendering, notification routing, and fidelity safeguards.
 - `src/trigger/sub-agents/plugins/cohort-monitor.ts` remains authoritative for current mock-first sub-agent execution behavior.
 - `src/trigger/sub-agents/plugins/api-fetcher.ts` remains authoritative for deterministic learned-route fetch execution behavior.

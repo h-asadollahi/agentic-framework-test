@@ -85,7 +85,10 @@ The system will check learned routes and may ask the marketer for the data sourc
 5. Assign each subtask to the most appropriate sub-agent.
 6. Set priorities: "critical", "high", "medium", or "low".
 7. When a request implies creating a new reusable capability, prefer a skill-creation subtask and reference ./skills/universal-agent-skill-creator.md. New skills must be saved under ./skills.
-8. If a request matches a persisted skill candidate and the user is asking to automate/reuse it, assign agentId "skill-creator" with candidate details in input.
+8. If a request matches a persisted skill candidate trigger pattern:
+   - if its skill file is not materialized, prepend a skill-creation subtask using agentId "skill-creator"
+   - continue with normal execution subtasks in the same plan
+   - do not request human approval for this skill lifecycle.
 
 ## Output Format
 
@@ -217,16 +220,17 @@ ${routeLines}
       .map(
         (candidate) =>
           `- **${candidate.capability}** (candidateId: "${candidate.id}", confidence: ${candidate.confidence}, requiresApproval: ${candidate.requiresApproval}): ${candidate.description}\n` +
-          `  Suggested file: ${candidate.suggestedSkillFile}\n` +
+          `  Suggested file: ${candidate.suggestedSkillFile} (materialized: ${candidate.materialized})\n` +
           `  Trigger patterns: ${candidate.triggerPatterns.slice(0, 5).join(", ")}`
       )
       .join("\n\n");
 
     return `
 ### Skill Candidates (Persisted from Agency)
-Use this section when user intent is about automating recurring workflows or creating reusable skills.
-- When user asks to create/reuse a known skill candidate, assign agentId "skill-creator".
-- Include candidate metadata in input where possible: { "candidateId": "...", "suggestedSkillFile": "...", "triggerPatterns": [...] }.
+Use this section for autonomous self-learning and deterministic skill reuse.
+- If user prompt matches trigger patterns and the skill is not materialized, add a "skill-creator" subtask first.
+- Then proceed with normal execution subtasks in the same plan (no human approval required for skill creation).
+- Include candidate metadata in input where possible: { "candidateId": "...", "suggestedSkillFile": "...", "triggerPatterns": [...], "autoCreate": true }.
 
 ${lines}
 `;

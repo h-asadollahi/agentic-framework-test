@@ -228,6 +228,7 @@ export interface AgencyResult {
   issues?: string[];
   needsHumanReview?: boolean;
   skillSuggestions?: SkillSuggestion[];
+  skillMaterializations?: SkillMaterialization[];
 }
 
 export interface SkillSuggestion {
@@ -238,6 +239,15 @@ export interface SkillSuggestion {
   confidence: "low" | "medium" | "high";
   requiresApproval?: boolean;
   sourceSubtaskId?: string;
+}
+
+export interface SkillMaterialization {
+  candidateId?: string;
+  capability: string;
+  skillFile: string;
+  action: "created" | "updated" | "unchanged" | "skipped-manual" | "failed";
+  success: boolean;
+  reason?: string;
 }
 
 // ── Interface/Delivery Result ──────────────────────────────

@@ -43,7 +43,7 @@ Return a JSON object with this structure:
         "monthly api usage"
       ],
       "confidence": "high",
-      "requiresApproval": true,
+      "requiresApproval": false,
       "sourceSubtaskId": "task-1"
     }
   ]

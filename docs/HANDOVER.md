@@ -47,6 +47,37 @@ src/
 
 ## Post-Handover Progress (2026-03-10, Codex)
 
+### Plan 57: Autonomous Skill Self-Learning (No HITL for Skills)
+
+Status: Implemented in code and tests.
+
+What changed:
+- Skill candidate lifecycle is now autonomous for skill creation:
+  - `requiresApproval` defaults to `false` in skill schemas/parsers.
+  - Agency suggestions are persisted as autonomous candidates.
+- Added deterministic skill-file materialization using `skills/universal-agent-skill-creator.md`:
+  - `src/trigger/universal-skill-creator.ts` now writes/updates skill files in `./skills`.
+  - Supports safe path normalization and skips overwriting manually maintained skill files.
+- Agency execution now auto-materializes suggested skills:
+  - `pipeline-execute` persists suggestions and materializes files immediately.
+  - Materialization metadata is returned via `agencyResult.skillMaterializations`.
+- Think stage now has deterministic self-learning augmentation:
+  - Prompt is matched against candidate trigger patterns.
+  - If matched candidate skill file is missing, think prepends a `skill-creator` subtask before other subtasks.
+  - If skill file exists, no extra skill-creation subtask is injected.
+- Cognition/Agency human-readable prompt docs updated to reflect autonomous no-HITL skill lifecycle.
+
+Tests added/updated:
+- `tests/unit/autonomous-skill-loop.test.ts`
+  - skill file materialization + idempotent unchanged behavior
+  - cognition autonomous skill-task injection
+  - execute-stage suggestion persistence + materialization behavior
+- `tests/unit/skill-candidates-store.test.ts`
+  - best-candidate prompt matching
+  - materialized flag in summary
+- Updated skill-candidate cognition injection expectations in:
+  - `tests/unit/cognition-skill-candidates.test.ts`
+
 ### Plan 56: Mapp Intelligence API Workflows + `api-fetcher` skill preflight
 
 Status: Implemented in code and tests.

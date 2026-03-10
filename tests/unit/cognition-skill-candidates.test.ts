@@ -46,7 +46,7 @@ describe.sequential("CognitionAgent skill candidate injection", () => {
       suggestedSkillFile: "skills/mapp-monthly-analysis-usage.md",
       triggerPatterns: ["monthly api usage", "api calculations this month"],
       confidence: "high",
-      requiresApproval: true,
+      requiresApproval: false,
     });
 
     const agent = new CognitionAgent();
@@ -55,6 +55,7 @@ describe.sequential("CognitionAgent skill candidate injection", () => {
 
     expect(prompt).toContain("Skill Candidates (Persisted from Agency)");
     expect(prompt).toContain("mapp-monthly-analysis-usage");
-    expect(prompt).toContain('assign agentId "skill-creator"');
+    expect(prompt).toContain('add a "skill-creator" subtask first');
+    expect(prompt).toContain("no human approval");
   });
 });

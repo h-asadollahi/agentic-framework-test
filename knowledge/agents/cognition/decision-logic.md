@@ -56,9 +56,12 @@ Execution applies a deterministic safety net:
 ## Skill Feedback Loop
 
 - Agency may emit structured `skillSuggestions` in its JSON result.
-- `pipeline-execute` persists valid suggestions to `knowledge/skill-candidates.json`.
-- Cognition prompt receives injected candidate summaries and can route automation requests to `agentId: "skill-creator"`.
-- Execution handles `skill-creator` deterministically through the universal skill creator workflow.
+- `pipeline-execute` persists valid suggestions to `knowledge/skill-candidates.json` and materializes skill files under `./skills` automatically.
+- Candidate entries are stored with no skill-HITL requirement (`requiresApproval: false`) for autonomous self-improvement.
+- Think stage deterministically checks prompt-vs-candidate triggers:
+  - if matched candidate skill file is missing, it prepends a `skill-creator` subtask before other subtasks.
+  - if skill file already exists, no extra skill-creation subtask is added.
+- Execution handles `skill-creator` deterministically through the universal skill creator workflow and writes/updates skill files.
 
 ## Change Guidance
 

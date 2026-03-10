@@ -40,6 +40,11 @@ const CONFIDENCE_RANK: Record<SkillCandidate["confidence"], number> = {
   high: 3,
 };
 
+function skillFileExists(relativePath: string): boolean {
+  const absolute = resolve(PROJECT_ROOT, relativePath);
+  return existsSync(absolute);
+}
+
 function normalizePatterns(patterns: string[]): string[] {
   const deduped = new Set(
     patterns
@@ -48,6 +53,24 @@ function normalizePatterns(patterns: string[]): string[] {
       .slice(0, 20)
   );
   return [...deduped];
+}
+
+function tokenize(text: string): string[] {
+  return text
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .map((token) => token.trim())
+    .filter((token) => token.length > 2);
+}
+
+function tokenOverlapScore(a: string, b: string): number {
+  const setA = new Set(tokenize(a));
+  const setB = new Set(tokenize(b));
+  let overlap = 0;
+  for (const token of setA) {
+    if (setB.has(token)) overlap += 1;
+  }
+  return overlap;
 }
 
 function nextCandidateId(candidates: SkillCandidate[]): string {
@@ -154,7 +177,7 @@ class SkillCandidatesStoreImpl {
       suggestedSkillFile: skillFile || "skills/new-agent-skill.md",
       triggerPatterns: normalizePatterns(data.triggerPatterns ?? []),
       confidence,
-      requiresApproval: data.requiresApproval ?? true,
+      requiresApproval: data.requiresApproval ?? false,
       source: data.source ?? "agency",
       addedAt: new Date().toISOString(),
       lastUsedAt: null,
@@ -183,6 +206,7 @@ class SkillCandidatesStoreImpl {
     triggerPatterns: string[];
     confidence: SkillCandidate["confidence"];
     requiresApproval: boolean;
+    materialized: boolean;
   }> {
     this.ensureLoaded();
     return [...this.candidates]
@@ -196,7 +220,70 @@ class SkillCandidatesStoreImpl {
         triggerPatterns: candidate.triggerPatterns,
         confidence: candidate.confidence,
         requiresApproval: candidate.requiresApproval,
+        materialized: skillFileExists(candidate.suggestedSkillFile),
       }));
+  }
+
+  findBestMatchByPrompt(prompt: string): SkillCandidate | null {
+    this.ensureLoaded();
+
+    const lowerPrompt = prompt.trim().toLowerCase();
+    if (!lowerPrompt) return null;
+
+    let best: SkillCandidate | null = null;
+    let bestScore = 0;
+
+    for (const candidate of this.candidates) {
+      let score = 0;
+
+      for (const pattern of candidate.triggerPatterns) {
+        const normalized = pattern.trim().toLowerCase();
+        if (!normalized) continue;
+        if (lowerPrompt.includes(normalized)) {
+          score += normalized.length;
+        }
+
+        const overlap = tokenOverlapScore(lowerPrompt, normalized);
+        if (overlap >= 2) {
+          score += overlap * 3;
+        }
+      }
+
+      if (score === 0) {
+        const capabilityHint = candidate.capability.trim().toLowerCase();
+        if (capabilityHint && lowerPrompt.includes(capabilityHint)) {
+          score += Math.max(4, capabilityHint.length / 2);
+        }
+
+        const descriptionHint = candidate.description.trim().toLowerCase();
+        const capabilityOverlap = tokenOverlapScore(lowerPrompt, capabilityHint);
+        if (capabilityOverlap >= 2) {
+          score += capabilityOverlap * 2;
+        }
+
+        const descriptionOverlap = tokenOverlapScore(lowerPrompt, descriptionHint);
+        if (descriptionOverlap >= 3) {
+          score += descriptionOverlap;
+        }
+      }
+
+      if (score > bestScore) {
+        bestScore = score;
+        best = candidate;
+        continue;
+      }
+
+      if (
+        score > 0 &&
+        score === bestScore &&
+        best &&
+        CONFIDENCE_RANK[candidate.confidence] > CONFIDENCE_RANK[best.confidence]
+      ) {
+        best = candidate;
+      }
+    }
+
+    return bestScore > 0 ? best : null;
   }
 
   getAll(): SkillCandidate[] {
@@ -207,6 +294,10 @@ class SkillCandidatesStoreImpl {
   count(): number {
     this.ensureLoaded();
     return this.candidates.length;
+  }
+
+  isMaterialized(skillFile: string): boolean {
+    return skillFileExists(skillFile);
   }
 }
 

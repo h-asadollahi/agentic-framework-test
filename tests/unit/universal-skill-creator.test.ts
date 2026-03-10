@@ -1,4 +1,6 @@
-import { describe, it, expect } from "vitest";
+import { afterEach, describe, it, expect } from "vitest";
+import { existsSync, unlinkSync } from "node:fs";
+import { resolve } from "node:path";
 import {
   buildUniversalSkillCreatorAgentResult,
   buildUniversalSkillGuidance,
@@ -40,6 +42,17 @@ function makeContext(): ExecutionContext {
     },
   };
 }
+
+const generatedSkillFiles = [
+  resolve(process.cwd(), "skills/build-new-agent-skill-for-campaign-qa.md"),
+  resolve(process.cwd(), "skills/create-reusable-skill-for-email-qa.md"),
+];
+
+afterEach(() => {
+  for (const filePath of generatedSkillFiles) {
+    if (existsSync(filePath)) unlinkSync(filePath);
+  }
+});
 
 describe("universal skill creator helpers", () => {
   it("detects skill-creation intent", () => {

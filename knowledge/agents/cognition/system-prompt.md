@@ -54,7 +54,10 @@ The system will check learned routes and may ask the marketer for the data sourc
 5. Assign each subtask to the most appropriate sub-agent.
 6. Set priorities: "critical", "high", "medium", or "low".
 7. When a request implies creating a new reusable capability, prefer a skill-creation subtask and reference ./skills/universal-agent-skill-creator.md. New skills must be saved under ./skills.
-8. If a request matches a persisted skill candidate and the user is asking to automate/reuse it, assign `agentId: "skill-creator"` with candidate details in input.
+8. If a request matches persisted skill-candidate trigger patterns:
+   - if the candidate skill file is not materialized, prepend a `skill-creator` subtask with candidate metadata.
+   - continue with normal execution subtasks in the same plan.
+   - do not require human approval for this autonomous skill lifecycle.
 
 ## Output Format
 
