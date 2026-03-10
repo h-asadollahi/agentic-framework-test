@@ -1,0 +1,3 @@
+Custom API Fetcher Prompt
+
+{{SKILL_CREATION_INSTRUCTION}}

@@ -4,6 +4,7 @@ import { BaseSubAgent } from "../base-sub-agent.js";
 import type { ExecutionContext, AgentResult } from "../../../core/types.js";
 import { learnedRoutesStore } from "../../../routing/learned-routes-store.js";
 import { logger } from "../../../core/logger.js";
+import { loadAgentPromptSpec } from "../../../tools/agent-spec-loader.js";
 
 // ── Schemas ─────────────────────────────────────────────────
 
@@ -29,6 +30,31 @@ const ApiFetcherOutput = z.object({
   data: z.unknown(),
   fetchedAt: z.string(),
 });
+
+type PromptLoader = typeof loadAgentPromptSpec;
+
+export const API_FETCHER_SYSTEM_PROMPT_FILE =
+  "knowledge/sub-agents/api-fetcher/system-prompt.md";
+
+export const API_FETCHER_SYSTEM_PROMPT_FALLBACK = `You are the API Fetcher sub-agent.
+
+Your role is to retrieve data from learned API endpoints and return reliable execution results.
+
+## What you do
+- Resolve learned route templates (URL, headers, query params)
+- Execute HTTP requests against configured endpoints
+- Return structured fetch results with status and payload
+- Surface execution errors clearly for downstream handling
+
+## Output expectations
+- Return machine-readable output compatible with Agency aggregation.
+- Include route ID, resolved endpoint, status code, data, and execution timestamp.
+
+## Rules
+- Use learned routes from knowledge/learned-routes.json as the source of truth.
+- Do not invent endpoint details when route configuration is missing.
+- If route config is invalid/missing, return a clear error payload.
+- {{SKILL_CREATION_INSTRUCTION}}`;
 
 // ── Template Resolution ─────────────────────────────────────
 
@@ -63,9 +89,13 @@ export class ApiFetcherAgent extends BaseSubAgent {
 
   inputSchema = ApiFetcherInput;
   outputSchema = ApiFetcherOutput;
+  private promptLoader: PromptLoader;
+  private promptFile: string;
 
-  constructor() {
+  constructor(options?: { promptLoader?: PromptLoader; promptFile?: string }) {
     super("anthropic:fast", ["openai:fast", "google:fast"], 3, 0.1);
+    this.promptLoader = options?.promptLoader ?? loadAgentPromptSpec;
+    this.promptFile = options?.promptFile ?? API_FETCHER_SYSTEM_PROMPT_FILE;
   }
 
   /**
@@ -196,10 +226,16 @@ export class ApiFetcherAgent extends BaseSubAgent {
 
   // AI-based methods (kept for compatibility, not used in fetch mode)
 
-  getSystemPrompt(_context: ExecutionContext): string {
-    return (
-      "You are the API Fetcher sub-agent. Your role is to retrieve data from learned API endpoints. " +
-      this.getSkillCreationInstruction()
+  getSystemPrompt(context: ExecutionContext): string {
+    const vars = {
+      SKILL_CREATION_INSTRUCTION: this.getSkillCreationInstruction(),
+      BRAND_NAME: context.brandIdentity.name,
+    };
+    return this.promptLoader(
+      this.id,
+      this.promptFile,
+      API_FETCHER_SYSTEM_PROMPT_FALLBACK,
+      vars
     );
   }
 

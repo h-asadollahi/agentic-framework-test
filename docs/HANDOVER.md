@@ -738,5 +738,19 @@ Key interfaces: `PipelinePayload`, `PipelineResult`, `SubTask`, `AgentResult`, `
 - Updated docs:
   - `docs/usage-guide.md` now documents `knowledge/sub-agents/...` pattern.
 
+### Sub-Agent Spec Migration (Plan 43) — Completed (Phase 2)
+- Migrated `api-fetcher` sub-agent prompt/docs into knowledge runtime specs:
+  - `knowledge/sub-agents/api-fetcher/system-prompt.md`
+  - `knowledge/sub-agents/api-fetcher/decision-logic.md`
+- Refactored sub-agent prompt loading:
+  - `src/trigger/sub-agents/plugins/api-fetcher.ts` now loads prompt via `loadAgentPromptSpec()` with placeholder interpolation and fallback.
+- Kept runtime-authoritative behavior unchanged:
+  - `api-fetcher` still executes deterministic learned-route HTTP fetch logic in `execute()`.
+- Added tests and fixture:
+  - `tests/unit/api-fetcher-sub-agent.test.ts`
+  - `tests/fixtures/api-fetcher-system-prompt-custom.md`
+- Updated docs:
+  - `docs/usage-guide.md` now includes `api-fetcher` in `knowledge/sub-agents/...` references.
+
 ### Next Planned Migration
-- Continue sub-agent prompt/spec migration with `api-fetcher` and then `mcp-fetcher` under `knowledge/sub-agents/`.
+- Continue sub-agent prompt/spec migration with `mcp-fetcher` under `knowledge/sub-agents/`.
