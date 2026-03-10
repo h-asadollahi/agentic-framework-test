@@ -637,3 +637,14 @@ Key interfaces: `PipelinePayload`, `PipelineResult`, `SubTask`, `AgentResult`, `
 | `plan-slack-human-in-the-loop.md` | Escalation design |
 | `plan-smart-fallback-router.md` | Smart fallback router design |
 | `phase-1-foundation.md` through `phase-7-*.md` | Phase-by-phase implementation notes |
+
+---
+
+## Post-Handover Progress (2026-03-10, Codex)
+
+### Documentation Updates
+- Added a new **Self-Improving Skills** section to `demo/README.md`.
+- Documented `skills/universal-agent-skill-creator.md` as the reusable skill-generation mechanism for future agent/sub-agent capability growth.
+- Clarified developer expectations:
+  - new generated skills should be stored under `skills/`
+  - adopted skills should also be reflected in this handover file.

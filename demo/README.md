@@ -34,3 +34,20 @@ http://localhost:4173
   - final formatted response
   - pipeline trace steps (grounding/cognition/agency/interface)
   - notification count when present
+
+## Self-Improving Skills
+
+This project includes a reusable skill creator at:
+
+- `skills/universal-agent-skill-creator.md`
+
+Purpose:
+- Helps agents and sub-agents generate a new, reusable skill when they identify repeated workflows or missing capabilities.
+
+Current behavior:
+- The runtime can route unknown/general API-oriented work through this universal skill creator flow.
+- New skills produced by this flow should be saved in the `skills/` folder for future reuse.
+
+Developer guidance:
+- Keep generated skills specific, testable, and task-oriented.
+- If a new skill is adopted by an agent/sub-agent, document that usage in `docs/HANDOVER.md`.
