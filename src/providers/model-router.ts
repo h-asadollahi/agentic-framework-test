@@ -4,6 +4,33 @@ import { getModelAssignment } from "../config/models.js";
 
 // The registry expects template literal types like `provider:${string}`
 type RegistryModelId = `anthropic:${string}` | `openai:${string}` | `google:${string}`;
+const OPENAI_UNSUPPORTED_TEMPERATURE_PREFIXES = ["gpt-5", "o1", "o3", "o4"];
+
+/**
+ * Resolve a model alias (e.g. "openai:fast") into a concrete model ID
+ * (e.g. "openai:gpt-5-mini").
+ */
+export function resolveModelId(modelId: string): string {
+  return MODEL_ALIASES[modelId] ?? modelId;
+}
+
+function isOpenAiTemperatureUnsupported(resolvedModelId: string): boolean {
+  const lower = resolvedModelId.toLowerCase();
+  if (!lower.startsWith("openai:")) return false;
+
+  const modelName = lower.slice("openai:".length);
+  return OPENAI_UNSUPPORTED_TEMPERATURE_PREFIXES.some((prefix) =>
+    modelName.startsWith(prefix)
+  );
+}
+
+/**
+ * Returns whether temperature is supported for a model alias or concrete model ID.
+ */
+export function modelSupportsTemperature(modelId: string): boolean {
+  const resolved = resolveModelId(modelId);
+  return !isOpenAiTemperatureUnsupported(resolved);
+}
 
 /**
  * ModelRouter resolves model alias strings into actual LanguageModel instances.
@@ -27,7 +54,7 @@ export class ModelRouter {
    * Resolve a model alias or direct ID into a LanguageModel instance.
    */
   resolve(modelId: string): LanguageModel {
-    const resolved = MODEL_ALIASES[modelId] ?? modelId;
+    const resolved = resolveModelId(modelId);
     return registry.languageModel(resolved as RegistryModelId);
   }
 

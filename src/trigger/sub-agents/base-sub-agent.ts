@@ -1,7 +1,7 @@
 import { generateText, type Tool } from "ai";
 import { z } from "zod";
 import type { SubAgentPlugin, ExecutionContext, AgentResult } from "../../core/types.js";
-import { modelRouter } from "../../providers/model-router.js";
+import { modelRouter, modelSupportsTemperature } from "../../providers/model-router.js";
 import { logger } from "../../core/logger.js";
 
 /**
@@ -74,13 +74,14 @@ export abstract class BaseSubAgent implements SubAgentPlugin {
         const model = modelRouter.resolve(modelId);
         const tools = this.getTools(context);
         const hasTools = Object.keys(tools).length > 0;
+        const supportsTemperature = modelSupportsTemperature(modelId);
 
         const result = await generateText({
           model,
           system: this.getSystemPrompt(context),
           prompt: JSON.stringify(input),
           ...(hasTools ? { tools, maxSteps: this.maxSteps } : {}),
-          temperature: this.temperature,
+          ...(supportsTemperature ? { temperature: this.temperature } : {}),
         });
 
         return {

@@ -888,3 +888,20 @@ Key interfaces: `PipelinePayload`, `PipelineResult`, `SubTask`, `AgentResult`, `
   - `tests/unit/model-router.test.ts` passed
   - `tests/unit/context.test.ts` passed
   - full unit suite passed (`25` test files, `119` tests).
+
+### OpenAI Temperature Warning Fix (Plan 53) — Completed
+- Fixed AI SDK warnings for unsupported `temperature` on OpenAI reasoning model families (e.g. GPT-5/o-series):
+  - warning example: `temperature is not supported for reasoning models`
+- Added shared capability detection in provider layer:
+  - `src/providers/model-router.ts`
+  - new exports:
+    - `resolveModelId(modelId)`
+    - `modelSupportsTemperature(modelId)`
+- Updated generation calls to set `temperature` only when supported:
+  - `src/agents/base-agent.ts`
+  - `src/trigger/sub-agents/base-sub-agent.ts`
+- Added unit tests:
+  - `tests/unit/model-capabilities.test.ts`
+  - covers GPT-5/o-series unsupported paths and supported model families.
+- Validation:
+  - full unit suite passed (`26` test files, `123` tests).

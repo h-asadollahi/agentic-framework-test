@@ -1,7 +1,11 @@
 import { generateText, type LanguageModel, type Tool } from "ai";
 import type { AgentConfig, AgentResult, ExecutionContext } from "../core/types.js";
 import { AllModelsFailedError } from "../core/errors.js";
-import { ModelRouter, modelRouter } from "../providers/model-router.js";
+import {
+  ModelRouter,
+  modelRouter,
+  modelSupportsTemperature,
+} from "../providers/model-router.js";
 import { logger } from "../core/logger.js";
 
 /**
@@ -56,13 +60,14 @@ export abstract class BaseAgent {
         const model: LanguageModel = this.router.resolve(modelId);
         const tools = this.getTools(context);
         const hasTools = Object.keys(tools).length > 0;
+        const supportsTemperature = modelSupportsTemperature(modelId);
 
         const result = await generateText({
           model,
           system: this.buildSystemPrompt(context),
           prompt: input,
           ...(hasTools ? { tools, maxSteps: this.config.maxSteps } : {}),
-          temperature: this.config.temperature,
+          ...(supportsTemperature ? { temperature: this.config.temperature } : {}),
         });
 
         logger.info(`Agent "${this.config.id}" succeeded with model "${modelId}"`, {
