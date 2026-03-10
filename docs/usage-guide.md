@@ -811,3 +811,27 @@ Use these to verify Slack alert routing behavior:
 
 - `List all available dimensions and metrics in Mapp Intelligence`  
   If response includes marketer-facing warnings/issues, expected: monitoring notification to `SLACK_MARKETERS_MONITORING_CHANNEL`.
+
+### Notification routing prompts (test-backed)
+
+These prompts map to the current notification-policy tests and help verify the new channel split:
+
+1. Marketer HITL (non-admin review):
+   - Prompt: `Please review this campaign copy tone and wording before we publish.`
+   - Expected: `needsHumanReview=true` with non-critical issue -> Slack to `SLACK_MARKETERS_HITL_CHANNEL`.
+
+2. Admin HITL (critical/escalation review):
+   - Prompt: `Review and approve this pipeline run; we detected a critical auth failure in a downstream analytics service.`
+   - Expected: admin escalation human review -> Slack to `SLACK_ADMIN_HITL_CHANNEL`.
+
+3. Marketer monitoring (warnings/issues, no failed subtask):
+   - Prompt: `What segments are defined in my Mapp Intelligence account?`
+   - Expected: if output includes warnings (e.g., naming/description quality issues), Slack to `SLACK_MARKETERS_MONITORING_CHANNEL`.
+
+4. Admin monitoring (technical failure / failed subtask):
+   - Prompt: `Show me my page impressions for the last 7 days`
+   - Expected: if a technical error occurs (e.g., MCP tool unavailable, auth failure, failed subtask), Slack to `SLACK_ADMIN_MONITORING_CHANNEL`.
+
+5. No Slack alert path:
+   - Prompt: `Analyze conversion trend by channel over the last 30 days.`
+   - Expected: successful run with no issues/failures -> no fallback Slack notification.

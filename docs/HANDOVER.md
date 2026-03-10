@@ -407,6 +407,15 @@ src/
   - `docs/usage-guide.md`
 - Validation:
   - `npm test` passed (`14` files, `83` tests).
+
+### Additional Docs Update (2026-03-10): Test-backed Prompt Matrix
+- Updated `docs/usage-guide.md` with a dedicated notification-routing prompt matrix aligned to current unit-test scenarios:
+  - marketer HITL prompt
+  - admin HITL prompt
+  - marketer monitoring prompt
+  - admin monitoring prompt
+  - no-alert success prompt
+- This section is intended for fast manual validation after config changes in `.env`.
   - `escalate-to-human` timeout path verified end-to-end
   - `learn-route` fallback path verified end-to-end
 - Verified interactive runtime paths:
