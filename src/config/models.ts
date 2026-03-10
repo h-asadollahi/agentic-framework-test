@@ -8,7 +8,7 @@
  * Model IDs are aliases defined in providers.ts (e.g. "anthropic:fast").
  *
  * Override any agent's models via env var:
- *   AGENT_GROUNDING_MODELS=anthropic:fast,openai:fast,google:fast
+ *   AGENT_GROUNDING_MODELS=openai:fast,anthropic:fast,google:fast
  *
  * The first value is the preferred model, the rest are fallbacks.
  * The env var name follows the pattern:
@@ -25,38 +25,38 @@ export interface ModelAssignment {
 const DEFAULTS: Record<string, ModelAssignment> = {
   // Orchestrator — needs strong reasoning for pipeline coordination
   orchestrator: {
-    preferred: "anthropic:powerful",
-    fallbacks: ["openai:balanced", "google:balanced"],
+    preferred: "openai:balanced",
+    fallbacks: ["anthropic:powerful", "google:balanced"],
   },
 
   // Grounding — simple context loading, speed matters
   grounding: {
-    preferred: "anthropic:fast",
-    fallbacks: ["openai:fast", "google:fast"],
+    preferred: "openai:fast",
+    fallbacks: ["anthropic:fast", "google:fast"],
   },
 
   // Cognition — planning & goal decomposition needs good reasoning
   cognition: {
-    preferred: "anthropic:balanced",
-    fallbacks: ["openai:reasoning", "google:balanced"],
+    preferred: "openai:reasoning",
+    fallbacks: ["anthropic:balanced", "google:balanced"],
   },
 
   // Agency — tool chaining, moderate complexity
   agency: {
-    preferred: "anthropic:balanced",
-    fallbacks: ["openai:balanced", "google:balanced"],
+    preferred: "openai:balanced",
+    fallbacks: ["anthropic:balanced", "google:balanced"],
   },
 
   // Interface — formatting & routing, speed matters
   interface: {
-    preferred: "anthropic:fast",
-    fallbacks: ["openai:fast", "google:fast"],
+    preferred: "openai:fast",
+    fallbacks: ["anthropic:fast", "google:fast"],
   },
 
   // Notification Manager — simple routing decisions
   "notification-manager": {
-    preferred: "anthropic:fast",
-    fallbacks: ["openai:fast"],
+    preferred: "openai:fast",
+    fallbacks: ["anthropic:fast", "google:fast"],
   },
 };
 
@@ -72,8 +72,8 @@ function agentIdToEnvVar(agentId: string): string {
  * Parse a comma-separated env var value into a ModelAssignment.
  * First value = preferred, rest = fallbacks.
  *
- * Example: "anthropic:balanced,openai:reasoning,google:balanced"
- *   → { preferred: "anthropic:balanced", fallbacks: ["openai:reasoning", "google:balanced"] }
+ * Example: "openai:reasoning,anthropic:balanced,google:balanced"
+ *   → { preferred: "openai:reasoning", fallbacks: ["anthropic:balanced", "google:balanced"] }
  */
 function parseModelsEnv(value: string): ModelAssignment | null {
   const models = value
@@ -120,8 +120,8 @@ export const AGENT_MODEL_MAP: Record<string, ModelAssignment> =
 export function getModelAssignment(agentId: string): ModelAssignment {
   return (
     AGENT_MODEL_MAP[agentId] ?? {
-      preferred: "anthropic:balanced",
-      fallbacks: ["openai:balanced", "google:balanced"],
+      preferred: "openai:balanced",
+      fallbacks: ["anthropic:balanced", "google:balanced"],
     }
   );
 }

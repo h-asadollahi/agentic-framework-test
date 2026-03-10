@@ -836,3 +836,19 @@ Key interfaces: `PipelinePayload`, `PipelineResult`, `SubTask`, `AgentResult`, `
 - Validation:
   - schema parse check passed (`LearnedRoutesFileSchema`)
   - `tests/unit/learned-routes-store.test.ts` passed.
+
+### Provider Priority Update — OpenAI First (Plan 50) — Completed
+- Updated agent model priority order to:
+  1. OpenAI
+  2. Anthropic (Claude)
+  3. Google (Gemini)
+- Applied in tracked environment configs:
+  - `.env`
+  - `.env.example`
+- Updated code defaults (used when env vars are absent):
+  - `src/config/models.ts`
+  - Includes unknown-agent fallback ordering in `getModelAssignment()`.
+- Updated notification manager fallback chain to include Google as third fallback.
+- Validation:
+  - `tests/unit/model-router.test.ts` passed
+  - `tests/unit/context.test.ts` passed.
