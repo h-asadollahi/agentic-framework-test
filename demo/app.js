@@ -7,6 +7,29 @@ const messageTemplate = document.getElementById("messageTemplate");
 
 let sessionId = null;
 let isRunning = false;
+let loaderEl = null;
+
+function showLoader(text = "Processing...") {
+  removeLoader();
+  loaderEl = document.createElement("div");
+  loaderEl.className = "pipeline-loader";
+  loaderEl.innerHTML = `<div class="spinner"></div><span class="loader-text">${text}</span>`;
+  chatLog.appendChild(loaderEl);
+  chatLog.scrollTop = chatLog.scrollHeight;
+}
+
+function updateLoaderText(text) {
+  if (loaderEl) {
+    loaderEl.querySelector(".loader-text").textContent = text;
+  }
+}
+
+function removeLoader() {
+  if (loaderEl) {
+    loaderEl.remove();
+    loaderEl = null;
+  }
+}
 const API_CANDIDATES = ["http://localhost:3001", "http://localhost:3000"];
 
 function nowStamp() {
@@ -505,6 +528,7 @@ async function pollUntilDone(runId) {
 
     if (data.status !== lastStatus) {
       addMessage("system", `Run ${runId}: ${data.status}`);
+      updateLoaderText(`${data.status} (${runId})...`);
       lastStatus = data.status;
     }
 
@@ -529,13 +553,16 @@ async function onSend() {
   promptInput.value = "";
 
   try {
+    showLoader("Starting pipeline...");
     const trigger = await triggerPipeline(text);
     sessionId = trigger.sessionId;
     sessionInfo.textContent = `Session: ${sessionId}`;
 
     addMessage("system", `Pipeline started (run ${trigger.runId})`);
+    updateLoaderText(`Running pipeline (${trigger.runId})...`);
 
     const final = await pollUntilDone(trigger.runId);
+    removeLoader();
 
     if (final.status !== "COMPLETED") {
       addMessage("assistant", `Run finished with status: ${final.status}`);
@@ -562,6 +589,7 @@ async function onSend() {
 
     addMessage("assistant", wrap);
   } catch (error) {
+    removeLoader();
     addMessage("assistant", `Error: ${error instanceof Error ? error.message : String(error)}`);
   } finally {
     isRunning = false;
