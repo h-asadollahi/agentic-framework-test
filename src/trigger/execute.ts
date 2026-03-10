@@ -95,14 +95,11 @@ export const executeTask = task({
               `No registered sub-agent for "${subtask.agentId}", checking learned routes`
             );
 
-            // Step 1: Check learned routes for a match
-            const learnedRoute = learnedRoutesStore.findByCapability(
-              subtask.description
-            );
-
-            if (!learnedRoute && isUniversalSkillCreationIntent(subtask)) {
+            // Deterministic special workflows must run before learned-route routing.
+            // This prevents MCP/skill creation requests from entering route-learning loops.
+            if (isUniversalSkillCreationIntent(subtask)) {
               logger.info(
-                `No learned route for "${subtask.agentId}", using universal skill creator workflow`
+                `Using universal skill creator workflow for "${subtask.agentId}"`
               );
               result = buildUniversalSkillCreatorAgentResult(
                 subtask,
@@ -115,9 +112,9 @@ export const executeTask = task({
               };
             }
 
-            if (!learnedRoute && isMcpBuilderIntent(subtask)) {
+            if (isMcpBuilderIntent(subtask)) {
               logger.info(
-                `No learned route for "${subtask.agentId}", using MCP builder skill workflow`
+                `Using MCP builder skill workflow for "${subtask.agentId}"`
               );
               result = buildMcpBuilderAgentResult(subtask, payload.context);
               return {
@@ -126,6 +123,11 @@ export const executeTask = task({
                 result: { ...result, durationMs: Date.now() - startTime },
               };
             }
+
+            // Step 1: Check learned routes for a match
+            const learnedRoute = learnedRoutesStore.findByCapability(
+              subtask.description
+            );
 
             const strategy = resolveUnknownSubtaskStrategy(
               subtask,

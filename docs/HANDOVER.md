@@ -808,3 +808,21 @@ Key interfaces: `PipelinePayload`, `PipelineResult`, `SubTask`, `AgentResult`, `
 - Validation:
   - `node --check demo/app.js`
   - full unit suite passed (`25` test files, `117` tests).
+
+### Routing Bugfix — MCP Builder Loop Prevention (Plan 48) — Completed
+- Fixed long-running/loop-prone route-learning behavior for MCP builder prompts (e.g. "Create an MCP server for our internal CRM API..."):
+  - `src/trigger/execute.ts` now prioritizes deterministic special workflows before learned-route lookup:
+    - `isUniversalSkillCreationIntent()` branch first
+    - `isMcpBuilderIntent()` branch second
+  - This prevents MCP/skill-creation requests from being hijacked by learned routes or Slack route-learning fallback loops.
+- Refined route-learning heuristic:
+  - `src/trigger/execute-routing.ts` now blocks `learn-new-route` for build/integration implementation intents.
+  - Route-learning remains enabled for true data-fetch unknown tasks.
+- Expanded MCP builder intent coverage:
+  - `src/trigger/mcp-builder.ts` adds CRM/customer-lifecycle keyword variants.
+- Added tests:
+  - `tests/unit/execute-routing.test.ts` (build/integration prompt must not attempt route-learning)
+  - `tests/unit/mcp-builder.test.ts` (exact CRM lifecycle MCP prompt detection)
+- Validation:
+  - focused tests passed
+  - full unit suite passed (`25` test files, `119` tests).

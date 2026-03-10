@@ -50,6 +50,15 @@ describe("mcp-builder routing helpers", () => {
     expect(match).toBe(true);
   });
 
+  it("detects CRM lifecycle MCP builder intent phrasing", () => {
+    const match = isMcpBuilderIntent({
+      description:
+        "Create an MCP server for our internal CRM API so agents can fetch customer lifecycle data.",
+      input: {},
+    });
+    expect(match).toBe(true);
+  });
+
   it("does not match regular analytics prompts", () => {
     const match = isMcpBuilderIntent({
       description: "Show me my page impressions for the last 7 days",

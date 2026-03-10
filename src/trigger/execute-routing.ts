@@ -20,8 +20,40 @@ const DATA_SIGNALS = [
   "churn",
 ];
 
+const BUILD_SIGNALS = [
+  "create",
+  "build",
+  "implement",
+  "design",
+  "develop",
+  "setup",
+  "configure",
+  "scaffold",
+  "generate",
+];
+
+const INTEGRATION_SIGNALS = [
+  "mcp",
+  "server",
+  "integration",
+  "tooling",
+  "architecture",
+  "workflow",
+  "framework",
+  "skill",
+];
+
 export function shouldAttemptRouteLearning(subtask: Pick<SubTask, "agentId" | "description">): boolean {
   const haystack = `${subtask.agentId} ${subtask.description}`.toLowerCase();
+  const isBuildIntent = BUILD_SIGNALS.some((signal) => haystack.includes(signal));
+  const isIntegrationRequest = INTEGRATION_SIGNALS.some((signal) =>
+    haystack.includes(signal)
+  );
+
+  if (isBuildIntent && isIntegrationRequest) {
+    return false;
+  }
+
   return DATA_SIGNALS.some((signal) => haystack.includes(signal));
 }
 

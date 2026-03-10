@@ -14,6 +14,11 @@ const MCP_BUILDER_KEYWORDS = [
   "connect api",
   "build tool server",
   "expose api as tools",
+  "crm api",
+  "internal crm api",
+  "customer lifecycle",
+  "customer lifecycle data",
+  "fetch customer lifecycle",
 ];
 
 function normalizeText(value: unknown): string {

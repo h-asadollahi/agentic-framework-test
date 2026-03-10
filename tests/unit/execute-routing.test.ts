@@ -53,6 +53,26 @@ describe("execute routing strategy", () => {
     ).toBe(false);
   });
 
+  it("does not attempt route learning for build/integration implementation requests", () => {
+    const strategy = resolveUnknownSubtaskStrategy(
+      {
+        agentId: "general",
+        description:
+          "Create an MCP server for our internal CRM API so agents can fetch customer lifecycle data",
+      },
+      false
+    );
+
+    expect(strategy).toBe("llm-fallback");
+    expect(
+      shouldAttemptRouteLearning({
+        agentId: "general",
+        description:
+          "Create an MCP server for our internal CRM API so agents can fetch customer lifecycle data",
+      })
+    ).toBe(false);
+  });
+
   it("uses learned route for cohort-like unknown tasks when a route exists", () => {
     const strategy = resolveUnknownSubtaskStrategy(
       {
