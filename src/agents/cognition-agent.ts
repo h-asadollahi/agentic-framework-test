@@ -3,6 +3,7 @@ import { BaseAgent } from "./base-agent.js";
 import type { AgentConfig, ExecutionContext } from "../core/types.js";
 import { getModelAssignment } from "../config/models.js";
 import { learnedRoutesStore } from "../routing/learned-routes-store.js";
+import { loadAgentPromptSpec } from "../tools/agent-spec-loader.js";
 
 const DEFAULT_CONFIG: AgentConfig = {
   id: "cognition",
@@ -30,39 +31,23 @@ const DEFAULT_CONFIG: AgentConfig = {
   },
 };
 
-/**
- * Cognition Agent
- *
- * Second stage of the guardrail pipeline.
- * Takes the user message + grounding context, and produces a plan:
- * a list of SubTasks with dependencies, priorities, and assigned sub-agents.
- */
-export class CognitionAgent extends BaseAgent {
-  constructor(config?: Partial<AgentConfig>) {
-    super({ ...DEFAULT_CONFIG, ...config });
-  }
+type PromptLoader = typeof loadAgentPromptSpec;
 
-  getTools(_context: ExecutionContext): Record<string, Tool> {
-    // Cognition is a pure reasoning agent — no tools needed
-    return {};
-  }
+export const COGNITION_SYSTEM_PROMPT_FILE =
+  "knowledge/agents/cognition/system-prompt.md";
 
-  buildSystemPrompt(context: ExecutionContext): string {
-    const brand = context.brandIdentity;
-    const guardrails = context.guardrails;
-
-    return `You are the Cognition Agent in a multi-agent marketing platform for "${brand.name}".
+export const COGNITION_SYSTEM_PROMPT_FALLBACK = `You are the Cognition Agent in a multi-agent marketing platform for "{{BRAND_NAME}}".
 
 Your role is to decompose the user's request into an executable plan of subtasks.
 
 ## Brand Context
-- Personality: ${brand.personality.join(", ")}
-- Values: ${brand.values.join(", ")}
-- Voice: ${brand.voice.tone}, ${brand.voice.style}
+- Personality: {{BRAND_PERSONALITY}}
+- Values: {{BRAND_VALUES}}
+- Voice: {{BRAND_VOICE}}
 
 ## Guardrails
-- Never do: ${guardrails.neverDo.join("; ")}
-- Always do: ${guardrails.alwaysDo.join("; ")}
+- Never do: {{GUARDRAILS_NEVER_DO}}
+- Always do: {{GUARDRAILS_ALWAYS_DO}}
 
 ## Available Sub-Agents
 You can assign subtasks to these agents (by their ID).
@@ -82,7 +67,7 @@ Example:
 { "metric": "retention", "cohortId": "vip-2024-q4", "timeRange": "90d" }
 
 (more sub-agents will be added in the future)
-${this.buildLearnedRoutesSection()}
+{{LEARNED_ROUTES_SECTION}}
 If no specific sub-agent fits, use "general" as the agentId.
 The system will check learned routes and may ask the marketer for the data source via Slack.
 
@@ -129,6 +114,51 @@ If request is out of scope, return:
 }
 
 Be specific about what each subtask should accomplish. Subtasks without dependencies will run in parallel.`;
+
+/**
+ * Cognition Agent
+ *
+ * Second stage of the guardrail pipeline.
+ * Takes the user message + grounding context, and produces a plan:
+ * a list of SubTasks with dependencies, priorities, and assigned sub-agents.
+ */
+export class CognitionAgent extends BaseAgent {
+  private promptLoader: PromptLoader;
+  private promptFile: string;
+
+  constructor(
+    config?: Partial<AgentConfig>,
+    options?: { promptLoader?: PromptLoader; promptFile?: string }
+  ) {
+    super({ ...DEFAULT_CONFIG, ...config });
+    this.promptLoader = options?.promptLoader ?? loadAgentPromptSpec;
+    this.promptFile = options?.promptFile ?? COGNITION_SYSTEM_PROMPT_FILE;
+  }
+
+  getTools(_context: ExecutionContext): Record<string, Tool> {
+    // Cognition is a pure reasoning agent — no tools needed
+    return {};
+  }
+
+  buildSystemPrompt(context: ExecutionContext): string {
+    const brand = context.brandIdentity;
+    const guardrails = context.guardrails;
+    const vars = {
+      BRAND_NAME: brand.name,
+      BRAND_PERSONALITY: brand.personality.join(", "),
+      BRAND_VALUES: brand.values.join(", "),
+      BRAND_VOICE: `${brand.voice.tone}, ${brand.voice.style}`,
+      GUARDRAILS_NEVER_DO: guardrails.neverDo.join("; "),
+      GUARDRAILS_ALWAYS_DO: guardrails.alwaysDo.join("; "),
+      LEARNED_ROUTES_SECTION: this.buildLearnedRoutesSection(),
+    };
+
+    return this.promptLoader(
+      this.config.id,
+      this.promptFile,
+      COGNITION_SYSTEM_PROMPT_FALLBACK,
+      vars
+    );
   }
 
   /**

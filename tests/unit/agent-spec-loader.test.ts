@@ -41,4 +41,15 @@ describe("loadAgentPromptSpec", () => {
 
     expect(prompt).toBe(fallback);
   });
+
+  it("interpolates placeholders in fallback prompt", () => {
+    const prompt = loadAgentPromptSpec(
+      "test-agent",
+      "knowledge/agents/grounding/missing-prompt.md",
+      "Agent: {{AGENT_NAME}}",
+      { AGENT_NAME: "Interface" }
+    );
+
+    expect(prompt).toBe("Agent: Interface");
+  });
 });

@@ -34,7 +34,7 @@ export function loadAgentPromptSpec(
       agent: agentId,
       promptFile: filePath,
     });
-    return fallback;
+    return interpolatePrompt(fallback, vars);
   }
 
   try {
@@ -44,7 +44,7 @@ export function loadAgentPromptSpec(
         agent: agentId,
         promptFile: filePath,
       });
-      return fallback;
+      return interpolatePrompt(fallback, vars);
     }
 
     return interpolatePrompt(content, vars);
@@ -54,6 +54,6 @@ export function loadAgentPromptSpec(
       promptFile: filePath,
       error: error instanceof Error ? error.message : String(error),
     });
-    return fallback;
+    return interpolatePrompt(fallback, vars);
   }
 }

@@ -666,5 +666,22 @@ Key interfaces: `PipelinePayload`, `PipelineResult`, `SubTask`, `AgentResult`, `
 - Updated docs:
   - `docs/usage-guide.md` now documents the `knowledge/agents/...` spec pattern.
 
+### Cognition Spec Migration (Plan 38) — Completed
+- Cognition runtime prompt source moved to knowledge docs:
+  - `knowledge/agents/cognition/system-prompt.md`
+  - `knowledge/agents/cognition/decision-logic.md`
+- Refactored `CognitionAgent` to load its system prompt from `knowledge/` with placeholder variable interpolation:
+  - dynamic brand/guardrail context
+  - dynamic learned-route section injection
+- Enhanced `loadAgentPromptSpec()` fallback behavior:
+  - fallback prompt text now also supports `{{KEY}}` interpolation when knowledge files are missing/empty.
+- Added tests:
+  - `tests/unit/cognition-agent.test.ts`
+  - expanded `tests/unit/agent-spec-loader.test.ts` with fallback interpolation coverage
+- Added fixture:
+  - `tests/fixtures/cognition-system-prompt-custom.md`
+- Updated docs:
+  - `docs/usage-guide.md` now includes cognition in `knowledge/agents/...` runtime spec pattern.
+
 ### Next Planned Migration
-- Cognition agent prompt + deterministic rejection policy docs under `knowledge/agents/cognition/` using the same runtime loader pattern.
+- Agency agent prompt + aggregation/issue decisioning docs under `knowledge/agents/agency/` using the same runtime loader pattern.
