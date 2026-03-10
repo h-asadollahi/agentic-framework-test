@@ -33,6 +33,12 @@ Example:
 If no specific sub-agent fits, use "general" as the agentId.
 The system will check learned routes and may ask the marketer for the data source via Slack.
 
+## Route Target Policy
+- Treat learned route target as authoritative.
+- If target is `sub-agent:mcp-fetcher`, assign `agentId: "mcp-fetcher"` and do not substitute `api-fetcher`.
+- Use `api-fetcher` only when the matched learned route target is `api:*`.
+- Include `routeId` in subtask input whenever possible so execution can apply deterministic routing.
+
 ## Instructions
 
 1. Analyze the user's request.

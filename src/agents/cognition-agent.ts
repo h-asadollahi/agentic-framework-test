@@ -162,8 +162,8 @@ export class CognitionAgent extends BaseAgent {
   }
 
   /**
-   * Build a prompt section listing learned API routes so the cognition agent
-   * can assign subtasks to "api-fetcher" instead of "general" for known routes.
+   * Build a prompt section listing learned routes so the cognition agent
+   * can assign subtasks to the exact target agent for known capabilities.
    */
   private buildLearnedRoutesSection(): string {
     const routes = learnedRoutesStore.getSummary();
@@ -191,10 +191,11 @@ export class CognitionAgent extends BaseAgent {
       .join("\n\n");
 
     return `
-### api-fetcher (Learned API Routes)
-When a request matches one of these routes, route according to its target:
+### Learned Routes (Authoritative Targets)
+When a request matches one of these routes, assign agentId from its target:
+- target: sub-agent:* -> assign that exact sub-agent ID (for MCP routes, typically "mcp-fetcher")
 - target: api:* -> assign agentId "api-fetcher"
-- target: sub-agent:* -> assign the specified sub-agent ID directly
+- include routeId in input whenever possible to preserve deterministic execution routing
 
 ${routeLines}
 `;

@@ -6,6 +6,7 @@ import { learnRouteTask } from "./learn-route.js";
 import { resolveUnknownSubtaskStrategy } from "./execute-routing.js";
 import { parseAgentJson } from "./agent-output-parser.js";
 import { hydrateRegisteredSubtaskInput } from "./learned-route-input-hydration.js";
+import { resolveExecutionAgentId } from "./route-target-resolution.js";
 import {
   buildMcpBuilderAgentResult,
   isMcpBuilderIntent,
@@ -78,15 +79,43 @@ export const executeTask = task({
             const learnedRoute = routeIdFromInput
               ? learnedRoutesStore.getById(routeIdFromInput)
               : learnedRoutesStore.findByCapability(subtask.description);
-            const hydratedInput = hydrateRegisteredSubtaskInput(
-              subtask,
+            const targetResolution = resolveExecutionAgentId(
+              subtask.agentId,
+              learnedRoute,
+              (agentId) => subAgentRegistry.has(agentId)
+            );
+
+            if (targetResolution.overridden && learnedRoute) {
+              logger.warn("Registered sub-agent overridden by learned route target", {
+                subtaskId: subtask.id,
+                requestedAgentId: subtask.agentId,
+                executionAgentId: targetResolution.executionAgentId,
+                routeId: learnedRoute.id,
+                routeType: learnedRoute.routeType,
+                reason: targetResolution.reason,
+              });
+            }
+
+            let executionInput = hydrateRegisteredSubtaskInput(
+              { agentId: targetResolution.executionAgentId, input: subtask.input },
               learnedRoute
             );
 
+            if (
+              targetResolution.executionAgentId === "api-fetcher" &&
+              learnedRoute?.routeType === "api"
+            ) {
+              executionInput = normalizeApiFetcherInput(
+                executionInput,
+                learnedRoute.id,
+                subtask.description
+              );
+            }
+
             // ── Registered sub-agent plugin ───────────────
             result = await subAgentRegistry.execute(
-              subtask.agentId,
-              hydratedInput,
+              targetResolution.executionAgentId,
+              executionInput,
               payload.context
             );
           } else {
@@ -339,4 +368,39 @@ function topologicalGroup(subtasks: SubTask[]): SubTask[][] {
   }
 
   return levels;
+}
+
+type JsonRecord = Record<string, unknown>;
+
+function asRecord(value: unknown): JsonRecord {
+  if (value && typeof value === "object" && !Array.isArray(value)) {
+    return value as JsonRecord;
+  }
+  return {};
+}
+
+function normalizeApiFetcherInput(
+  input: unknown,
+  routeId: string,
+  description: string
+): JsonRecord {
+  const raw = asRecord(input);
+  const params = asRecord(raw.params);
+  const hasParams = Object.keys(params).length > 0;
+  const fallbackParams: JsonRecord = { ...raw };
+  delete fallbackParams.routeId;
+  delete fallbackParams.params;
+  delete fallbackParams.description;
+
+  return {
+    routeId:
+      typeof raw.routeId === "string" && raw.routeId.trim().length > 0
+        ? raw.routeId
+        : routeId,
+    params: hasParams ? params : fallbackParams,
+    description:
+      typeof raw.description === "string" && raw.description.length > 0
+        ? raw.description
+        : description,
+  };
 }

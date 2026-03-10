@@ -1,6 +1,6 @@
 # Development Handover — Continue from Here
 
-> **Last updated:** 2026-03-09
+> **Last updated:** 2026-03-10
 > **Previous AI:** Claude Opus 4.6 via Claude Code
 > **Next AI:** OpenAI Codex (or any agent picking this up)
 
@@ -42,6 +42,62 @@ src/
 │       └── plugins/     # cohort-monitor, api-fetcher
 └── index.ts             # Hono API server
 ```
+
+---
+
+## Post-Handover Progress (2026-03-10, Codex)
+
+### Fixed: MCP route occasionally executing via `api-fetcher`
+
+**User-visible symptom**
+- Prompt: `What segments are defined in my Mapp Intelligence account?`
+- Expected route target: `route-006` (`sub-agent:mcp-fetcher`)
+- Intermittent runtime behavior: execution used `api-fetcher`.
+
+**Root cause**
+- In `pipeline-execute`, when Cognition emitted a **registered** agent (`api-fetcher`), execution trusted it directly.
+- Learned-route target remapping was only applied in the fallback path for unknown agents.
+- Result: Cognition could emit `api-fetcher` even when learned route target was `sub-agent:mcp-fetcher`.
+
+**Implemented fix**
+- Added deterministic route-target resolver:
+  - `src/trigger/route-target-resolution.ts`
+- Updated `src/trigger/execute.ts` to:
+  - resolve learned route by `routeId` (or capability match),
+  - deterministically override conflicting registered `agentId` to learned route target,
+  - keep `api-fetcher` usage tied to `routeType: "api"`,
+  - log override events for traceability.
+- Added API input normalization helper for deterministic `api-fetcher` dispatch.
+
+**Cognition human-readable spec updates**
+- Updated:
+  - `knowledge/agents/cognition/system-prompt.md`
+  - `knowledge/agents/cognition/decision-logic.md`
+- Added explicit policy:
+  - learned route target is authoritative,
+  - `sub-agent:mcp-fetcher` must stay `mcp-fetcher`,
+  - `api-fetcher` only for `api:*` targets.
+
+**Tests added**
+- `tests/unit/route-target-resolution.test.ts`
+  - conflicting registered agent override to learned sub-agent target
+  - no override when already matching
+  - api route mapping to `api-fetcher`
+  - no override when learned target unregistered or route missing
+
+**Test runs**
+- Passed:
+  - `tests/unit/route-target-resolution.test.ts`
+  - `tests/unit/cognition-agent.test.ts`
+  - `tests/unit/learned-route-input-hydration.test.ts`
+  - `tests/unit/mcp-fetcher.test.ts`
+  - `tests/unit/api-fetcher-sub-agent.test.ts`
+  - `tests/unit/execute-routing.test.ts`
+- `npm run build` currently fails due pre-existing generic type constraints in:
+  - `src/trigger/think.ts`
+  - `src/trigger/execute.ts`
+  - `src/trigger/deliver.ts`
+  (not introduced by this change set).
 
 ---
 

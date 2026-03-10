@@ -6,6 +6,8 @@ This document mirrors Cognition stage behavior in a human-readable form.
 
 - `src/trigger/think.ts`
 - `src/trigger/cognition-guardrails.ts`
+- `src/trigger/execute.ts`
+- `src/trigger/route-target-resolution.ts`
 
 ## Execution Flow
 
@@ -41,6 +43,12 @@ The canonical rejection payload includes:
 
 Prompt-level route hints are injected dynamically from `knowledge/learned-routes.json`
 through `src/agents/cognition-agent.ts` (`buildLearnedRoutesSection`).
+
+Execution applies a deterministic safety net:
+
+- If a matched learned route targets `routeType: "sub-agent"`, the execution stage uses that route target agent (for example `mcp-fetcher`) even when Cognition emits a different registered agent.
+- If a matched learned route targets `routeType: "api"`, execution routes to `api-fetcher`.
+- This keeps learned-route targets as source-of-truth and prevents MCP routes from being executed via API fallback agents.
 
 ## Change Guidance
 
