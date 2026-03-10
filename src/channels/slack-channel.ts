@@ -10,7 +10,7 @@ import { logger } from "../core/logger.js";
  *
  * Configuration (via environment):
  *   SLACK_BOT_TOKEN — Bot token with chat:write scope
- *   SLACK_HITL_CHANNEL — Default Slack channel for marketer/HITL-facing notifications
+ *   SLACK_ADMIN_HITL_CHANNEL — Default admin HITL Slack channel
  */
 export class SlackChannel implements ChannelAdapter {
   readonly channel = "slack";
@@ -20,7 +20,7 @@ export class SlackChannel implements ChannelAdapter {
   constructor() {
     const token = process.env.SLACK_BOT_TOKEN;
     this.defaultChannel =
-      process.env.SLACK_HITL_CHANNEL ??
+      process.env.SLACK_ADMIN_HITL_CHANNEL ??
       process.env.SLACK_DEFAULT_CHANNEL ??
       "#brand-cp-hitl";
 

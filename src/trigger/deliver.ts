@@ -7,8 +7,11 @@ import type {
   ExecutionContext,
 } from "../core/types.js";
 import {
+  ensureMarketerHumanReviewSlackNotification,
+  ensureMarketerMonitoringSlackNotification,
   ensureHumanReviewSlackNotification,
   ensureMonitoringSlackNotification,
+  normalizeSlackNotificationRecipients,
 } from "./deliver-notifications.js";
 import { parseAgentJson } from "./agent-output-parser.js";
 import {
@@ -73,6 +76,11 @@ export const deliverTask = task({
       };
     }
 
+    deliveryResult.notifications = normalizeSlackNotificationRecipients(
+      payload.agencyResult,
+      deliveryResult.notifications ?? []
+    );
+
     deliveryResult.formattedResponse = enforceCriticalFactsInResponse(
       String(deliveryResult.formattedResponse ?? ""),
       criticalFacts
@@ -82,7 +90,15 @@ export const deliverTask = task({
       payload.agencyResult,
       deliveryResult.notifications ?? []
     );
+    deliveryResult.notifications = ensureMarketerHumanReviewSlackNotification(
+      payload.agencyResult,
+      deliveryResult.notifications ?? []
+    );
     deliveryResult.notifications = ensureMonitoringSlackNotification(
+      payload.agencyResult,
+      deliveryResult.notifications ?? []
+    );
+    deliveryResult.notifications = ensureMarketerMonitoringSlackNotification(
       payload.agencyResult,
       deliveryResult.notifications ?? []
     );

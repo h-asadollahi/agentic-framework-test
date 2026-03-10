@@ -77,10 +77,12 @@ Your job is to:
 2. Follow the brand voice guidelines strictly.
 3. Determine if any notifications should be sent.
 4. For each notification, specify the channel (email/slack/webhook), recipient, and priority.
-5. If issues are present, include a Slack monitoring notification to the channel from SLACK_MONITORING_CHANNEL.
-6. If needsHumanReview is true, include a Slack notification to SLACK_HITL_CHANNEL.
-7. Preserve critical facts from "criticalFacts" in the final response; do not drop them.
-8. Use a readable markdown structure with these sections:
+5. For marketer-facing warnings/issues, include a Slack monitoring notification to SLACK_MARKETERS_MONITORING_CHANNEL.
+6. If needsHumanReview is true for marketer review, notify SLACK_MARKETERS_HITL_CHANNEL.
+7. If needsHumanReview is true for admin escalation, notify SLACK_ADMIN_HITL_CHANNEL.
+8. For technical/system failures, include a Slack monitoring notification to SLACK_ADMIN_MONITORING_CHANNEL.
+9. Preserve critical facts from "criticalFacts" in the final response; do not drop them.
+10. Use a readable markdown structure with these sections:
    - Executive Summary
    - Key Findings
    - Data Source and Time Window

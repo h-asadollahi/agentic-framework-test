@@ -63,8 +63,10 @@ GOOGLE_GENERATIVE_AI_API_KEY=...
 
 # Optional — Slack notifications
 SLACK_BOT_TOKEN=xoxb-...
-SLACK_HITL_CHANNEL=#brand-cp-hitl
-SLACK_MONITORING_CHANNEL=#marketing-monitoring
+SLACK_ADMIN_HITL_CHANNEL=#brand-cp-admin-hitl
+SLACK_ADMIN_MONITORING_CHANNEL=#brand-cp-admin-monitoring
+SLACK_MARKETERS_HITL_CHANNEL=#brand-cp-marketers-hitl
+SLACK_MARKETERS_MONITORING_CHANNEL=#marketing-team-monitoring
 
 # Optional — Email notifications (SendGrid)
 SENDGRID_API_KEY=SG...
@@ -452,8 +454,10 @@ Notifications with `channel: "my-channel"` will now route through your adapter.
 
 ### Delivery-stage Slack routing rules
 
-- If `needsHumanReview` is true in agency output, the system sends a Slack notification to `SLACK_HITL_CHANNEL`.
-- If issues are present (or any subtask failed), the system sends a monitoring Slack notification to `SLACK_MONITORING_CHANNEL`.
+- Admin human-review escalation goes to `SLACK_ADMIN_HITL_CHANNEL`.
+- Admin/system failure monitoring (for failed subtasks) goes to `SLACK_ADMIN_MONITORING_CHANNEL`.
+- Marketer human-review notifications go to `SLACK_MARKETERS_HITL_CHANNEL`.
+- Marketer-facing monitoring issues/warnings go to `SLACK_MARKETERS_MONITORING_CHANNEL`.
 
 ---
 
@@ -800,10 +804,10 @@ These are prompt patterns currently covered by unit tests and useful for smoke c
 Use these to verify Slack alert routing behavior:
 
 - `Review this campaign decision for compliance and approve before execution.`  
-  Expected: `needsHumanReview` path, notification sent to `SLACK_HITL_CHANNEL`.
+  Expected: `needsHumanReview` path, notification sent to `SLACK_MARKETERS_HITL_CHANNEL` or `SLACK_ADMIN_HITL_CHANNEL` based on severity.
 
 - `Analyze daily KPI trends such as sessions, conversions, revenue, and retention.`  
-  If it returns issues/warnings (or a failed subtask), expected: monitoring notification to `SLACK_MONITORING_CHANNEL`.
+  If it returns failed subtasks, expected: admin monitoring notification to `SLACK_ADMIN_MONITORING_CHANNEL`.
 
 - `List all available dimensions and metrics in Mapp Intelligence`  
-  If response includes warnings/issues (e.g. compacted output caveats), expected: monitoring notification to `SLACK_MONITORING_CHANNEL`.
+  If response includes marketer-facing warnings/issues, expected: monitoring notification to `SLACK_MARKETERS_MONITORING_CHANNEL`.

@@ -363,6 +363,50 @@ src/
   - `tests/unit/delivery-fidelity.test.ts` now includes MCP-style raw JSON payload and asserts it is excluded from extracted facts while human-readable findings remain.
 - Validation:
   - `npm test` passed (`14` files, `75` tests).
+
+### Additional Fix (2026-03-10): Split Admin vs Marketer Slack Routing
+- Root cause addressed:
+  - Notification fallback logic previously routed most issues to admin channels and treated `needsHumanReview` too broadly, causing admin HITL alerts for marketer-facing monitoring cases.
+- Refactor implemented:
+  - `src/trigger/deliver-notifications.ts`
+    - Added channel separation:
+      - `SLACK_HITL_CHANNEL` → admin human-review escalation only.
+      - `SLACK_MONITORING_CHANNEL` → admin/system failure monitoring (failed subtasks).
+      - `SLACK_MARKETERS_MONITORING_CHANNEL` → marketer-facing monitoring issues/warnings.
+    - Added stricter HITL escalation gate:
+      - requires `needsHumanReview: true` plus either failed subtask or critical issue keywords.
+    - Added `normalizeSlackNotificationRecipients()` to rewrite Interface-generated Slack recipients deterministically based on severity/category.
+  - `src/trigger/deliver.ts`
+    - Applies notification normalization before fallback appends.
+    - Ensures marketer monitoring fallback channel is added for marketer-facing issues.
+  - `src/agents/interface-agent.ts`
+    - Prompt updated to distinguish marketer monitoring vs admin monitoring vs admin HITL.
+- Config/docs:
+  - `.env.example` now includes `SLACK_MARKETERS_MONITORING_CHANNEL`.
+  - `docs/usage-guide.md` updated with revised channel-routing rules.
+- Tests:
+  - Expanded `tests/unit/deliver-notifications.test.ts` with new routing behavior and normalization coverage.
+  - Full suite passed: `14` files, `80` tests.
+
+### Additional Fix (2026-03-10): Admin/Marketer Env Var Rename + HITL Split
+- Renamed Slack admin variables across runtime/config/docs:
+  - `SLACK_HITL_CHANNEL` -> `SLACK_ADMIN_HITL_CHANNEL`
+  - `SLACK_MONITORING_CHANNEL` -> `SLACK_ADMIN_MONITORING_CHANNEL`
+- Added marketer HITL channel variable:
+  - `SLACK_MARKETERS_HITL_CHANNEL`
+- Routing behavior now:
+  - Marketer human review (non-admin severity) -> `SLACK_MARKETERS_HITL_CHANNEL`
+  - Admin human review (critical/failure escalation) -> `SLACK_ADMIN_HITL_CHANNEL`
+  - Marketer monitoring issues -> `SLACK_MARKETERS_MONITORING_CHANNEL`
+  - Admin/system monitoring failures -> `SLACK_ADMIN_MONITORING_CHANNEL`
+- Updated files:
+  - `.env`, `.env.example`
+  - `src/trigger/deliver-notifications.ts`, `src/trigger/deliver.ts`, `src/agents/interface-agent.ts`
+  - `src/channels/slack-channel.ts`, `src/escalation/slack-escalation.ts`, `src/routing/route-learning-escalation.ts`
+  - `tests/unit/deliver-notifications.test.ts`
+  - `docs/usage-guide.md`
+- Validation:
+  - `npm test` passed (`14` files, `83` tests).
   - `escalate-to-human` timeout path verified end-to-end
   - `learn-route` fallback path verified end-to-end
 - Verified interactive runtime paths:
