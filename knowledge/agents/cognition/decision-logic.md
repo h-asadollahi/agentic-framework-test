@@ -61,7 +61,10 @@ Execution applies a deterministic safety net:
 - Think stage deterministically checks prompt-vs-candidate triggers:
   - if matched candidate skill file is missing, it prepends a `skill-creator` subtask before other subtasks.
   - if skill file already exists, no extra skill-creation subtask is added.
+  - for `general` synthesis/consolidation subtasks, it annotates subtask input with materialized skill metadata (`candidateId`, `suggestedSkillFile`, `useMaterializedSkill: true`) so execution can use learned-skill guidance directly.
 - Execution handles `skill-creator` deterministically through the universal skill creator workflow and writes/updates skill files.
+- Unknown-agent execution checks `useMaterializedSkill: true` first; when present and file exists under `skills/learned`, execution performs direct LLM fallback with skill guidance and skips route-learning.
+- Route-learning eligibility excludes synthesis/consolidation subtasks (for example “consolidate … into a narrative”), preventing long `learn-route` poll loops.
 
 ## Change Guidance
 

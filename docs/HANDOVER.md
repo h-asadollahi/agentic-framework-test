@@ -1147,3 +1147,37 @@ Key interfaces: `PipelinePayload`, `PipelineResult`, `SubTask`, `AgentResult`, `
   - covers GPT-5/o-series unsupported paths and supported model families.
 - Validation:
   - full unit suite passed (`26` test files, `123` tests).
+
+### Learn-Route Loop Fix + Materialized Skill Reuse (Plan 61) — Completed
+- Fixed the regression where `general` synthesis subtasks (e.g., "Consolidate the five KPI pulls...") were treated as route-learning candidates and entered long `learn-route` polling cycles.
+- Routing heuristic hardening:
+  - `src/trigger/execute-routing.ts`
+  - Added synthesis/consolidation intent detection for `general` tasks.
+  - `shouldAttemptRouteLearning()` now returns `false` for synthesis/consolidation tasks, while preserving route-learning for genuine unknown data-fetch tasks.
+- Deterministic materialized-skill reuse in cognition:
+  - `src/trigger/think.ts`
+  - When a prompt matches a materialized skill candidate, cognition now annotates relevant `general` synthesis subtasks with:
+    - `candidateId`
+    - `suggestedSkillFile`
+    - `useMaterializedSkill: true`
+  - This allows execution to reuse learned skills directly instead of route-learning.
+- Execution fallback improvement:
+  - `src/trigger/execute.ts`
+  - Unknown-agent execution now checks `useMaterializedSkill: true` first.
+  - If the skill file exists under `skills/learned`, execution performs direct LLM fallback with embedded skill guidance and skips route-learning.
+- Human-readable cognition specs updated:
+  - `knowledge/agents/cognition/system-prompt.md`
+  - `knowledge/agents/cognition/decision-logic.md`
+  - Added explicit guidance for materialized skill reuse and anti-loop behavior for synthesis tasks.
+- Added regression coverage:
+  - `tests/unit/execute-routing.test.ts`
+    - new case: synthesis/consolidation task must not trigger route-learning.
+  - `tests/unit/autonomous-skill-loop.test.ts`
+    - new case: materialized skill match annotates synthesis subtask with `useMaterializedSkill` metadata and avoids inserting `skill-creator`.
+- Validation:
+  - `npm test -- tests/unit/execute-routing.test.ts tests/unit/autonomous-skill-loop.test.ts` passed.
+  - `npm test -- tests/unit/cognition-skill-candidates.test.ts` passed.
+  - `npm run build` currently fails due pre-existing generic type-constraint issues in:
+    - `src/trigger/deliver.ts`
+    - `src/trigger/execute.ts`
+    - `src/trigger/think.ts`

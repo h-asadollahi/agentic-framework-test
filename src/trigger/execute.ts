@@ -1,4 +1,6 @@
 import { task, logger } from "@trigger.dev/sdk/v3";
+import { existsSync, readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { agencyAgent } from "../agents/agency-agent.js";
 import { subAgentRegistry } from "./sub-agents/registry.js";
 import { learnedRoutesStore } from "../routing/learned-routes-store.js";
@@ -172,6 +174,22 @@ export const executeTask = task({
               };
             }
 
+            const materializedSkill = resolveMaterializedSkillGuidance(subtask);
+            if (materializedSkill) {
+              logger.info(
+                `Using materialized learned skill "${materializedSkill.skillFile}" for "${subtask.agentId}"`
+              );
+              result = await agencyAgent.execute(
+                buildAgencyFallbackInput(subtask, { learnedSkill: materializedSkill }),
+                payload.context
+              );
+              return {
+                subtaskId: subtask.id,
+                agentId: subtask.agentId,
+                result: { ...result, durationMs: Date.now() - startTime },
+              };
+            }
+
             // Step 1: Check learned routes for a match
             const learnedRoute = learnedRoutesStore.findByCapability(
               subtask.description
@@ -205,12 +223,10 @@ export const executeTask = task({
                   logger.warn(
                     `Learned route "${learnedRoute.id}" points to unknown sub-agent "${learnedRoute.agentId}", falling back to LLM`
                   );
-                  const llmInput = JSON.stringify({
-                    taskDescription: subtask.description,
-                    input: subtask.input,
-                    agentId: subtask.agentId,
-                  });
-                  result = await agencyAgent.execute(llmInput, payload.context);
+                  result = await agencyAgent.execute(
+                    buildAgencyFallbackInput(subtask),
+                    payload.context
+                  );
                 }
               } else {
                 result = await subAgentRegistry.execute(
@@ -249,13 +265,8 @@ export const executeTask = task({
                 logger.info(
                   "Route learning failed or timed out, falling back to LLM"
                 );
-                const llmInput = JSON.stringify({
-                  taskDescription: subtask.description,
-                  input: subtask.input,
-                  agentId: subtask.agentId,
-                });
                 result = await agencyAgent.execute(
-                  llmInput,
+                  buildAgencyFallbackInput(subtask),
                   payload.context
                 );
               }
@@ -263,13 +274,8 @@ export const executeTask = task({
               logger.info(
                 `Unknown subtask "${subtask.agentId}" is not data-oriented, using LLM fallback`
               );
-              const llmInput = JSON.stringify({
-                taskDescription: subtask.description,
-                input: subtask.input,
-                agentId: subtask.agentId,
-              });
               result = await agencyAgent.execute(
-                llmInput,
+                buildAgencyFallbackInput(subtask),
                 payload.context
               );
             }
@@ -459,6 +465,63 @@ function normalizeApiFetcherInput(
       typeof raw.description === "string" && raw.description.length > 0
         ? raw.description
         : description,
+  };
+}
+
+function buildAgencyFallbackInput(
+  subtask: SubTask,
+  extra?: Record<string, unknown>
+): string {
+  return JSON.stringify({
+    taskDescription: subtask.description,
+    input: subtask.input,
+    agentId: subtask.agentId,
+    ...(extra ?? {}),
+  });
+}
+
+function resolveMaterializedSkillGuidance(subtask: SubTask): {
+  candidateId?: string;
+  capability?: string;
+  skillFile: string;
+  guidance: string;
+} | null {
+  const input = asRecord(subtask.input);
+  if (input.useMaterializedSkill !== true) {
+    return null;
+  }
+
+  const rawSkillFile =
+    typeof input.suggestedSkillFile === "string"
+      ? input.suggestedSkillFile.trim().replace(/\\/g, "/").replace(/^\.\//, "")
+      : "";
+
+  if (!rawSkillFile.startsWith("skills/learned/")) {
+    return null;
+  }
+
+  if (!skillCandidatesStore.isMaterialized(rawSkillFile)) {
+    return null;
+  }
+
+  const absoluteSkillFile = resolve(process.cwd(), rawSkillFile);
+  if (!existsSync(absoluteSkillFile)) {
+    return null;
+  }
+
+  const fileContents = readFileSync(absoluteSkillFile, "utf-8");
+  const guidance =
+    fileContents.length > 8_000
+      ? `${fileContents.slice(0, 8_000)}\n\n[truncated]`
+      : fileContents;
+
+  return {
+    candidateId:
+      typeof input.candidateId === "string" ? input.candidateId : undefined,
+    capability:
+      typeof input.capability === "string" ? input.capability : undefined,
+    skillFile: rawSkillFile,
+    guidance,
   };
 }
 

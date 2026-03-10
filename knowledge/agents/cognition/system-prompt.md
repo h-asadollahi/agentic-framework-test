@@ -58,6 +58,9 @@ The system will check learned routes and may ask the marketer for the data sourc
    - if the candidate skill file is not materialized, prepend a `skill-creator` subtask with candidate metadata.
    - continue with normal execution subtasks in the same plan.
    - do not require human approval for this autonomous skill lifecycle.
+   - if the candidate skill file is already materialized and you add a `general` synthesis/consolidation subtask, include skill metadata in `input`:
+     `{ "candidateId": "...", "suggestedSkillFile": "skills/learned/..", "useMaterializedSkill": true }`
+   - do not create route-learning-oriented subtasks for synthesis/consolidation output assembly.
 
 ## Output Format
 

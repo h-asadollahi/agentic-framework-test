@@ -84,4 +84,24 @@ describe("execute routing strategy", () => {
 
     expect(strategy).toBe("use-learned-route");
   });
+
+  it("does not route-learn for general synthesis/consolidation tasks", () => {
+    const strategy = resolveUnknownSubtaskStrategy(
+      {
+        agentId: "general",
+        description:
+          "Consolidate the five KPI pulls into a single quarter performance narrative with recommendations",
+      },
+      false
+    );
+
+    expect(strategy).toBe("llm-fallback");
+    expect(
+      shouldAttemptRouteLearning({
+        agentId: "general",
+        description:
+          "Consolidate the five KPI pulls into a single quarter performance narrative with recommendations",
+      })
+    ).toBe(false);
+  });
 });

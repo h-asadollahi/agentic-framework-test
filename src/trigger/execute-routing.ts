@@ -20,6 +20,22 @@ const DATA_SIGNALS = [
   "churn",
 ];
 
+const SYNTHESIS_SIGNALS = [
+  "summarize",
+  "summary",
+  "synthesize",
+  "consolidate",
+  "rollup",
+  "roll-up",
+  "aggregate",
+  "narrative",
+  "insight",
+  "recommendation",
+  "combine",
+  "compile",
+  "final answer",
+];
+
 const BUILD_SIGNALS = [
   "create",
   "build",
@@ -43,14 +59,35 @@ const INTEGRATION_SIGNALS = [
   "skill",
 ];
 
+function isGeneralAgent(agentId: string): boolean {
+  const normalized = agentId.trim().toLowerCase();
+  return normalized === "general" || normalized === "assistant";
+}
+
+function looksLikeSynthesis(description: string): boolean {
+  const lower = description.toLowerCase();
+  if (SYNTHESIS_SIGNALS.some((signal) => lower.includes(signal))) {
+    return true;
+  }
+
+  // Common cognition output style for synthesis subtasks.
+  return /\b(single|final)\s+(narrative|report|summary)\b/.test(lower);
+}
+
 export function shouldAttemptRouteLearning(subtask: Pick<SubTask, "agentId" | "description">): boolean {
   const haystack = `${subtask.agentId} ${subtask.description}`.toLowerCase();
   const isBuildIntent = BUILD_SIGNALS.some((signal) => haystack.includes(signal));
   const isIntegrationRequest = INTEGRATION_SIGNALS.some((signal) =>
     haystack.includes(signal)
   );
+  const isSynthesisIntent =
+    isGeneralAgent(subtask.agentId) && looksLikeSynthesis(subtask.description);
 
   if (isBuildIntent && isIntegrationRequest) {
+    return false;
+  }
+
+  if (isSynthesisIntent) {
     return false;
   }
 

@@ -121,7 +121,21 @@ export function applyAutonomousSkillCreation(
   const isMaterialized = skillCandidatesStore.isMaterialized(
     matchedCandidate.suggestedSkillFile
   );
-  if (isMaterialized) return cognitionResult;
+  if (isMaterialized) {
+    const reused = applyMaterializedSkillReuse(
+      cognitionResult,
+      matchedCandidate,
+      userMessage
+    );
+
+    logger.info("Cognition autonomous skill reuse activated", {
+      candidateId: matchedCandidate.id,
+      capability: matchedCandidate.capability,
+      skillFile: matchedCandidate.suggestedSkillFile,
+    });
+
+    return reused;
+  }
 
   const autoTaskId = nextAutonomousSkillTaskId(cognitionResult.subtasks);
   const autonomousSkillTask: SubTask = {
@@ -166,6 +180,86 @@ export function applyAutonomousSkillCreation(
     subtasks: updatedSubtasks,
     reasoning: `${cognitionResult.reasoning} | Autonomous self-learning: missing skill "${matchedCandidate.capability}" will be created via skill-creator before execution.`,
   };
+}
+
+function applyMaterializedSkillReuse(
+  cognitionResult: CognitionResult,
+  matchedCandidate: {
+    id: string;
+    capability: string;
+    description: string;
+    suggestedSkillFile: string;
+    triggerPatterns: string[];
+  },
+  userMessage: string
+): CognitionResult {
+  let taggedCount = 0;
+  const totalSubtasks = cognitionResult.subtasks.length;
+
+  const updatedSubtasks = cognitionResult.subtasks.map((subtask) => {
+    if (!shouldAttachMaterializedSkillHint(subtask, totalSubtasks)) {
+      return subtask;
+    }
+
+    taggedCount += 1;
+    return {
+      ...subtask,
+      input: {
+        ...(subtask.input ?? {}),
+        candidateId: matchedCandidate.id,
+        capability: matchedCandidate.capability,
+        suggestedSkillFile: matchedCandidate.suggestedSkillFile,
+        triggerPatterns: matchedCandidate.triggerPatterns,
+        useMaterializedSkill: true,
+        source: "autonomous",
+        matchedPrompt: userMessage,
+      },
+    };
+  });
+
+  if (taggedCount === 0) {
+    return cognitionResult;
+  }
+
+  return {
+    ...cognitionResult,
+    subtasks: updatedSubtasks,
+    reasoning: `${cognitionResult.reasoning} | Autonomous skill reuse: matched materialized skill "${matchedCandidate.capability}" (${matchedCandidate.suggestedSkillFile}) for synthesis/consolidation subtasks.`,
+  };
+}
+
+function shouldAttachMaterializedSkillHint(
+  subtask: SubTask,
+  totalSubtasks: number
+): boolean {
+  const normalizedAgentId = subtask.agentId.trim().toLowerCase();
+  if (normalizedAgentId !== "general" && normalizedAgentId !== "assistant") {
+    return false;
+  }
+
+  if (looksLikeSynthesisSubtask(subtask.description)) {
+    return true;
+  }
+
+  return totalSubtasks === 1;
+}
+
+function looksLikeSynthesisSubtask(description: string): boolean {
+  const lower = description.toLowerCase();
+  return [
+    "summarize",
+    "summary",
+    "synthesize",
+    "consolidate",
+    "rollup",
+    "roll-up",
+    "aggregate",
+    "narrative",
+    "recommendation",
+    "combine",
+    "compile",
+    "final answer",
+  ].some((signal) => lower.includes(signal));
 }
 
 function isSkillCreatorAgent(agentId: string): boolean {

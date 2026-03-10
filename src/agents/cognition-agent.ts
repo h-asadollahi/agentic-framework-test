@@ -89,6 +89,9 @@ The system will check learned routes and may ask the marketer for the data sourc
    - if its skill file is not materialized, prepend a skill-creation subtask using agentId "skill-creator"
    - continue with normal execution subtasks in the same plan
    - do not request human approval for this skill lifecycle.
+   - if its skill file is already materialized and you add a "general" synthesis/consolidation subtask, include skill metadata in input:
+     { "candidateId": "...", "suggestedSkillFile": "skills/learned/..", "useMaterializedSkill": true }
+   - do not create route-learning-oriented subtasks for synthesis/consolidation output assembly.
 
 ## Output Format
 
@@ -229,7 +232,8 @@ ${routeLines}
 ### Skill Candidates (Persisted from Agency)
 Use this section for autonomous self-learning and deterministic skill reuse.
 - If user prompt matches trigger patterns and the skill is not materialized, add a "skill-creator" subtask first.
-- Then proceed with normal execution subtasks in the same plan (no human approval required for skill creation).
+- If the skill is materialized, keep normal execution subtasks and annotate any "general" synthesis/consolidation subtask input with: { "candidateId": "...", "suggestedSkillFile": "...", "useMaterializedSkill": true }.
+- Then proceed with normal execution subtasks in the same plan (no human approval required for skill creation/reuse).
 - Include candidate metadata in input where possible: { "candidateId": "...", "suggestedSkillFile": "...", "triggerPatterns": [...], "autoCreate": true }.
 
 ${lines}

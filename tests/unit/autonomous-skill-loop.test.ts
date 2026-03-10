@@ -132,6 +132,72 @@ describe.sequential("autonomous skill loop", () => {
     expect(updated.reasoning).toContain("Autonomous self-learning");
   });
 
+  it("annotates materialized synthesis subtasks with learned-skill metadata", () => {
+    const skillFile = "skills/learned/cohort-quarterly-kpi-rollup.test.md";
+    cleanupSkillFile(skillFile);
+    writeFileSync(
+      resolve(process.cwd(), skillFile),
+      "# test materialized skill\n",
+      "utf-8"
+    );
+
+    skillCandidatesStore.upsertCandidate({
+      capability: "cohort-quarterly-kpi-rollup",
+      description: "Consolidate quarterly cohort KPI pulls into one narrative.",
+      suggestedSkillFile: skillFile,
+      triggerPatterns: [
+        "vip cohort performance this quarter",
+        "quarterly cohort summary",
+      ],
+      confidence: "high",
+      requiresApproval: false,
+      source: "autonomous",
+    });
+
+    const basePlan: CognitionResult = {
+      subtasks: [
+        {
+          id: "task-1",
+          agentId: "cohort-monitor",
+          description: "Fetch VIP retention for this quarter",
+          input: { metric: "retention", cohortId: "vip", timeRange: "90d" },
+          dependencies: [],
+          priority: "high",
+        },
+        {
+          id: "task-2",
+          agentId: "general",
+          description:
+            "Consolidate the KPI pulls into a single quarter narrative with actions",
+          input: {},
+          dependencies: ["task-1"],
+          priority: "medium",
+        },
+      ],
+      reasoning: "Quarterly cohort workflow.",
+      plan: "Run KPI pulls and consolidate output.",
+      rejected: false,
+      rejectionReason: undefined,
+    };
+
+    const updated = applyAutonomousSkillCreation(
+      basePlan,
+      "How is our VIP cohort performing this quarter?"
+    );
+
+    const synthesisTask = updated.subtasks.find((task) => task.id === "task-2");
+    expect(synthesisTask).toBeDefined();
+    expect(synthesisTask?.input.useMaterializedSkill).toBe(true);
+    expect(synthesisTask?.input.candidateId).toBe("skill-001");
+    expect(synthesisTask?.input.suggestedSkillFile).toBe(skillFile);
+    expect(updated.subtasks.some((task) => task.agentId === "skill-creator")).toBe(
+      false
+    );
+    expect(updated.reasoning).toContain("Autonomous skill reuse");
+
+    cleanupSkillFile(skillFile);
+  });
+
   it("persists and materializes skill suggestions without human-approval gating", () => {
     const context = buildExecutionContext("autonomous-skill-suggestion-test");
     const skillFile = "skills/learned/autonomous-suggestion-materialized.md";
