@@ -1181,3 +1181,14 @@ Key interfaces: `PipelinePayload`, `PipelineResult`, `SubTask`, `AgentResult`, `
     - `src/trigger/deliver.ts`
     - `src/trigger/execute.ts`
     - `src/trigger/think.ts`
+
+### Trigger CLI Version Mismatch Fix (Plan 62) — Completed
+- Issue:
+  - `npm run trigger:dev` failed with `Invalid Version: ^4.4.1` because scripts were pinned to Trigger CLI v3 while project uses `@trigger.dev/sdk ^4.4.1`.
+- Fix:
+  - Updated npm scripts in `package.json`:
+    - `trigger:login`: `npx trigger.dev@4.4.3 login --api-url http://localhost:3040`
+    - `trigger:dev`: `npx trigger.dev@4.4.3 dev --api-url http://localhost:3040`
+- Validation:
+  - `npx trigger.dev@4.4.3 --version` => `4.4.3`
+  - `npm run trigger:dev -- --help` executed successfully (no version parsing error).

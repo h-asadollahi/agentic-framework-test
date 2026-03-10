@@ -14,8 +14,8 @@
     "test:watch": "vitest",
     "routes:backfill": "tsx scripts/learned-routes-backfill.ts import",
     "routes:export": "tsx scripts/learned-routes-backfill.ts export",
-    "trigger:login": "npx trigger.dev@3 login --api-url http://localhost:3040",
-    "trigger:dev": "npx trigger.dev@3 dev --api-url http://localhost:3040",
+    "trigger:login": "npx trigger.dev@4.4.3 login --api-url http://localhost:3040",
+    "trigger:dev": "npx trigger.dev@4.4.3 dev --api-url http://localhost:3040",
     "test:email": "tsx scripts/test-email.ts"
   },
   "repository": {
