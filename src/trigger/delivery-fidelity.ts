@@ -5,6 +5,7 @@ import type {
 } from "../core/types.js";
 
 const MAX_CRITICAL_FACTS = 8;
+const MAX_FACT_LINE_LENGTH = 320;
 
 function cleanLine(line: string): string {
   return line
@@ -23,6 +24,8 @@ function splitCandidateLines(text: string): string[] {
 
 function looksLikeCriticalFact(line: string): boolean {
   const lower = line.toLowerCase();
+  if (isLikelyMachinePayload(line)) return false;
+  if (line.length > MAX_FACT_LINE_LENGTH) return false;
   if (/\d/.test(line)) return true;
   if (/\b(utc|today|yesterday|this week|last \d+ days?|from|to)\b/i.test(line))
     return true;
@@ -32,6 +35,45 @@ function looksLikeCriticalFact(line: string): boolean {
     )
   )
     return true;
+  return false;
+}
+
+function isLikelyMachinePayload(line: string): boolean {
+  const trimmed = line.trim();
+  const lower = trimmed.toLowerCase();
+
+  if (
+    (trimmed.startsWith("{") || trimmed.startsWith("[")) &&
+    (lower.includes('"servername"') ||
+      lower.includes('"toolname"') ||
+      lower.includes('"args"') ||
+      lower.includes('"queryobject"') ||
+      lower.includes('"rows"') ||
+      lower.includes('"headers"') ||
+      lower.includes('"content"'))
+  ) {
+    return true;
+  }
+
+  if (
+    lower.includes('{"servername"') ||
+    lower.includes('"toolname":"run_analysis"') ||
+    lower.includes('"resulttype":"data_only"') ||
+    lower.includes('"calculationdatatype"') ||
+    lower.includes('"rowcounttotal"')
+  ) {
+    return true;
+  }
+
+  // Raw serialized payloads are often very long and punctuation-dense.
+  if (
+    trimmed.length > 180 &&
+    /[{}\[\]"]/g.test(trimmed) &&
+    (trimmed.match(/:/g)?.length ?? 0) > 10
+  ) {
+    return true;
+  }
+
   return false;
 }
 

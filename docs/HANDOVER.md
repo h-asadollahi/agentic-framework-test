@@ -351,6 +351,18 @@ src/
 - Validation:
   - `node --check demo/app.js`
   - `npm test` (full suite) passed (`14` files, `74` tests).
+
+### Additional Fix (2026-03-10): Filter Raw JSON From Detailed Findings
+- Root cause addressed:
+  - Delivery fidelity extraction was treating serialized MCP/tool payload lines as critical facts, causing raw JSON blobs to appear in the final `Detailed Findings`.
+- Implemented in `src/trigger/delivery-fidelity.ts`:
+  - Added machine-payload detection (`isLikelyMachinePayload`) to exclude lines matching tool-envelope JSON patterns (e.g. `serverName`, `toolName`, `args`, `queryObject`, `rows`, `headers`).
+  - Added max fact-line length guard to skip oversized unreadable payload lines.
+  - Updated critical-fact matcher to reject machine payloads before relevance checks.
+- Regression coverage:
+  - `tests/unit/delivery-fidelity.test.ts` now includes MCP-style raw JSON payload and asserts it is excluded from extracted facts while human-readable findings remain.
+- Validation:
+  - `npm test` passed (`14` files, `75` tests).
   - `escalate-to-human` timeout path verified end-to-end
   - `learn-route` fallback path verified end-to-end
 - Verified interactive runtime paths:

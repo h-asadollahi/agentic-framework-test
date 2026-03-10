@@ -76,4 +76,32 @@ describe("delivery fidelity", () => {
     );
     expect(reqs.some((r) => r.includes("Execution Plan Context"))).toBe(true);
   });
+
+  it("excludes raw MCP/tool JSON payloads from critical facts", () => {
+    const agency: AgencyResult = {
+      results: [
+        {
+          subtaskId: "task-1",
+          agentId: "mcp-fetcher",
+          result: {
+            success: true,
+            output:
+              'Page impressions retrieved successfully for 2026-03-02 to 2026-03-09.\n{"serverName":"mapp-michel","toolName":"run_analysis","args":{"resultType":"DATA_ONLY"},"data":{"content":[{"type":"text","text":"{\\"rowCountTotal\\":2189670,\\"rows\\":[[\\"5000000001577818024\\",95]]}"}]}}',
+            modelUsed: "mcp-fetcher",
+          },
+        },
+      ],
+      summary: "Total Page Impressions: 12,438,674",
+      issues: [],
+      needsHumanReview: false,
+    };
+
+    const facts = extractCriticalFacts(agency);
+    expect(facts.some((f) => f.includes("12,438,674"))).toBe(true);
+    expect(facts.some((f) => f.includes("Page impressions retrieved successfully"))).toBe(
+      true
+    );
+    expect(facts.some((f) => f.includes('"serverName":"mapp-michel"'))).toBe(false);
+    expect(facts.some((f) => f.includes('"toolName":"run_analysis"'))).toBe(false);
+  });
 });
