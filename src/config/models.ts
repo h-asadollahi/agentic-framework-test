@@ -25,7 +25,7 @@ export interface ModelAssignment {
 const DEFAULTS: Record<string, ModelAssignment> = {
   // Orchestrator — needs strong reasoning for pipeline coordination
   orchestrator: {
-    preferred: "openai:balanced",
+    preferred: "openai:powerful",
     fallbacks: ["anthropic:powerful", "google:balanced"],
   },
 

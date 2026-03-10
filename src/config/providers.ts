@@ -24,6 +24,7 @@ export const registry = createProviderRegistry({
  * Override any alias by setting the matching env var in .env:
  *   MODEL_ANTHROPIC_FAST=claude-haiku-4-5
  *   MODEL_OPENAI_BALANCED=gpt-4o
+ *   MODEL_OPENAI_POWERFUL=gpt-5
  *   MODEL_GOOGLE_FAST=gemini-2.5-flash
  *
  * The env var name follows the pattern:
@@ -41,6 +42,7 @@ const DEFAULTS: Record<string, string> = {
   // OpenAI
   "openai:fast": "gpt-4o-mini",
   "openai:balanced": "gpt-4o",
+  "openai:powerful": "gpt-5",
   "openai:reasoning": "o3",
 
   // Google — https://ai.google.dev/gemini-api/docs/models

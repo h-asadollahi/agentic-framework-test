@@ -852,3 +852,20 @@ Key interfaces: `PipelinePayload`, `PipelineResult`, `SubTask`, `AgentResult`, `
 - Validation:
   - `tests/unit/model-router.test.ts` passed
   - `tests/unit/context.test.ts` passed.
+
+### Orchestrator Model Upgrade — OpenAI Powerful Tier (Plan 51) — Completed
+- Added OpenAI powerful alias support:
+  - `src/config/providers.ts` now supports `openai:powerful` mapped by `MODEL_OPENAI_POWERFUL`.
+- Updated environment model aliases:
+  - `.env`: added `MODEL_OPENAI_POWERFUL` (set to `gpt-5`)
+  - `.env.example`: added `MODEL_OPENAI_POWERFUL=gpt-5`
+- Updated orchestrator preference:
+  - `.env`: `AGENT_ORCHESTRATOR_MODELS=openai:powerful,anthropic:powerful,google:balanced`
+  - `.env.example`: same order
+  - `src/config/models.ts` default orchestrator preferred model changed to `openai:powerful`
+- Validation:
+  - `tests/unit/model-router.test.ts` passed
+  - `tests/unit/context.test.ts` passed
+  - runtime check confirmed `getModelAssignment('orchestrator')` resolves:
+    - preferred: `openai:powerful`
+    - fallbacks: `anthropic:powerful`, `google:balanced`.
