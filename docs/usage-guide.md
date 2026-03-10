@@ -19,6 +19,7 @@ A step-by-step guide to setting up, running, using, and extending the platform.
 11. [Running Tests](#11-running-tests)
 12. [Production Considerations](#12-production-considerations)
 13. [Prompt Examples](#13-prompt-examples)
+14. [Agent Specs in Knowledge](#14-agent-specs-in-knowledge)
 
 ---
 
@@ -851,3 +852,24 @@ These prompts map to the current notification-policy tests and help verify the n
 5. No Slack alert path:
    - Prompt: `Analyze conversion trend by channel over the last 30 days.`
    - Expected: successful run with no issues/failures -> no fallback Slack notification.
+
+---
+
+## 14. Agent Specs in Knowledge
+
+Grounding agent prompt/specs are now runtime-loaded from the `knowledge` folder:
+
+- `knowledge/agents/grounding/system-prompt.md`
+- `knowledge/agents/grounding/decision-logic.md`
+
+How it works:
+
+- `src/agents/grounding-agent.ts` loads the system prompt from `knowledge/agents/grounding/system-prompt.md`.
+- `src/tools/agent-spec-loader.ts` handles file loading, placeholder interpolation (`{{KEY}}`), and fallback to hardcoded prompt if the file is missing/empty.
+- `src/trigger/ground.ts` remains authoritative for parse/fallback decision logic; the markdown decision file mirrors behavior for human maintainability.
+
+Extension pattern for future agents:
+
+1. Add a new folder under `knowledge/agents/<agent-id>/`.
+2. Add `system-prompt.md` (and optional `decision-logic.md`).
+3. Use `loadAgentPromptSpec()` in the corresponding agent class with a safe fallback string.

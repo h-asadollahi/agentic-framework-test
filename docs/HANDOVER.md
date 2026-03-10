@@ -648,3 +648,23 @@ Key interfaces: `PipelinePayload`, `PipelineResult`, `SubTask`, `AgentResult`, `
 - Clarified developer expectations:
   - new generated skills should be stored under `skills/`
   - adopted skills should also be reflected in this handover file.
+
+### Grounding Spec Migration (Plan 37) — Completed
+- Grounding runtime prompt source moved to knowledge docs:
+  - `knowledge/agents/grounding/system-prompt.md`
+  - `knowledge/agents/grounding/decision-logic.md`
+- Added reusable prompt-loader utility:
+  - `src/tools/agent-spec-loader.ts`
+  - behavior: markdown load + `{{KEY}}` interpolation + safe fallback
+- Refactored `GroundingAgent` to load its system prompt from `knowledge/` at runtime while preserving output contract/tool usage.
+- Added tests:
+  - `tests/unit/agent-spec-loader.test.ts`
+  - `tests/unit/grounding-agent.test.ts`
+- Added fixtures:
+  - `tests/fixtures/agent-spec-template.md`
+  - `tests/fixtures/grounding-system-prompt-custom.md`
+- Updated docs:
+  - `docs/usage-guide.md` now documents the `knowledge/agents/...` spec pattern.
+
+### Next Planned Migration
+- Cognition agent prompt + deterministic rejection policy docs under `knowledge/agents/cognition/` using the same runtime loader pattern.

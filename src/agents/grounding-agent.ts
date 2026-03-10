@@ -3,6 +3,7 @@ import { BaseAgent } from "./base-agent.js";
 import type { AgentConfig, ExecutionContext } from "../core/types.js";
 import { knowledgeTools } from "../tools/knowledge-tools.js";
 import { getModelAssignment } from "../config/models.js";
+import { loadAgentPromptSpec } from "../tools/agent-spec-loader.js";
 
 const DEFAULT_CONFIG: AgentConfig = {
   id: "grounding",
@@ -30,24 +31,12 @@ const DEFAULT_CONFIG: AgentConfig = {
   },
 };
 
-/**
- * Grounding Agent
- *
- * First stage of the guardrail pipeline.
- * Reads soul.md and guardrails.md to establish brand identity and constraints.
- * Its output feeds into the Cognition agent as foundational context.
- */
-export class GroundingAgent extends BaseAgent {
-  constructor(config?: Partial<AgentConfig>) {
-    super({ ...DEFAULT_CONFIG, ...config });
-  }
+type PromptLoader = typeof loadAgentPromptSpec;
 
-  getTools(_context: ExecutionContext): Record<string, Tool> {
-    return knowledgeTools;
-  }
+export const GROUNDING_SYSTEM_PROMPT_FILE =
+  "knowledge/agents/grounding/system-prompt.md";
 
-  buildSystemPrompt(_context: ExecutionContext): string {
-    return `You are the Grounding Agent in a multi-agent marketing platform.
+export const GROUNDING_SYSTEM_PROMPT_FALLBACK = `You are the Grounding Agent in a multi-agent marketing platform.
 
 Your role is to establish the brand identity and constraints that all other agents must follow.
 
@@ -79,6 +68,37 @@ Return a JSON object with this exact structure:
 }
 
 Always use the tools to read the actual files. Do not invent or assume content.`;
+
+/**
+ * Grounding Agent
+ *
+ * First stage of the guardrail pipeline.
+ * Reads soul.md and guardrails.md to establish brand identity and constraints.
+ * Its output feeds into the Cognition agent as foundational context.
+ */
+export class GroundingAgent extends BaseAgent {
+  private promptLoader: PromptLoader;
+  private promptFile: string;
+
+  constructor(
+    config?: Partial<AgentConfig>,
+    options?: { promptLoader?: PromptLoader; promptFile?: string }
+  ) {
+    super({ ...DEFAULT_CONFIG, ...config });
+    this.promptLoader = options?.promptLoader ?? loadAgentPromptSpec;
+    this.promptFile = options?.promptFile ?? GROUNDING_SYSTEM_PROMPT_FILE;
+  }
+
+  getTools(_context: ExecutionContext): Record<string, Tool> {
+    return knowledgeTools;
+  }
+
+  buildSystemPrompt(_context: ExecutionContext): string {
+    return this.promptLoader(
+      this.config.id,
+      this.promptFile,
+      GROUNDING_SYSTEM_PROMPT_FALLBACK
+    );
   }
 }
 
