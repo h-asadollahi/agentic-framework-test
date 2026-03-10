@@ -8,6 +8,7 @@ This document mirrors Cognition stage behavior in a human-readable form.
 - `src/trigger/cognition-guardrails.ts`
 - `src/trigger/execute.ts`
 - `src/trigger/route-target-resolution.ts`
+- `src/routing/skill-candidates-store.ts`
 
 ## Execution Flow
 
@@ -49,6 +50,13 @@ Execution applies a deterministic safety net:
 - If a matched learned route targets `routeType: "sub-agent"`, the execution stage uses that route target agent (for example `mcp-fetcher`) even when Cognition emits a different registered agent.
 - If a matched learned route targets `routeType: "api"`, execution routes to `api-fetcher`.
 - This keeps learned-route targets as source-of-truth and prevents MCP routes from being executed via API fallback agents.
+
+## Skill Feedback Loop
+
+- Agency may emit structured `skillSuggestions` in its JSON result.
+- `pipeline-execute` persists valid suggestions to `knowledge/skill-candidates.json`.
+- Cognition prompt receives injected candidate summaries and can route automation requests to `agentId: "skill-creator"`.
+- Execution handles `skill-creator` deterministically through the universal skill creator workflow.
 
 ## Change Guidance
 

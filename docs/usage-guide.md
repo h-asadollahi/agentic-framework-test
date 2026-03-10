@@ -816,6 +816,24 @@ These prompts should trigger the universal skill-creator workflow (using `skills
 - `Build a new agent skill for onboarding marketers to KPI analysis workflows.`
 - `Generate a skill template for handling weekly retention reporting requests.`
 
+### Agency-to-Cognition Skill Feedback Loop prompts
+
+Use these prompts in sequence to validate skill recommendation persistence and reuse:
+
+1. Generate a reusable recommendation from Agency:
+- `How many API calculations have I used this month?`
+
+2. Ask Cognition to create the reusable skill from stored candidate:
+- `Create a reusable skill for that monthly API usage workflow.`
+- `Use the saved Mapp monthly usage skill candidate and generate the skill definition.`
+
+3. Verify deterministic `skill-creator` routing:
+- `Build the skill file plan for monthly API calculation usage reporting.`
+
+Notes:
+- Agency `skillSuggestions` are persisted in `knowledge/skill-candidates.json`.
+- Cognition receives candidates in its runtime prompt and can assign `agentId: "skill-creator"` for automation requests.
+
 ### Alert-routing validation prompts
 
 Use these to verify Slack alert routing behavior:
@@ -874,6 +892,7 @@ Sub-agent specs are now also being migrated there (starting with `cohort-monitor
 - `knowledge/sub-agents/api-fetcher/decision-logic.md`
 - `knowledge/sub-agents/mcp-fetcher/system-prompt.md`
 - `knowledge/sub-agents/mcp-fetcher/decision-logic.md`
+- `knowledge/skill-candidates.json` (persistent reusable skill recommendations from Agency)
 
 How it works:
 
@@ -885,6 +904,7 @@ How it works:
 - `src/trigger/ground.ts` remains authoritative for parse/fallback decision logic; the markdown decision file mirrors behavior for human maintainability.
 - `src/trigger/think.ts` + `src/trigger/cognition-guardrails.ts` remain authoritative for cognition parse fallback and deterministic out-of-scope rejection logic.
 - `src/trigger/execute.ts` + `src/trigger/execute-routing.ts` remain authoritative for Agency execution routing, summarization, and fallback behavior.
+- `src/routing/skill-candidates-store.ts` is authoritative for skill recommendation persistence and cognition prompt injection data.
 - `src/trigger/deliver.ts` + `src/trigger/deliver-notifications.ts` + `src/trigger/delivery-fidelity.ts` remain authoritative for Interface rendering, notification routing, and fidelity safeguards.
 - `src/trigger/sub-agents/plugins/cohort-monitor.ts` remains authoritative for current mock-first sub-agent execution behavior.
 - `src/trigger/sub-agents/plugins/api-fetcher.ts` remains authoritative for deterministic learned-route fetch execution behavior.

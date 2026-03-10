@@ -29,10 +29,11 @@ For each subtask:
 
 After execution:
 
-1. Agency LLM summarizes subtask outputs into `summary`, `issues`, and `needsHumanReview`.
+1. Agency LLM summarizes subtask outputs into `summary`, `issues`, `needsHumanReview`, and optional `skillSuggestions`.
 2. If summary output is not valid JSON, runtime falls back to:
    - direct `results`
    - raw summary text as `summary`
+3. Structured `skillSuggestions` are validated and persisted to `knowledge/skill-candidates.json` for future cognition prompts.
 
 ## Why This Exists
 

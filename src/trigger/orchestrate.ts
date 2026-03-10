@@ -6,6 +6,7 @@ import { deliverTask } from "./deliver.js";
 import { notifyTask } from "./notify.js";
 import { escalateTask } from "./escalate.js";
 import { learnedRoutesStore } from "../routing/learned-routes-store.js";
+import { skillCandidatesStore } from "../routing/skill-candidates-store.js";
 import type { PipelinePayload, PipelineResult, TraceEntry } from "../core/types.js";
 
 /**
@@ -27,6 +28,8 @@ export const orchestrateTask = task({
   run: async (payload: PipelinePayload): Promise<PipelineResult> => {
     // Reload learned routes from disk (picks up manual edits)
     learnedRoutesStore.load();
+    // Reload skill candidates from disk (picks up manual edits / admin curation)
+    skillCandidatesStore.load();
 
     const trace: TraceEntry[] = [];
     const startTime = Date.now();

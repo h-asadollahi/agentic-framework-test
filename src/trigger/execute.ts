@@ -7,6 +7,7 @@ import { resolveUnknownSubtaskStrategy } from "./execute-routing.js";
 import { parseAgentJson } from "./agent-output-parser.js";
 import { hydrateRegisteredSubtaskInput } from "./learned-route-input-hydration.js";
 import { resolveExecutionAgentId } from "./route-target-resolution.js";
+import { parseAgencySkillSuggestions } from "./agency-skill-suggestions.js";
 import {
   buildMcpBuilderAgentResult,
   isMcpBuilderIntent,
@@ -15,6 +16,7 @@ import {
   buildUniversalSkillCreatorAgentResult,
   isUniversalSkillCreationIntent,
 } from "./universal-skill-creator.js";
+import { skillCandidatesStore } from "../routing/skill-candidates-store.js";
 // Register all plugins on import
 import "./sub-agents/plugins/index.js";
 import type {
@@ -70,6 +72,21 @@ export const executeTask = task({
           const startTime = Date.now();
 
           let result: AgentResult;
+
+          if (isDeterministicSkillCreatorAgent(subtask.agentId)) {
+            logger.info(
+              `Using deterministic universal skill creator workflow for "${subtask.agentId}"`
+            );
+            result = buildUniversalSkillCreatorAgentResult(
+              subtask,
+              payload.context
+            );
+            return {
+              subtaskId: subtask.id,
+              agentId: subtask.agentId,
+              result: { ...result, durationMs: Date.now() - startTime },
+            };
+          }
 
           if (subAgentRegistry.has(subtask.agentId)) {
             const routeIdFromInput =
@@ -317,6 +334,40 @@ export const executeTask = task({
       };
     }
 
+    const { suggestions, issue: suggestionIssue } =
+      parseAgencySkillSuggestions(parsedSummary ?? null);
+    if (suggestionIssue) {
+      agencyResult.issues = [...(agencyResult.issues ?? []), suggestionIssue];
+    }
+
+    if (suggestions.length > 0) {
+      agencyResult.skillSuggestions = suggestions;
+      try {
+        for (const suggestion of suggestions) {
+          skillCandidatesStore.upsertCandidate({
+            capability: suggestion.capability,
+            description: suggestion.description,
+            suggestedSkillFile: suggestion.suggestedSkillFile,
+            triggerPatterns: suggestion.triggerPatterns,
+            confidence: suggestion.confidence,
+            requiresApproval: suggestion.requiresApproval,
+            source: "agency",
+          });
+        }
+        logger.info(`Persisted ${suggestions.length} skill suggestion(s)`, {
+          suggestions: suggestions.map((item) => item.capability).slice(0, 5),
+        });
+      } catch (error) {
+        logger.error("Failed to persist agency skill suggestions", {
+          error: error instanceof Error ? error.message : String(error),
+        });
+        agencyResult.issues = [
+          ...(agencyResult.issues ?? []),
+          "Failed to persist agency skill suggestions for future cognition prompts.",
+        ];
+      }
+    }
+
     return agencyResult;
   },
 });
@@ -403,4 +454,13 @@ function normalizeApiFetcherInput(
         ? raw.description
         : description,
   };
+}
+
+function isDeterministicSkillCreatorAgent(agentId: string): boolean {
+  const normalized = agentId.trim().toLowerCase();
+  return (
+    normalized === "skill-creator" ||
+    normalized === "skill_creator" ||
+    normalized === "universal-skill-creator"
+  );
 }

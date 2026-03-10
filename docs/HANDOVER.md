@@ -99,6 +99,43 @@ src/
   - `src/trigger/deliver.ts`
   (not introduced by this change set).
 
+### Added: Agency-to-Cognition Skill Feedback Loop
+
+**Goal**
+- Capture reusable workflow recommendations from Agency and feed them back into Cognition for future prompts.
+
+**Implemented**
+- Added structured `skillSuggestions` support:
+  - `src/core/types.ts` (`AgencyResult.skillSuggestions`)
+  - `knowledge/agents/agency/system-prompt.md`
+  - `src/agents/agency-agent.ts` fallback prompt
+- Added persistent store:
+  - `src/routing/skill-candidates-schema.ts`
+  - `src/routing/skill-candidates-store.ts`
+  - `knowledge/skill-candidates.json`
+- Added execute-stage persistence:
+  - `src/trigger/agency-skill-suggestions.ts`
+  - `src/trigger/execute.ts` parses and upserts valid suggestions into `knowledge/skill-candidates.json`.
+- Added cognition-stage feedback injection:
+  - `src/agents/cognition-agent.ts` now injects `SKILL_CANDIDATES_SECTION`.
+  - `knowledge/agents/cognition/system-prompt.md` + `decision-logic.md` updated for candidate reuse policy.
+- Added deterministic execution for skill-creator tasks:
+  - `src/trigger/execute.ts` now routes `agentId` aliases (`skill-creator`, `skill_creator`, `universal-skill-creator`) directly to universal skill creator workflow.
+- Orchestrator now reloads candidate file each run:
+  - `src/trigger/orchestrate.ts`
+
+**Tests added**
+- `tests/unit/agency-skill-suggestions.test.ts`
+- `tests/unit/skill-candidates-store.test.ts`
+- `tests/unit/cognition-skill-candidates.test.ts`
+
+**Test run**
+- Passed:
+  - `tests/unit/agency-skill-suggestions.test.ts`
+  - `tests/unit/skill-candidates-store.test.ts`
+  - `tests/unit/cognition-skill-candidates.test.ts`
+  - `tests/unit/cognition-agent.test.ts`
+
 ---
 
 ## What Has Been Implemented (DONE)

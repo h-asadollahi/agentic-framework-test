@@ -3,6 +3,7 @@ import { BaseAgent } from "./base-agent.js";
 import type { AgentConfig, ExecutionContext } from "../core/types.js";
 import { getModelAssignment } from "../config/models.js";
 import { learnedRoutesStore } from "../routing/learned-routes-store.js";
+import { skillCandidatesStore } from "../routing/skill-candidates-store.js";
 import { loadAgentPromptSpec } from "../tools/agent-spec-loader.js";
 
 const DEFAULT_CONFIG: AgentConfig = {
@@ -68,6 +69,7 @@ Example:
 
 (more sub-agents will be added in the future)
 {{LEARNED_ROUTES_SECTION}}
+{{SKILL_CANDIDATES_SECTION}}
 If no specific sub-agent fits, use "general" as the agentId.
 The system will check learned routes and may ask the marketer for the data source via Slack.
 
@@ -83,6 +85,7 @@ The system will check learned routes and may ask the marketer for the data sourc
 5. Assign each subtask to the most appropriate sub-agent.
 6. Set priorities: "critical", "high", "medium", or "low".
 7. When a request implies creating a new reusable capability, prefer a skill-creation subtask and reference ./skills/universal-agent-skill-creator.md. New skills must be saved under ./skills.
+8. If a request matches a persisted skill candidate and the user is asking to automate/reuse it, assign agentId "skill-creator" with candidate details in input.
 
 ## Output Format
 
@@ -151,6 +154,7 @@ export class CognitionAgent extends BaseAgent {
       GUARDRAILS_NEVER_DO: guardrails.neverDo.join("; "),
       GUARDRAILS_ALWAYS_DO: guardrails.alwaysDo.join("; "),
       LEARNED_ROUTES_SECTION: this.buildLearnedRoutesSection(),
+      SKILL_CANDIDATES_SECTION: this.buildSkillCandidatesSection(),
     };
 
     return this.promptLoader(
@@ -198,6 +202,29 @@ When a request matches one of these routes, assign agentId from its target:
 - include routeId in input whenever possible to preserve deterministic execution routing
 
 ${routeLines}
+`;
+  }
+
+  private buildSkillCandidatesSection(): string {
+    const candidates = skillCandidatesStore.getSummary();
+    if (candidates.length === 0) return "";
+
+    const lines = candidates
+      .map(
+        (candidate) =>
+          `- **${candidate.capability}** (candidateId: "${candidate.id}", confidence: ${candidate.confidence}, requiresApproval: ${candidate.requiresApproval}): ${candidate.description}\n` +
+          `  Suggested file: ${candidate.suggestedSkillFile}\n` +
+          `  Trigger patterns: ${candidate.triggerPatterns.slice(0, 5).join(", ")}`
+      )
+      .join("\n\n");
+
+    return `
+### Skill Candidates (Persisted from Agency)
+Use this section when user intent is about automating recurring workflows or creating reusable skills.
+- When user asks to create/reuse a known skill candidate, assign agentId "skill-creator".
+- Include candidate metadata in input where possible: { "candidateId": "...", "suggestedSkillFile": "...", "triggerPatterns": [...] }.
+
+${lines}
 `;
   }
 }

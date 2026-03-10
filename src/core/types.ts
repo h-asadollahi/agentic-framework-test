@@ -227,6 +227,17 @@ export interface AgencyResult {
   summary: string;
   issues?: string[];
   needsHumanReview?: boolean;
+  skillSuggestions?: SkillSuggestion[];
+}
+
+export interface SkillSuggestion {
+  capability: string;
+  description: string;
+  suggestedSkillFile: string;
+  triggerPatterns: string[];
+  confidence: "low" | "medium" | "high";
+  requiresApproval?: boolean;
+  sourceSubtaskId?: string;
 }
 
 // ── Interface/Delivery Result ──────────────────────────────
