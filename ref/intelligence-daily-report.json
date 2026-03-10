@@ -1,0 +1,994 @@
+{
+    "configuration": {
+        "id": 11,
+        "title": "Daily Report (GLOBAL)",
+        "description": "Last 7 days KPIs, GLOBAL traffic data",
+        "elements": [
+            {
+                "id": 3637,
+                "type": "KPI",
+                "config": {
+                    "title": "",
+                    "elementPeriod": "ELEMENT",
+                    "type": "KPI",
+                    "metricName": "visitors",
+                    "dimensionName": "time_days",
+                    "predefinedContainer": {
+                        "filters": [
+                            {
+                                "name": "time_dynamic",
+                                "connector": "AND",
+                                "filterPredicate": "LIKE",
+                                "value1": "last_7_days",
+                                "value2": "",
+                                "context": "NONE",
+                                "caseSensitive": false
+                            }
+                        ],
+                        "containers": []
+                    },
+                    "comparison": {
+                        "type": "SLIDING_WINDOW",
+                        "slidingWindowWeekdayAdjust": true,
+                        "slidingWindowTimeShift": "PRECEDING"
+                    }
+                }
+            },
+            {
+                "id": 3641,
+                "type": "KPI",
+                "config": {
+                    "title": "",
+                    "elementPeriod": "ELEMENT",
+                    "type": "KPI",
+                    "metricName": "visitors",
+                    "dimensionName": "time_days",
+                    "predefinedContainer": {
+                        "filters": [
+                            {
+                                "name": "time_dynamic",
+                                "connector": "AND",
+                                "filterPredicate": "LIKE",
+                                "value1": "last_7_days",
+                                "value2": "",
+                                "context": "NONE",
+                                "caseSensitive": false
+                            },
+                            {
+                                "name": "events",
+                                "connector": "AND",
+                                "filterPredicate": "LIKE",
+                                "value1": "SUBMIT",
+                                "value2": "",
+                                "context": "ACTION",
+                                "caseSensitive": false
+                            }
+                        ],
+                        "containers": []
+                    },
+                    "comparison": {
+                        "type": "SLIDING_WINDOW",
+                        "slidingWindowWeekdayAdjust": true,
+                        "slidingWindowTimeShift": "PRECEDING"
+                    }
+                }
+            },
+            {
+                "id": 3643,
+                "type": "KPI",
+                "config": {
+                    "title": "",
+                    "elementPeriod": "ELEMENT",
+                    "type": "KPI",
+                    "metricName": "visitors",
+                    "dimensionName": "time_days",
+                    "predefinedContainer": {
+                        "filters": [
+                            {
+                                "name": "time_dynamic",
+                                "connector": "AND",
+                                "filterPredicate": "LIKE",
+                                "value1": "last_7_days",
+                                "value2": "",
+                                "context": "NONE",
+                                "caseSensitive": false
+                            },
+                            {
+                                "name": "events",
+                                "connector": "AND",
+                                "filterPredicate": "LIKE",
+                                "value1": "SELECT TACTICS",
+                                "value2": "",
+                                "context": "ACTION",
+                                "caseSensitive": false
+                            },
+                            {
+                                "name": "events",
+                                "connector": "OR",
+                                "filterPredicate": "LIKE",
+                                "value1": "EXPLORE TACTICS",
+                                "value2": "",
+                                "context": "ACTION",
+                                "caseSensitive": false
+                            }
+                        ],
+                        "containers": []
+                    },
+                    "comparison": {
+                        "type": "SLIDING_WINDOW",
+                        "slidingWindowWeekdayAdjust": true,
+                        "slidingWindowTimeShift": "PRECEDING"
+                    }
+                }
+            },
+            {
+                "id": 3645,
+                "type": "KPI",
+                "config": {
+                    "title": "",
+                    "elementPeriod": "ELEMENT",
+                    "type": "KPI",
+                    "metricName": "visitors",
+                    "dimensionName": "time_days",
+                    "predefinedContainer": {
+                        "filters": [
+                            {
+                                "name": "time_dynamic",
+                                "connector": "AND",
+                                "filterPredicate": "LIKE",
+                                "value1": "last_7_days",
+                                "value2": "",
+                                "context": "NONE",
+                                "caseSensitive": false
+                            },
+                            {
+                                "name": "events",
+                                "connector": "AND",
+                                "filterPredicate": "LIKE",
+                                "value1": "SELECT TACTICS",
+                                "value2": "",
+                                "context": "ACTION",
+                                "caseSensitive": false
+                            },
+                            {
+                                "name": "events",
+                                "connector": "OR",
+                                "filterPredicate": "LIKE",
+                                "value1": "EXPLORE TACTICS",
+                                "value2": "",
+                                "context": "ACTION",
+                                "caseSensitive": false
+                            }
+                        ],
+                        "containers": [
+                            {
+                                "filters": [
+                                    {
+                                        "name": "campaigns",
+                                        "connector": "AND",
+                                        "filterPredicate": "LIKE",
+                                        "value1": "*",
+                                        "value2": "",
+                                        "context": "SESSION",
+                                        "caseSensitive": false
+                                    }
+                                ],
+                                "connector": "AND",
+                                "context": "SESSION",
+                                "inOrNotIn": "IN",
+                                "type": "NORMAL"
+                            }
+                        ]
+                    },
+                    "comparison": {
+                        "type": "SLIDING_WINDOW",
+                        "slidingWindowWeekdayAdjust": true,
+                        "slidingWindowTimeShift": "PRECEDING"
+                    }
+                }
+            },
+            {
+                "id": 3653,
+                "type": "KPI",
+                "config": {
+                    "title": "",
+                    "elementPeriod": "ELEMENT",
+                    "type": "KPI",
+                    "metricName": "visitors_campaign",
+                    "dimensionName": "time_days",
+                    "predefinedContainer": {
+                        "filters": [
+                            {
+                                "name": "time_dynamic",
+                                "connector": "AND",
+                                "filterPredicate": "LIKE",
+                                "value1": "last_7_days",
+                                "value2": "",
+                                "context": "NONE",
+                                "caseSensitive": false
+                            }
+                        ],
+                        "containers": []
+                    },
+                    "comparison": {
+                        "type": "SLIDING_WINDOW",
+                        "slidingWindowWeekdayAdjust": true,
+                        "slidingWindowTimeShift": "PRECEDING"
+                    }
+                }
+            },
+            {
+                "id": 3655,
+                "type": "KPI",
+                "config": {
+                    "title": "",
+                    "elementPeriod": "ELEMENT",
+                    "type": "KPI",
+                    "metricName": "visitors",
+                    "dimensionName": "time_days",
+                    "predefinedContainer": {
+                        "filters": [
+                            {
+                                "name": "time_dynamic",
+                                "connector": "AND",
+                                "filterPredicate": "LIKE",
+                                "value1": "last_7_days",
+                                "value2": "",
+                                "context": "NONE",
+                                "caseSensitive": false
+                            }
+                        ],
+                        "containers": [
+                            {
+                                "filters": [
+                                    {
+                                        "name": "events",
+                                        "connector": "AND",
+                                        "filterPredicate": "LIKE",
+                                        "value1": "SUBMIT",
+                                        "value2": "",
+                                        "context": "SESSION",
+                                        "caseSensitive": false
+                                    },
+                                    {
+                                        "name": "campaigns",
+                                        "connector": "AND",
+                                        "filterPredicate": "LIKE",
+                                        "value1": "*",
+                                        "value2": "",
+                                        "context": "SESSION",
+                                        "caseSensitive": false
+                                    }
+                                ],
+                                "containers": [],
+                                "connector": "AND",
+                                "context": "SESSION",
+                                "inOrNotIn": "IN",
+                                "type": "NORMAL"
+                            }
+                        ]
+                    },
+                    "comparison": {
+                        "type": "SLIDING_WINDOW",
+                        "slidingWindowWeekdayAdjust": true,
+                        "slidingWindowTimeShift": "PRECEDING"
+                    }
+                }
+            },
+            {
+                "id": 3657,
+                "type": "KPI",
+                "config": {
+                    "title": "",
+                    "elementPeriod": "ELEMENT",
+                    "type": "KPI",
+                    "metricName": "visitors",
+                    "dimensionName": "time_days",
+                    "predefinedContainer": {
+                        "filters": [
+                            {
+                                "name": "time_dynamic",
+                                "connector": "AND",
+                                "filterPredicate": "LIKE",
+                                "value1": "last_7_days",
+                                "value2": "",
+                                "context": "NONE",
+                                "caseSensitive": false
+                            },
+                            {
+                                "name": "events",
+                                "connector": "AND",
+                                "filterPredicate": "LIKE",
+                                "value1": "PRIORITIZE TACTICS",
+                                "value2": "",
+                                "context": "ACTION",
+                                "caseSensitive": false
+                            }
+                        ],
+                        "containers": []
+                    },
+                    "comparison": {
+                        "type": "SLIDING_WINDOW",
+                        "slidingWindowWeekdayAdjust": true,
+                        "slidingWindowTimeShift": "PRECEDING"
+                    }
+                }
+            },
+            {
+                "id": 3659,
+                "type": "KPI",
+                "config": {
+                    "title": "",
+                    "elementPeriod": "ELEMENT",
+                    "type": "KPI",
+                    "metricName": "visitors",
+                    "dimensionName": "time_days",
+                    "predefinedContainer": {
+                        "filters": [
+                            {
+                                "name": "time_dynamic",
+                                "connector": "AND",
+                                "filterPredicate": "LIKE",
+                                "value1": "last_7_days",
+                                "value2": "",
+                                "context": "NONE",
+                                "caseSensitive": false
+                            },
+                            {
+                                "name": "events",
+                                "connector": "AND",
+                                "filterPredicate": "LIKE",
+                                "value1": "PRIORITIZE TACTICS",
+                                "value2": "",
+                                "context": "ACTION",
+                                "caseSensitive": false
+                            }
+                        ],
+                        "containers": [
+                            {
+                                "filters": [
+                                    {
+                                        "name": "campaigns",
+                                        "connector": "AND",
+                                        "filterPredicate": "LIKE",
+                                        "value1": "*",
+                                        "value2": "",
+                                        "context": "SESSION",
+                                        "caseSensitive": false
+                                    }
+                                ],
+                                "connector": "AND",
+                                "context": "SESSION",
+                                "inOrNotIn": "IN",
+                                "type": "NORMAL"
+                            }
+                        ]
+                    },
+                    "comparison": {
+                        "type": "SLIDING_WINDOW",
+                        "slidingWindowWeekdayAdjust": true,
+                        "slidingWindowTimeShift": "PRECEDING"
+                    }
+                }
+            },
+            {
+                "id": 3663,
+                "type": "KPI",
+                "config": {
+                    "title": "",
+                    "elementPeriod": "ELEMENT",
+                    "type": "KPI",
+                    "metricName": "visitors",
+                    "dimensionName": "time_days",
+                    "predefinedContainer": {
+                        "filters": [
+                            {
+                                "name": "time_dynamic",
+                                "connector": "AND",
+                                "filterPredicate": "LIKE",
+                                "value1": "last_7_days",
+                                "value2": "",
+                                "context": "NONE",
+                                "caseSensitive": false
+                            },
+                            {
+                                "name": "events",
+                                "connector": "AND",
+                                "filterPredicate": "LIKE",
+                                "value1": "VIEW STRATEGY",
+                                "value2": "",
+                                "context": "ACTION",
+                                "caseSensitive": false
+                            }
+                        ],
+                        "containers": []
+                    },
+                    "comparison": {
+                        "type": "SLIDING_WINDOW",
+                        "slidingWindowWeekdayAdjust": true,
+                        "slidingWindowTimeShift": "PRECEDING"
+                    }
+                }
+            },
+            {
+                "id": 3665,
+                "type": "KPI",
+                "config": {
+                    "title": "",
+                    "elementPeriod": "ELEMENT",
+                    "type": "KPI",
+                    "metricName": "visitors",
+                    "dimensionName": "time_days",
+                    "predefinedContainer": {
+                        "filters": [
+                            {
+                                "name": "time_dynamic",
+                                "connector": "AND",
+                                "filterPredicate": "LIKE",
+                                "value1": "last_7_days",
+                                "value2": "",
+                                "context": "NONE",
+                                "caseSensitive": false
+                            },
+                            {
+                                "name": "events",
+                                "connector": "AND",
+                                "filterPredicate": "LIKE",
+                                "value1": "VIEW STRATEGY",
+                                "value2": "",
+                                "context": "ACTION",
+                                "caseSensitive": false
+                            }
+                        ],
+                        "containers": [
+                            {
+                                "filters": [
+                                    {
+                                        "name": "campaigns",
+                                        "connector": "AND",
+                                        "filterPredicate": "LIKE",
+                                        "value1": "*",
+                                        "value2": "",
+                                        "context": "SESSION",
+                                        "caseSensitive": false
+                                    }
+                                ],
+                                "connector": "AND",
+                                "context": "SESSION",
+                                "inOrNotIn": "IN",
+                                "type": "NORMAL"
+                            }
+                        ]
+                    },
+                    "comparison": {
+                        "type": "SLIDING_WINDOW",
+                        "slidingWindowWeekdayAdjust": true,
+                        "slidingWindowTimeShift": "PRECEDING"
+                    }
+                }
+            },
+            {
+                "id": 3669,
+                "type": "KPI",
+                "config": {
+                    "title": "",
+                    "elementPeriod": "ELEMENT",
+                    "type": "KPI",
+                    "metricName": "visitors",
+                    "dimensionName": "time_days",
+                    "predefinedContainer": {
+                        "filters": [
+                            {
+                                "name": "time_dynamic",
+                                "connector": "AND",
+                                "filterPredicate": "LIKE",
+                                "value1": "last_7_days",
+                                "value2": "",
+                                "context": "NONE",
+                                "caseSensitive": false
+                            }
+                        ],
+                        "containers": [
+                            {
+                                "filters": [
+                                    {
+                                        "name": "pages",
+                                        "connector": "AND",
+                                        "filterPredicate": "LIKE",
+                                        "value1": "https://improveyour.marketing/share*",
+                                        "value2": "",
+                                        "context": "SESSION",
+                                        "caseSensitive": false
+                                    },
+                                    {
+                                        "name": "events",
+                                        "connector": "OR",
+                                        "filterPredicate": "LIKE",
+                                        "value1": "REQUEST DEMO",
+                                        "value2": "",
+                                        "context": "SESSION",
+                                        "caseSensitive": false
+                                    }
+                                ],
+                                "containers": [],
+                                "connector": "AND",
+                                "context": "SESSION",
+                                "inOrNotIn": "IN",
+                                "type": "NORMAL"
+                            }
+                        ]
+                    },
+                    "comparison": {
+                        "type": "SLIDING_WINDOW",
+                        "slidingWindowWeekdayAdjust": true,
+                        "slidingWindowTimeShift": "PRECEDING"
+                    }
+                }
+            },
+            {
+                "id": 3671,
+                "type": "KPI",
+                "config": {
+                    "title": "",
+                    "elementPeriod": "ELEMENT",
+                    "type": "KPI",
+                    "metricName": "visitors",
+                    "dimensionName": "time_days",
+                    "predefinedContainer": {
+                        "filters": [
+                            {
+                                "name": "time_dynamic",
+                                "connector": "AND",
+                                "filterPredicate": "LIKE",
+                                "value1": "last_7_days",
+                                "value2": "",
+                                "context": "NONE",
+                                "caseSensitive": false
+                            }
+                        ],
+                        "containers": [
+                            {
+                                "filters": [
+                                    {
+                                        "name": "pages",
+                                        "connector": "AND",
+                                        "filterPredicate": "LIKE",
+                                        "value1": "https://improveyour.marketing/share*",
+                                        "value2": "",
+                                        "context": "SESSION",
+                                        "caseSensitive": false
+                                    },
+                                    {
+                                        "name": "events",
+                                        "connector": "OR",
+                                        "filterPredicate": "LIKE",
+                                        "value1": "REQUEST DEMO",
+                                        "value2": "",
+                                        "context": "SESSION",
+                                        "caseSensitive": false
+                                    }
+                                ],
+                                "containers": [],
+                                "connector": "AND",
+                                "context": "SESSION",
+                                "inOrNotIn": "IN",
+                                "type": "NORMAL"
+                            },
+                            {
+                                "filters": [
+                                    {
+                                        "name": "campaigns",
+                                        "connector": "AND",
+                                        "filterPredicate": "LIKE",
+                                        "value1": "*",
+                                        "value2": "",
+                                        "context": "SESSION",
+                                        "caseSensitive": false
+                                    }
+                                ],
+                                "connector": "AND",
+                                "context": "SESSION",
+                                "inOrNotIn": "IN",
+                                "type": "NORMAL"
+                            }
+                        ]
+                    },
+                    "comparison": {
+                        "type": "SLIDING_WINDOW",
+                        "slidingWindowWeekdayAdjust": true,
+                        "slidingWindowTimeShift": "PRECEDING"
+                    }
+                }
+            },
+            {
+                "id": 3679,
+                "type": "ANALYSIS",
+                "config": {
+                    "title": "Pages",
+                    "columns": [
+                        {
+                            "name": "pages",
+                            "scope": "OBJECT",
+                            "context": "PAGE",
+                            "variant": "NORMAL",
+                            "lowerLimit": 1,
+                            "upperLimit": 10
+                        },
+                        {
+                            "name": "pages_pageImpressions",
+                            "columnPeriod": "ANALYSIS",
+                            "sortDirection": "DESCENDING",
+                            "sortIndex": 1,
+                            "scope": "OBJECT",
+                            "context": "PAGE",
+                            "variant": "NORMAL"
+                        },
+                        {
+                            "name": "visits_bounceRate",
+                            "columnPeriod": "ANALYSIS",
+                            "scope": "OBJECT",
+                            "variant": "NORMAL"
+                        }
+                    ],
+                    "predefinedContainer": {
+                        "filters": [
+                            {
+                                "name": "pages",
+                                "connector": "AND",
+                                "filterPredicate": "LIKE",
+                                "value1": "https://improveyour.marketing*",
+                                "value2": "",
+                                "context": "PAGE",
+                                "caseSensitive": false
+                            }
+                        ],
+                        "containers": []
+                    },
+                    "variant": "LIST"
+                }
+            },
+            {
+                "id": 3681,
+                "type": "ANALYSIS",
+                "config": {
+                    "title": "Events",
+                    "columns": [
+                        {
+                            "name": "events",
+                            "scope": "OBJECT",
+                            "context": "ACTION",
+                            "variant": "NORMAL",
+                            "lowerLimit": 1,
+                            "upperLimit": 10
+                        },
+                        {
+                            "name": "events_clicks",
+                            "columnPeriod": "ANALYSIS",
+                            "sortDirection": "DESCENDING",
+                            "sortIndex": 1,
+                            "scope": "OBJECT",
+                            "context": "ACTION",
+                            "variant": "NORMAL"
+                        },
+                        {
+                            "name": "visits",
+                            "columnPeriod": "ANALYSIS",
+                            "scope": "OBJECT",
+                            "context": "SESSION",
+                            "variant": "NORMAL"
+                        },
+                        {
+                            "name": "visits_newShare",
+                            "columnPeriod": "ANALYSIS",
+                            "scope": "OBJECT",
+                            "variant": "NORMAL"
+                        }
+                    ],
+                    "predefinedContainer": {
+                        "filters": [
+                            {
+                                "name": "events",
+                                "connector": "AND",
+                                "filterPredicate": "NOT_LIKE",
+                                "value1": "#*",
+                                "value2": "",
+                                "context": "ACTION",
+                                "caseSensitive": false
+                            }
+                        ],
+                        "containers": []
+                    },
+                    "variant": "LIST"
+                }
+            },
+            {
+                "id": 3685,
+                "type": "ANALYSIS",
+                "config": {
+                    "title": "Events",
+                    "columns": [
+                        {
+                            "name": "events",
+                            "scope": "OBJECT",
+                            "context": "ACTION",
+                            "variant": "NORMAL",
+                            "lowerLimit": 1,
+                            "upperLimit": 500
+                        },
+                        {
+                            "name": "events_clicks",
+                            "columnPeriod": "ANALYSIS",
+                            "sortDirection": "DESCENDING",
+                            "sortIndex": 1,
+                            "scope": "OBJECT",
+                            "context": "ACTION",
+                            "variant": "NORMAL"
+                        },
+                        {
+                            "name": "visits",
+                            "columnPeriod": "ANALYSIS",
+                            "scope": "OBJECT",
+                            "context": "SESSION",
+                            "variant": "NORMAL"
+                        }
+                    ],
+                    "predefinedContainer": {
+                        "filters": [
+                            {
+                                "name": "events",
+                                "connector": "AND",
+                                "filterPredicate": "LIKE",
+                                "value1": "#*",
+                                "value2": "",
+                                "context": "ACTION",
+                                "caseSensitive": false
+                            }
+                        ],
+                        "containers": []
+                    },
+                    "variant": "LIST"
+                }
+            },
+            {
+                "id": 3687,
+                "type": "ANALYSIS",
+                "config": {
+                    "title": "Events",
+                    "columns": [
+                        {
+                            "name": "events",
+                            "scope": "OBJECT",
+                            "context": "ACTION",
+                            "variant": "NORMAL",
+                            "lowerLimit": 1,
+                            "upperLimit": 10
+                        },
+                        {
+                            "name": "events_clicks",
+                            "columnPeriod": "ANALYSIS",
+                            "sortDirection": "DESCENDING",
+                            "sortIndex": 1,
+                            "scope": "OBJECT",
+                            "context": "ACTION",
+                            "variant": "NORMAL"
+                        },
+                        {
+                            "name": "visits",
+                            "columnPeriod": "ANALYSIS",
+                            "scope": "OBJECT",
+                            "context": "SESSION",
+                            "variant": "NORMAL"
+                        }
+                    ],
+                    "predefinedContainer": {
+                        "filters": [
+                            {
+                                "name": "events",
+                                "connector": "AND",
+                                "filterPredicate": "LIKE",
+                                "value1": "#*",
+                                "value2": "",
+                                "context": "ACTION",
+                                "caseSensitive": false
+                            }
+                        ],
+                        "containers": []
+                    },
+                    "variant": "LIST"
+                }
+            },
+            {
+                "id": 3693,
+                "type": "ANALYSIS",
+                "config": {
+                    "title": "Organization",
+                    "columns": [
+                        {
+                            "name": "location_organisation",
+                            "scope": "OBJECT",
+                            "context": "SESSION",
+                            "variant": "NORMAL",
+                            "lowerLimit": 1,
+                            "upperLimit": 100
+                        },
+                        {
+                            "name": "visits",
+                            "columnPeriod": "ANALYSIS",
+                            "sortDirection": "DESCENDING",
+                            "sortIndex": 1,
+                            "scope": "OBJECT",
+                            "context": "SESSION",
+                            "variant": "NORMAL"
+                        }
+                    ],
+                    "variant": "LIST"
+                }
+            },
+            {
+                "id": 3697,
+                "type": "ANALYSIS",
+                "config": {
+                    "title": "Organization",
+                    "columns": [
+                        {
+                            "name": "visit_time",
+                            "scope": "OBJECT",
+                            "context": "SESSION",
+                            "lowerLimit": 1,
+                            "upperLimit": 100
+                        },
+                        {
+                            "name": "location_organisation",
+                            "scope": "OBJECT",
+                            "context": "SESSION",
+                            "variant": "NORMAL",
+                            "lowerLimit": 1,
+                            "upperLimit": 100
+                        },
+                        {
+                            "name": "events",
+                            "scope": "OBJECT",
+                            "context": "ACTION",
+                            "lowerLimit": 1,
+                            "upperLimit": 10
+                        },
+                        {
+                            "name": "visits",
+                            "columnPeriod": "ANALYSIS",
+                            "sortDirection": "DESCENDING",
+                            "sortIndex": 1,
+                            "scope": "OBJECT",
+                            "context": "SESSION",
+                            "variant": "NORMAL"
+                        }
+                    ],
+                    "predefinedContainer": {
+                        "filters": [],
+                        "containers": [
+                            {
+                                "filters": [
+                                    {
+                                        "name": "events",
+                                        "connector": "AND",
+                                        "filterPredicate": "LIKE",
+                                        "value1": "SUBMIT",
+                                        "value2": "",
+                                        "context": "SESSION",
+                                        "caseSensitive": false
+                                    }
+                                ],
+                                "containers": [],
+                                "connector": "AND",
+                                "context": "SESSION",
+                                "inOrNotIn": "IN",
+                                "type": "NORMAL"
+                            },
+                            {
+                                "filters": [
+                                    {
+                                        "name": "events",
+                                        "connector": "AND",
+                                        "filterPredicate": "LIKE",
+                                        "value1": "#*",
+                                        "value2": "",
+                                        "context": "ACTION",
+                                        "caseSensitive": false
+                                    }
+                                ],
+                                "containers": [],
+                                "connector": "AND",
+                                "context": "ACTION",
+                                "inOrNotIn": "IN",
+                                "type": "NORMAL"
+                            }
+                        ]
+                    },
+                    "variant": "PIVOT"
+                }
+            },
+            {
+                "id": 3701,
+                "type": "ANALYSIS",
+                "config": {
+                    "title": "Advertising Media",
+                    "columns": [
+                        {
+                            "name": "campaigns",
+                            "scope": "OBJECT",
+                            "context": "ACTION",
+                            "variant": "NORMAL",
+                            "lowerLimit": 1,
+                            "upperLimit": 20
+                        },
+                        {
+                            "name": "campaigns_clicks",
+                            "columnPeriod": "ANALYSIS",
+                            "sortDirection": "DESCENDING",
+                            "sortIndex": 1,
+                            "scope": "OBJECT",
+                            "context": "ACTION",
+                            "variant": "NORMAL"
+                        },
+                        {
+                            "name": "visitors_campaign",
+                            "columnPeriod": "ANALYSIS",
+                            "scope": "OBJECT",
+                            "context": "ACTION",
+                            "variant": "NORMAL"
+                        },
+                        {
+                            "name": "visitors",
+                            "columnPeriod": "ANALYSIS",
+                            "scope": "OBJECT",
+                            "context": "SESSION",
+                            "predefinedContainer": {
+                                "filters": [],
+                                "containers": [
+                                    {
+                                        "filters": [
+                                            {
+                                                "name": "events",
+                                                "connector": "AND",
+                                                "filterPredicate": "LIKE",
+                                                "value1": "SUBMIT",
+                                                "value2": "",
+                                                "context": "SESSION",
+                                                "caseSensitive": false
+                                            }
+                                        ],
+                                        "containers": [],
+                                        "connector": "AND",
+                                        "context": "SESSION",
+                                        "inOrNotIn": "IN",
+                                        "type": "NORMAL"
+                                    }
+                                ]
+                            }
+                        }
+                    ],
+                    "variant": "LIST"
+                }
+            }
+        ],
+        "timeFilter": {
+            "name": "time_dynamic",
+            "connector": "AND",
+            "filterPredicate": "LIKE",
+            "value1": "last_7_days",
+            "value2": "",
+            "context": "NONE",
+            "caseSensitive": false
+        },
+        "quickFilters": [
+            {
+                "name": "location_country",
+                "connector": "AND",
+                "filterPredicate": "LIKE",
+                "context": "NONE",
+                "caseSensitive": false,
+                "values1": [],
+                "values2": []
+            }
+        ]
+    }
+}

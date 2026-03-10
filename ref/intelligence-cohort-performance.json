@@ -1,0 +1,398 @@
+{
+    "configuration": {
+        "id": -7,
+        "title": "Cohorts Performance",
+        "description": "Created by Mapp",
+        "elements": [
+            {
+                "id": -74,
+                "type": "ANALYSIS",
+                "config": {
+                    "title": "-",
+                    "columns": [
+                        {
+                            "name": "user_cohorts_monthly",
+                            "sortDirection": "ASCENDING",
+                            "sortIndex": 1,
+                            "scope": "OBJECT",
+                            "context": "SESSION",
+                            "variant": "NORMAL",
+                            "lowerLimit": 1,
+                            "upperLimit": 15
+                        },
+                        {
+                            "name": "user_cohorts_returningVisitorsPercent_month0",
+                            "columnPeriod": "ANALYSIS",
+                            "scope": "OBJECT",
+                            "variant": "NORMAL"
+                        },
+                        {
+                            "name": "user_cohorts_returningVisitorsPercent_month1",
+                            "columnPeriod": "ANALYSIS",
+                            "scope": "OBJECT",
+                            "variant": "NORMAL"
+                        },
+                        {
+                            "name": "user_cohorts_returningVisitorsPercent_month2",
+                            "columnPeriod": "ANALYSIS",
+                            "scope": "OBJECT",
+                            "variant": "NORMAL"
+                        },
+                        {
+                            "name": "user_cohorts_returningVisitorsPercent_month3",
+                            "columnPeriod": "ANALYSIS",
+                            "scope": "OBJECT",
+                            "variant": "NORMAL"
+                        },
+                        {
+                            "name": "user_cohorts_returningVisitorsPercent_month4",
+                            "columnPeriod": "ANALYSIS",
+                            "scope": "OBJECT",
+                            "variant": "NORMAL"
+                        },
+                        {
+                            "name": "user_cohorts_returningVisitorsPercent_month5",
+                            "columnPeriod": "ANALYSIS",
+                            "scope": "OBJECT",
+                            "variant": "NORMAL"
+                        },
+                        {
+                            "name": "user_cohorts_returningVisitorsPercent_month6",
+                            "columnPeriod": "ANALYSIS",
+                            "scope": "OBJECT",
+                            "variant": "NORMAL"
+                        },
+                        {
+                            "name": "user_cohorts_returningVisitorsPercent_month7",
+                            "columnPeriod": "ANALYSIS",
+                            "scope": "OBJECT",
+                            "variant": "NORMAL"
+                        },
+                        {
+                            "name": "user_cohorts_returningVisitorsPercent_month8",
+                            "columnPeriod": "ANALYSIS",
+                            "scope": "OBJECT",
+                            "variant": "NORMAL"
+                        },
+                        {
+                            "name": "user_cohorts_returningVisitorsPercent_month9",
+                            "columnPeriod": "ANALYSIS",
+                            "scope": "OBJECT",
+                            "variant": "NORMAL"
+                        },
+                        {
+                            "name": "user_cohorts_returningVisitorsPercent_month10",
+                            "columnPeriod": "ANALYSIS",
+                            "scope": "OBJECT",
+                            "variant": "NORMAL"
+                        },
+                        {
+                            "name": "user_cohorts_returningVisitorsPercent_month11",
+                            "columnPeriod": "ANALYSIS",
+                            "scope": "OBJECT",
+                            "variant": "NORMAL"
+                        }
+                    ],
+                    "variant": "LIST",
+                    "customChart": "LINE",
+                    "chartWidth": 1034,
+                    "chartHeight": 295
+                }
+            },
+            {
+                "id": -63,
+                "type": "ANALYSIS",
+                "config": {
+                    "title": "-",
+                    "columns": [
+                        {
+                            "name": "user_cohorts_monthly",
+                            "scope": "OBJECT",
+                            "context": "SESSION",
+                            "variant": "NORMAL",
+                            "lowerLimit": 1,
+                            "upperLimit": 15
+                        },
+                        {
+                            "name": "user_cohorts_conversionRate_month0",
+                            "columnPeriod": "ANALYSIS",
+                            "scope": "OBJECT",
+                            "variant": "NORMAL"
+                        },
+                        {
+                            "name": "user_cohorts_conversionRate_month1",
+                            "columnPeriod": "ANALYSIS",
+                            "scope": "OBJECT",
+                            "variant": "NORMAL"
+                        },
+                        {
+                            "name": "user_cohorts_conversionRate_month2",
+                            "columnPeriod": "ANALYSIS",
+                            "scope": "OBJECT",
+                            "variant": "NORMAL"
+                        },
+                        {
+                            "name": "user_cohorts_conversionRate_month3",
+                            "columnPeriod": "ANALYSIS",
+                            "scope": "OBJECT",
+                            "variant": "NORMAL"
+                        },
+                        {
+                            "name": "user_cohorts_conversionRate_month4",
+                            "columnPeriod": "ANALYSIS",
+                            "sortDirection": "DESCENDING",
+                            "sortIndex": 1,
+                            "scope": "OBJECT",
+                            "variant": "NORMAL"
+                        },
+                        {
+                            "name": "user_cohorts_conversionRate_month5",
+                            "columnPeriod": "ANALYSIS",
+                            "scope": "OBJECT",
+                            "variant": "NORMAL"
+                        },
+                        {
+                            "name": "user_cohorts_conversionRate_month6",
+                            "columnPeriod": "ANALYSIS",
+                            "scope": "OBJECT",
+                            "variant": "NORMAL"
+                        },
+                        {
+                            "name": "user_cohorts_conversionRate_month7",
+                            "columnPeriod": "ANALYSIS",
+                            "scope": "OBJECT",
+                            "variant": "NORMAL"
+                        },
+                        {
+                            "name": "user_cohorts_conversionRate_month8",
+                            "columnPeriod": "ANALYSIS",
+                            "scope": "OBJECT",
+                            "variant": "NORMAL"
+                        },
+                        {
+                            "name": "user_cohorts_conversionRate_month9",
+                            "columnPeriod": "ANALYSIS",
+                            "scope": "OBJECT",
+                            "variant": "NORMAL"
+                        },
+                        {
+                            "name": "user_cohorts_conversionRate_month10",
+                            "columnPeriod": "ANALYSIS",
+                            "scope": "OBJECT",
+                            "variant": "NORMAL"
+                        },
+                        {
+                            "name": "user_cohorts_conversionRate_month11",
+                            "columnPeriod": "ANALYSIS",
+                            "scope": "OBJECT",
+                            "variant": "NORMAL"
+                        }
+                    ],
+                    "variant": "LIST",
+                    "customChart": "LINE",
+                    "chartWidth": 1034,
+                    "chartHeight": 295
+                }
+            },
+            {
+                "id": -77,
+                "type": "ANALYSIS",
+                "config": {
+                    "title": "-",
+                    "columns": [
+                        {
+                            "name": "user_cohorts_monthly",
+                            "sortDirection": "ASCENDING",
+                            "sortIndex": 1,
+                            "scope": "OBJECT",
+                            "context": "SESSION",
+                            "variant": "NORMAL",
+                            "lowerLimit": 1,
+                            "upperLimit": 15
+                        },
+                        {
+                            "name": "user_cohorts_avgOrderValue_month0",
+                            "columnPeriod": "ANALYSIS",
+                            "scope": "OBJECT",
+                            "variant": "NORMAL"
+                        },
+                        {
+                            "name": "user_cohorts_avgOrderValue_month1",
+                            "columnPeriod": "ANALYSIS",
+                            "scope": "OBJECT",
+                            "variant": "NORMAL"
+                        },
+                        {
+                            "name": "user_cohorts_avgOrderValue_month2",
+                            "columnPeriod": "ANALYSIS",
+                            "scope": "OBJECT",
+                            "variant": "NORMAL"
+                        },
+                        {
+                            "name": "user_cohorts_avgOrderValue_month3",
+                            "columnPeriod": "ANALYSIS",
+                            "scope": "OBJECT",
+                            "variant": "NORMAL"
+                        },
+                        {
+                            "name": "user_cohorts_avgOrderValue_month4",
+                            "columnPeriod": "ANALYSIS",
+                            "scope": "OBJECT",
+                            "variant": "NORMAL"
+                        },
+                        {
+                            "name": "user_cohorts_avgOrderValue_month5",
+                            "columnPeriod": "ANALYSIS",
+                            "scope": "OBJECT",
+                            "variant": "NORMAL"
+                        },
+                        {
+                            "name": "user_cohorts_avgOrderValue_month6",
+                            "columnPeriod": "ANALYSIS",
+                            "scope": "OBJECT",
+                            "variant": "NORMAL"
+                        },
+                        {
+                            "name": "user_cohorts_avgOrderValue_month7",
+                            "columnPeriod": "ANALYSIS",
+                            "scope": "OBJECT",
+                            "variant": "NORMAL"
+                        },
+                        {
+                            "name": "user_cohorts_avgOrderValue_month8",
+                            "columnPeriod": "ANALYSIS",
+                            "scope": "OBJECT",
+                            "variant": "NORMAL"
+                        },
+                        {
+                            "name": "user_cohorts_avgOrderValue_month9",
+                            "columnPeriod": "ANALYSIS",
+                            "scope": "OBJECT",
+                            "variant": "NORMAL"
+                        },
+                        {
+                            "name": "user_cohorts_avgOrderValue_month10",
+                            "columnPeriod": "ANALYSIS",
+                            "scope": "OBJECT",
+                            "variant": "NORMAL"
+                        },
+                        {
+                            "name": "user_cohorts_avgOrderValue_month11",
+                            "columnPeriod": "ANALYSIS",
+                            "scope": "OBJECT",
+                            "variant": "NORMAL"
+                        }
+                    ],
+                    "variant": "LIST",
+                    "customChart": "LINE",
+                    "chartWidth": 1034,
+                    "chartHeight": 295
+                }
+            },
+            {
+                "id": -66,
+                "type": "ANALYSIS",
+                "config": {
+                    "title": ".",
+                    "columns": [
+                        {
+                            "name": "user_cohorts_monthly",
+                            "sortDirection": "ASCENDING",
+                            "sortIndex": 1,
+                            "scope": "OBJECT",
+                            "context": "SESSION",
+                            "variant": "NORMAL",
+                            "lowerLimit": 1,
+                            "upperLimit": 15
+                        },
+                        {
+                            "name": "user_cohorts_avgOrderValue_month0",
+                            "columnPeriod": "ANALYSIS",
+                            "scope": "OBJECT",
+                            "variant": "NORMAL"
+                        },
+                        {
+                            "name": "user_cohorts_avgOrderValue_month1",
+                            "columnPeriod": "ANALYSIS",
+                            "scope": "OBJECT",
+                            "variant": "NORMAL"
+                        },
+                        {
+                            "name": "user_cohorts_avgOrderValue_month2",
+                            "columnPeriod": "ANALYSIS",
+                            "scope": "OBJECT",
+                            "variant": "NORMAL"
+                        },
+                        {
+                            "name": "user_cohorts_avgOrderValue_month3",
+                            "columnPeriod": "ANALYSIS",
+                            "scope": "OBJECT",
+                            "variant": "NORMAL"
+                        },
+                        {
+                            "name": "user_cohorts_avgOrderValue_month4",
+                            "columnPeriod": "ANALYSIS",
+                            "scope": "OBJECT",
+                            "variant": "NORMAL"
+                        },
+                        {
+                            "name": "user_cohorts_avgOrderValue_month5",
+                            "columnPeriod": "ANALYSIS",
+                            "scope": "OBJECT",
+                            "variant": "NORMAL"
+                        },
+                        {
+                            "name": "user_cohorts_avgOrderValue_month6",
+                            "columnPeriod": "ANALYSIS",
+                            "scope": "OBJECT",
+                            "variant": "NORMAL"
+                        },
+                        {
+                            "name": "user_cohorts_avgOrderValue_month7",
+                            "columnPeriod": "ANALYSIS",
+                            "scope": "OBJECT",
+                            "variant": "NORMAL"
+                        },
+                        {
+                            "name": "user_cohorts_avgOrderValue_month8",
+                            "columnPeriod": "ANALYSIS",
+                            "scope": "OBJECT",
+                            "variant": "NORMAL"
+                        },
+                        {
+                            "name": "user_cohorts_avgOrderValue_month9",
+                            "columnPeriod": "ANALYSIS",
+                            "scope": "OBJECT",
+                            "variant": "NORMAL"
+                        },
+                        {
+                            "name": "user_cohorts_avgOrderValue_month10",
+                            "columnPeriod": "ANALYSIS",
+                            "scope": "OBJECT",
+                            "variant": "NORMAL"
+                        },
+                        {
+                            "name": "user_cohorts_orderValueCumulated_month11",
+                            "columnPeriod": "ANALYSIS",
+                            "scope": "OBJECT",
+                            "variant": "NORMAL"
+                        }
+                    ],
+                    "variant": "LIST",
+                    "customChart": "LINE",
+                    "chartWidth": 1034,
+                    "chartHeight": 295
+                }
+            }
+        ],
+        "timeFilter": {
+            "name": "time_dynamic",
+            "connector": "AND",
+            "filterPredicate": "LIKE",
+            "value1": "last_12_month",
+            "value2": "",
+            "context": "NONE",
+            "caseSensitive": false
+        }
+    }
+}

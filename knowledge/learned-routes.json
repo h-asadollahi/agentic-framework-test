@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "lastUpdated": "2026-03-10T14:02:35.315Z",
+  "lastUpdated": "2026-03-10T19:29:29.889Z",
   "routes": [
     {
       "id": "route-001",
@@ -26,8 +26,8 @@
       "outputFormat": "json",
       "addedAt": "2026-03-06T15:05:00.000Z",
       "addedBy": "codex",
-      "usageCount": 3,
-      "lastUsedAt": "2026-03-10T09:15:36.972Z"
+      "usageCount": 4,
+      "lastUsedAt": "2026-03-10T14:53:42.122Z"
     },
     {
       "id": "route-002",
@@ -53,8 +53,8 @@
       "outputFormat": "json",
       "addedAt": "2026-03-09T10:25:00.000Z",
       "addedBy": "codex",
-      "usageCount": 25,
-      "lastUsedAt": "2026-03-10T12:57:50.709Z"
+      "usageCount": 26,
+      "lastUsedAt": "2026-03-10T14:17:59.902Z"
     },
     {
       "id": "route-003",
@@ -174,8 +174,8 @@
       "outputFormat": "json",
       "addedAt": "2026-03-09T10:25:00.000Z",
       "addedBy": "codex",
-      "usageCount": 6,
-      "lastUsedAt": "2026-03-10T08:23:14.632Z"
+      "usageCount": 7,
+      "lastUsedAt": "2026-03-10T15:15:15.389Z"
     },
     {
       "id": "route-006",
@@ -224,8 +224,122 @@
       "outputFormat": "json",
       "addedAt": "2026-03-09T10:25:00.000Z",
       "addedBy": "codex",
-      "usageCount": 4,
-      "lastUsedAt": "2026-03-10T13:07:50.563Z"
+      "usageCount": 7,
+      "lastUsedAt": "2026-03-10T19:29:29.889Z"
+    },
+    {
+      "id": "route-008",
+      "capability": "mapp-intelligence-cohort-performance-report",
+      "description": "Run the Cohorts Performance report in Mapp Intelligence.",
+      "matchPatterns": [
+        "cohorts performance report",
+        "cohort performance report mapp intelligence",
+        "cohort retention conversion trend report",
+        "mapp cohorts performance"
+      ],
+      "routeType": "api",
+      "endpoint": {
+        "url": "{{MAPP_ANALYTICS_API_URL}}/analytics/api/report-query",
+        "method": "POST",
+        "headers": {
+          "Authorization": "Bearer {{MAPP_ANALYTICS_API_TOKEN}}",
+          "Content-Type": "application/json",
+          "Accept": "application/json"
+        },
+        "queryParams": {}
+      },
+      "apiWorkflow": {
+        "workflowType": "report-query",
+        "requestBodySource": "ref/intelligence-cohort-performance.json",
+        "poll": {
+          "intervalMs": 2000,
+          "maxAttempts": 30
+        },
+        "resultSelection": "all-success"
+      },
+      "agentInputDefaults": {},
+      "inputMapping": {},
+      "outputFormat": "json",
+      "addedAt": "2026-03-10T19:23:29.349Z",
+      "addedBy": "codex",
+      "usageCount": 0,
+      "lastUsedAt": null
+    },
+    {
+      "id": "route-009",
+      "capability": "mapp-intelligence-channel-performance-analysis",
+      "description": "Show channel performance for the last 7 days in Mapp Intelligence.",
+      "matchPatterns": [
+        "channel performance last 7 days mapp intelligence",
+        "show channel performance mapp intelligence",
+        "mapp channel performance analysis",
+        "campaign category channel performance"
+      ],
+      "routeType": "api",
+      "endpoint": {
+        "url": "{{MAPP_ANALYTICS_API_URL}}/analytics/api/analysis-query",
+        "method": "POST",
+        "headers": {
+          "Authorization": "Bearer {{MAPP_ANALYTICS_API_TOKEN}}",
+          "Content-Type": "application/json",
+          "Accept": "application/json"
+        },
+        "queryParams": {}
+      },
+      "apiWorkflow": {
+        "workflowType": "analysis-query",
+        "requestBodySource": "ref/intelligence-channel-performance.json",
+        "poll": {
+          "intervalMs": 2000,
+          "maxAttempts": 30
+        },
+        "resultSelection": "first-success"
+      },
+      "agentInputDefaults": {},
+      "inputMapping": {},
+      "outputFormat": "json",
+      "addedAt": "2026-03-10T19:23:29.349Z",
+      "addedBy": "codex",
+      "usageCount": 0,
+      "lastUsedAt": null
+    },
+    {
+      "id": "route-010",
+      "capability": "mapp-intelligence-daily-report-global",
+      "description": "Run Daily Report (GLOBAL) from Mapp Intelligence.",
+      "matchPatterns": [
+        "daily report global mapp intelligence",
+        "analyze last 7 days kpi report",
+        "run daily report mapp intelligence",
+        "global traffic daily report"
+      ],
+      "routeType": "api",
+      "endpoint": {
+        "url": "{{MAPP_ANALYTICS_API_URL}}/analytics/api/report-query",
+        "method": "POST",
+        "headers": {
+          "Authorization": "Bearer {{MAPP_ANALYTICS_API_TOKEN}}",
+          "Content-Type": "application/json",
+          "Accept": "application/json"
+        },
+        "queryParams": {}
+      },
+      "apiWorkflow": {
+        "workflowType": "report-query",
+        "requestBodySource": "ref/intelligence-daily-report.json",
+        "poll": {
+          "intervalMs": 2000,
+          "maxAttempts": 30
+        },
+        "resultSelection": "all-success"
+      },
+      "agentInputDefaults": {},
+      "inputMapping": {},
+      "outputFormat": "json",
+      "addedAt": "2026-03-10T19:23:29.349Z",
+      "addedBy": "codex",
+      "usageCount": 0,
+      "lastUsedAt": null
     }
   ]
 }

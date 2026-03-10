@@ -47,6 +47,56 @@ src/
 
 ## Post-Handover Progress (2026-03-10, Codex)
 
+### Plan 56: Mapp Intelligence API Workflows + `api-fetcher` skill preflight
+
+Status: Implemented in code and tests.
+
+What changed:
+- Extended learned-route schema with API workflow metadata:
+  - `apiWorkflow.workflowType`: `single-request | analysis-query | report-query`
+  - `apiWorkflow.requestBodySource`
+  - `apiWorkflow.poll` (`intervalMs`, `maxAttempts`)
+  - `apiWorkflow.resultSelection` (`all-success | first-success`)
+- Added template-backed API routes in `knowledge/learned-routes.json`:
+  - `mapp-intelligence-cohort-performance-report` (report template)
+  - `mapp-intelligence-channel-performance-analysis` (analysis template)
+  - `mapp-intelligence-daily-report-global` (report template)
+- Refactored `api-fetcher` into workflow engine:
+  - `single-request` (existing behavior)
+  - `analysis-query` (create -> optional poll -> analysis-result)
+  - `report-query` (create -> poll report state -> collect success calculationIds -> fetch aggregated results)
+  - compact metadata output for Agency aggregation (`workflowType`, `preflight`, compact result summaries)
+- Implemented auth behavior in `api-fetcher`:
+  - uses `MAPP_ANALYTICS_API_TOKEN` bearer token
+  - on 401 for Mapp endpoints: refresh once via OAuth client-credentials (Basic auth) and retry once
+  - refreshed token is runtime-only (not persisted to `.env`)
+- Integrated deterministic preflight from `skills/mcp-builder-SKILL.md` for API routes executed by `api-fetcher`:
+  - preflight diagnostics included in output metadata
+  - MCP routes remain unchanged (`mcp-fetcher` path)
+- Reinforced MCP-first routing tie-break in learned-route selection:
+  - tie score preference: `sub-agent:mcp-fetcher` > other `sub-agent` > API routes
+- Updated cognition knowledge/prompt docs to document split:
+  - MCP prompts stay on `mcp-fetcher`
+  - report-template intelligence prompts go to `api-fetcher`
+- Updated usage guide prompt pack with expected route targets for both API-template and MCP prompts.
+
+Tests added/updated:
+- `tests/unit/api-fetcher-workflows.test.ts`
+  - analysis-query direct calculation path
+  - analysis-query polling path
+  - analysis-query polling timeout path
+  - report-query aggregation path
+  - malformed `requestBodySource` path
+  - 401 -> token refresh -> retry path
+  - refresh failure deterministic failure payload
+- `tests/unit/learned-routes-store.test.ts`
+  - MCP-first tie-break when match scores tie
+  - summary includes `workflowType` metadata for template-backed routes
+- `tests/unit/mapp-intelligence-contracts.test.ts`
+  - required Postman endpoints present in `ref/intelligence-postman-collection.json`
+  - all learned API `requestBodySource` files exist and parse as JSON
+  - route capability contracts for cohort/channel/daily templates
+
 ### Fixed: MCP route occasionally executing via `api-fetcher`
 
 **User-visible symptom**

@@ -124,4 +124,65 @@ describe.sequential("learned-routes store", () => {
     expect(added.agentId).toBe("cohort-monitor");
     expect(added.endpoint).toBeUndefined();
   });
+
+  it("prefers mcp-fetcher when api and mcp routes tie on match score", () => {
+    learnedRoutesStore.addRoute({
+      capability: "segments-via-api",
+      description: "Segments via API route",
+      matchPatterns: ["segments", "mapp intelligence account"],
+      endpoint: {
+        url: "https://api.example.com/v1/segments",
+        method: "GET",
+        headers: {},
+        queryParams: {},
+      },
+      addedBy: "tester",
+    });
+
+    learnedRoutesStore.addRoute({
+      capability: "segments-via-mcp",
+      description: "Segments via MCP route",
+      matchPatterns: ["segments", "mapp intelligence account"],
+      routeType: "sub-agent",
+      agentId: "mcp-fetcher",
+      agentInputDefaults: {
+        serverName: "mapp-michel",
+        toolName: "list_segments",
+      },
+      addedBy: "tester",
+    });
+
+    const match = learnedRoutesStore.findByCapability(
+      "What segments are defined in my Mapp Intelligence account?"
+    );
+
+    expect(match?.id).toBe("route-002");
+    expect(match?.routeType).toBe("sub-agent");
+    expect(match?.agentId).toBe("mcp-fetcher");
+  });
+
+  it("includes api workflow metadata in summary for template-backed routes", () => {
+    learnedRoutesStore.addRoute({
+      capability: "daily-report-template",
+      description: "Daily report template route",
+      matchPatterns: ["daily report", "kpi report"],
+      endpoint: {
+        url: "https://intelligence.eu.mapp.com/analytics/api/report-query",
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        queryParams: {},
+      },
+      apiWorkflow: {
+        workflowType: "report-query",
+        requestBodySource: "ref/intelligence-daily-report.json",
+        poll: { intervalMs: 2000, maxAttempts: 30 },
+        resultSelection: "all-success",
+      },
+      addedBy: "tester",
+    });
+
+    const summary = learnedRoutesStore.getSummary();
+    expect(summary).toHaveLength(1);
+    expect(summary[0].workflowType).toBe("report-query");
+  });
 });

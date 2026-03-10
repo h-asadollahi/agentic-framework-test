@@ -184,9 +184,13 @@ export class CognitionAgent extends BaseAgent {
             r.routeType === "sub-agent" && r.agentId
               ? `{ "routeId": "${r.id}", ...relevant params for ${r.agentId}... }`
               : `{ "routeId": "${r.id}", "params": { ...relevant params... } }`;
+          const workflowHint =
+            r.routeType === "api" && r.workflowType
+              ? ` (workflow: ${r.workflowType})`
+              : "";
 
           return (
-            `- **${r.capability}** (routeId: "${r.id}", target: ${target}): ${r.description}\n` +
+            `- **${r.capability}** (routeId: "${r.id}", target: ${target}${workflowHint}): ${r.description}\n` +
             `  Match keywords: ${r.matchPatterns.slice(0, 5).join(", ")}\n` +
             `  Input: ${inputHint}`
           );

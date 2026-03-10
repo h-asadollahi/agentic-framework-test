@@ -6,6 +6,7 @@ import {
   LearnedRoutesFileSchema,
   type LearnedRoute,
   type LearnedRoutesFile,
+  type ApiWorkflow,
   type Endpoint,
 } from "./learned-routes-schema.js";
 import { logger } from "../core/logger.js";
@@ -125,6 +126,13 @@ class LearnedRoutesStoreImpl {
       if (score > bestScore) {
         bestScore = score;
         bestMatch = route;
+      } else if (
+        score > 0 &&
+        score === bestScore &&
+        bestMatch &&
+        compareRoutePriority(route, bestMatch) > 0
+      ) {
+        bestMatch = route;
       }
     }
 
@@ -155,6 +163,7 @@ class LearnedRoutesStoreImpl {
     matchPatterns: string[];
     routeType?: "api" | "sub-agent";
     endpoint?: Endpoint;
+    apiWorkflow?: ApiWorkflow;
     agentId?: string;
     agentInputDefaults?: Record<string, unknown>;
     inputMapping?: Record<string, string>;
@@ -172,6 +181,7 @@ class LearnedRoutesStoreImpl {
       matchPatterns: data.matchPatterns,
       routeType: data.routeType ?? "api",
       endpoint: data.endpoint,
+      apiWorkflow: data.apiWorkflow,
       agentId: data.agentId,
       agentInputDefaults: data.agentInputDefaults ?? {},
       inputMapping: data.inputMapping ?? {},
@@ -231,6 +241,7 @@ class LearnedRoutesStoreImpl {
     routeType: "api" | "sub-agent";
     agentId?: string;
     endpointUrl?: string;
+    workflowType?: ApiWorkflow["workflowType"];
   }> {
     this.ensureLoaded();
 
@@ -245,6 +256,7 @@ class LearnedRoutesStoreImpl {
         routeType: r.routeType,
         agentId: r.agentId,
         endpointUrl: r.endpoint?.url,
+        workflowType: r.apiWorkflow?.workflowType,
       }));
   }
 
@@ -261,3 +273,19 @@ class LearnedRoutesStoreImpl {
  * Singleton store instance.
  */
 export const learnedRoutesStore = new LearnedRoutesStoreImpl();
+
+function compareRoutePriority(a: LearnedRoute, b: LearnedRoute): number {
+  const aRank = routePriorityRank(a);
+  const bRank = routePriorityRank(b);
+  if (aRank !== bRank) return aRank - bRank;
+  if (a.usageCount !== b.usageCount) return a.usageCount - b.usageCount;
+  return a.id.localeCompare(b.id) * -1;
+}
+
+function routePriorityRank(route: LearnedRoute): number {
+  // Higher number = higher priority in tie-break
+  if (route.routeType === "sub-agent" && route.agentId === "mcp-fetcher") return 4;
+  if (route.routeType === "sub-agent") return 3;
+  if (route.routeType === "api" && route.apiWorkflow?.workflowType) return 2;
+  return 1;
+}

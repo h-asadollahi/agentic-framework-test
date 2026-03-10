@@ -11,24 +11,33 @@ This file mirrors the current runtime behavior of `api-fetcher`.
 1. Validate input (`routeId`, optional `params`).
 2. Resolve learned route by `routeId` from `knowledge/learned-routes.json`.
 3. Validate route type is `api` with endpoint details.
-4. Resolve templates:
+4. Run deterministic preflight metadata generation based on `skills/mcp-builder-SKILL.md` for API-call routes.
+5. Resolve templates:
    - env placeholders: `{{ENV_VAR}}`
    - runtime params: `{{input.key}}`
-5. Execute HTTP request with resolved method/url/headers/query/body.
-6. Return structured output:
+   - request body template file from `apiWorkflow.requestBodySource` when configured
+6. Execute configured workflow:
+   - `single-request`: one HTTP call
+   - `analysis-query`: create -> optional poll -> fetch analysis result
+   - `report-query`: create report -> poll report status -> fetch selected calculation results
+7. Apply Mapp auth strategy:
+   - use `MAPP_ANALYTICS_API_TOKEN`
+   - on 401, refresh once via OAuth client-credentials and retry once
+8. Return structured output:
    - route ID
-   - endpoint
-   - status code
-   - data
+   - workflow type
+   - preflight metadata
+   - compact execution/aggregation data
    - fetched timestamp
-7. Increment learned-route usage on execution.
+9. Increment learned-route usage on execution.
 
 ## Error Behavior
 
 - Invalid input -> returns `success: false` with validation details.
 - Unknown route -> returns `success: false` with route-not-found message.
 - Non-API route -> returns `success: false` with route-type error.
-- Fetch errors -> returns `success: false` with error message.
+- Template file issues -> returns `success: false` with file/path parse error.
+- Workflow or fetch errors -> returns `success: false` with stage-aware error message and preflight context.
 
 ## AI Prompt Usage
 

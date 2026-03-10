@@ -1,0 +1,103 @@
+{
+    "resultType": "DATA_ONLY",
+    "queryObject": {
+        "columns": [
+            {
+                "name": "campaign_category_text_4",
+                "scope": "OBJECT",
+                "context": "ACTION",
+                "variant": "NORMAL",
+                "lowerLimit": 1,
+                "upperLimit": 10
+            },
+            {
+                "name": "campaign_category_text_5",
+                "scope": "OBJECT",
+                "context": "ACTION",
+                "lowerLimit": 1,
+                "upperLimit": 10
+            },
+            {
+                "name": "campaign_category_text_1",
+                "scope": "OBJECT",
+                "context": "ACTION",
+                "lowerLimit": 1,
+                "upperLimit": 10
+            },
+            {
+                "name": "campaign_category_text_2",
+                "scope": "OBJECT",
+                "context": "ACTION",
+                "lowerLimit": 1,
+                "upperLimit": 10
+            },
+            {
+                "name": "campaigns",
+                "scope": "OBJECT",
+                "context": "ACTION",
+                "lowerLimit": 1,
+                "upperLimit": 10
+            },
+            {
+                "name": "campaigns_clicks",
+                "columnPeriod": "ANALYSIS",
+                "sortDirection": "DESCENDING",
+                "sortIndex": 1,
+                "scope": "OBJECT",
+                "context": "ACTION",
+                "variant": "NORMAL",
+                "inTimeSeries": true
+            },
+            {
+                "name": "visits_newVisitors",
+                "columnPeriod": "ANALYSIS",
+                "scope": "OBJECT",
+                "context": "SESSION"
+            },
+            {
+                "name": "custom_formula_1000086",
+                "columnPeriod": "ANALYSIS",
+                "scope": "OBJECT",
+                "context": "NONE"
+            },
+            {
+                "name": "visits_mobileShare",
+                "columnPeriod": "ANALYSIS",
+                "scope": "OBJECT"
+            },
+            {
+                "name": "custom_formula_1000084",
+                "columnPeriod": "ANALYSIS",
+                "scope": "OBJECT",
+                "context": "NONE"
+            },
+            {
+                "name": "visits_bounceRate",
+                "columnPeriod": "ANALYSIS",
+                "scope": "OBJECT"
+            },
+            {
+                "name": "custom_formula_1000081",
+                "columnPeriod": "ANALYSIS",
+                "scope": "OBJECT",
+                "context": "NONE"
+            }
+        ],
+        "predefinedContainer": {
+            "filters": [
+                {
+                    "name": "time_dynamic",
+                    "connector": "AND",
+                    "filterPredicate": "LIKE",
+                    "value1": "last_7_days",
+                    "value2": "",
+                    "context": "NONE",
+                    "caseSensitive": false
+                }
+            ],
+            "containers": []
+        },
+        "description": "",
+        "variant": "PIVOT"
+    }
+}

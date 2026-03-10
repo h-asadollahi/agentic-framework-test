@@ -778,6 +778,26 @@ These prompts should route to `mcp-fetcher` with `serverName: "mapp-michel"` (fr
 - `What segments are defined in my Mapp Intelligence account?`
 - `How many API calculations have I used this month?`
 
+### Mapp Intelligence API template workflows (`api-fetcher`)
+
+These prompts should route to `api-fetcher` using template-backed `apiWorkflow` routes and deterministic `mcp-builder-SKILL.md` preflight metadata:
+
+- `Run the Cohorts Performance report in Mapp Intelligence.`  
+  Expected target: `api-fetcher` (`workflowType: report-query`, template: `ref/intelligence-cohort-performance.json`)
+- `Show cohort retention/conversion trend from Mapp Intelligence cohorts report.`  
+  Expected target: `api-fetcher` (`workflowType: report-query`, template: `ref/intelligence-cohort-performance.json`)
+- `Show channel performance for the last 7 days in Mapp Intelligence.`  
+  Expected target: `api-fetcher` (`workflowType: analysis-query`, template: `ref/intelligence-channel-performance.json`)
+- `Run Daily Report (GLOBAL) from Mapp Intelligence.`  
+  Expected target: `api-fetcher` (`workflowType: report-query`, template: `ref/intelligence-daily-report.json`)
+- `Analyze last 7 days KPI report from Mapp Intelligence.`  
+  Expected target: `api-fetcher` (`workflowType: report-query`, template: `ref/intelligence-daily-report.json`)
+
+Unchanged MCP-first prompts (must stay on `mcp-fetcher`):
+
+- `List all available dimensions and metrics in Mapp Intelligence.`
+- `What segments are defined in my Mapp Intelligence account?`
+
 ### Cohort Monitor prompts
 
 These prompts should trigger the `cohort-monitor` sub-agent:

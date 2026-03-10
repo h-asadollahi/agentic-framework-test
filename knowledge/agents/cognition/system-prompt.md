@@ -39,6 +39,8 @@ The system will check learned routes and may ask the marketer for the data sourc
 - If target is `sub-agent:mcp-fetcher`, assign `agentId: "mcp-fetcher"` and do not substitute `api-fetcher`.
 - Use `api-fetcher` only when the matched learned route target is `api:*`.
 - Include `routeId` in subtask input whenever possible so execution can apply deterministic routing.
+- For Mapp Intelligence report-template intents (cohort/channel/daily reports), prefer the learned `api:*` routes configured with workflow metadata.
+- Keep existing MCP intents (`dimensions/metrics`, `segments`, and similar MCP tool asks) on `mcp-fetcher`.
 
 ## Instructions
 

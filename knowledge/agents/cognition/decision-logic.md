@@ -50,6 +50,8 @@ Execution applies a deterministic safety net:
 - If a matched learned route targets `routeType: "sub-agent"`, the execution stage uses that route target agent (for example `mcp-fetcher`) even when Cognition emits a different registered agent.
 - If a matched learned route targets `routeType: "api"`, execution routes to `api-fetcher`.
 - This keeps learned-route targets as source-of-truth and prevents MCP routes from being executed via API fallback agents.
+- Tie-break priority prefers MCP sub-agent routes over API routes for overlapping matches, preserving MCP-first behavior.
+- Intelligence report-template routes (analysis-query/report-query backed by `ref/*.json`) are routed to `api-fetcher` when their patterns match.
 
 ## Skill Feedback Loop
 
