@@ -23,9 +23,9 @@ export const registry = createProviderRegistry({
  *
  * Override any alias by setting the matching env var in .env:
  *   MODEL_ANTHROPIC_FAST=claude-haiku-4-5
- *   MODEL_OPENAI_BALANCED=gpt-4o
- *   MODEL_OPENAI_POWERFUL=gpt-5
- *   MODEL_GOOGLE_FAST=gemini-2.5-flash
+ *   MODEL_OPENAI_BALANCED=gpt-5
+ *   MODEL_OPENAI_POWERFUL=gpt-5.2
+ *   MODEL_GOOGLE_FAST=gemini-2.5-flash-lite
  *
  * The env var name follows the pattern:
  *   MODEL_{PROVIDER}_{TIER}  (uppercased, hyphens → underscores)
@@ -40,13 +40,13 @@ const DEFAULTS: Record<string, string> = {
   "anthropic:powerful": "claude-opus-4-6",
 
   // OpenAI
-  "openai:fast": "gpt-4o-mini",
-  "openai:balanced": "gpt-4o",
-  "openai:powerful": "gpt-5",
-  "openai:reasoning": "o3",
+  "openai:fast": "gpt-5-mini",
+  "openai:balanced": "gpt-5",
+  "openai:powerful": "gpt-5.2",
+  "openai:reasoning": "gpt-5.2",
 
   // Google — https://ai.google.dev/gemini-api/docs/models
-  "google:fast": "gemini-2.5-flash",
+  "google:fast": "gemini-2.5-flash-lite",
   "google:balanced": "gemini-2.5-pro",
 };
 

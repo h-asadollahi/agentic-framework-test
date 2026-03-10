@@ -869,3 +869,22 @@ Key interfaces: `PipelinePayload`, `PipelineResult`, `SubTask`, `AgentResult`, `
   - runtime check confirmed `getModelAssignment('orchestrator')` resolves:
     - preferred: `openai:powerful`
     - fallbacks: `anthropic:powerful`, `google:balanced`.
+
+### Model Alias Refresh — OpenAI/Google Tiers (Plan 52) — Completed
+- Updated OpenAI alias versions for faster/balanced/reasoning/powerful tiers:
+  - `MODEL_OPENAI_FAST=gpt-5-mini`
+  - `MODEL_OPENAI_BALANCED=gpt-5`
+  - `MODEL_OPENAI_REASONING=gpt-5.2`
+  - `MODEL_OPENAI_POWERFUL=gpt-5.2`
+- Updated Google fast alias:
+  - `MODEL_GOOGLE_FAST=gemini-2.5-flash-lite`
+  - `MODEL_GOOGLE_BALANCED` remains `gemini-2.5-pro`
+- Applied to:
+  - `.env`
+  - `.env.example`
+- Updated fallback defaults (for env-missing scenarios):
+  - `src/config/providers.ts`
+- Validation:
+  - `tests/unit/model-router.test.ts` passed
+  - `tests/unit/context.test.ts` passed
+  - full unit suite passed (`25` test files, `119` tests).
