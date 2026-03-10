@@ -783,3 +783,16 @@ Key interfaces: `PipelinePayload`, `PipelineResult`, `SubTask`, `AgentResult`, `
   - `tests/unit/agent-spec-loader.test.ts` now includes a `.trigger`-style external cwd scenario and verifies that `knowledge/agents/grounding/system-prompt.md` still loads.
 - Validation:
   - Full unit suite passed after patch (`24` test files, `114` tests).
+
+### Runtime Bugfix (Plan 46, Reused Number) — Completed
+- Fixed grounding-stage JSON parsing robustness in Trigger pipeline:
+  - `src/trigger/ground.ts` now uses shared tolerant parser (`parseAgentJson`) instead of strict `JSON.parse`.
+  - Supports plain JSON, fenced JSON, and embedded JSON patterns in grounding agent output.
+  - Existing fallback remains unchanged: if output is truly non-JSON, grounding safely falls back to deterministic file-parsed context and logs warning.
+- Added helper for testability:
+  - `buildGroundingResultFromOutput(output, context)` in `src/trigger/ground.ts`.
+- Added tests:
+  - `tests/unit/ground-output-parser.test.ts`
+  - cases: plain JSON, fenced JSON, non-JSON fallback.
+- Validation:
+  - Full unit suite passed (`25` test files, `117` tests).

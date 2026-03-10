@@ -1,7 +1,46 @@
 import { task, logger } from "@trigger.dev/sdk/v3";
 import { groundingAgent } from "../agents/grounding-agent.js";
 import { buildExecutionContext } from "../core/context.js";
-import type { GroundingResult } from "../core/types.js";
+import type { ExecutionContext, GroundingResult } from "../core/types.js";
+import { parseAgentJson } from "./agent-output-parser.js";
+
+type GroundingOutputPayload = Partial<
+  Pick<GroundingResult, "brandIdentity" | "guardrails">
+>;
+
+export function buildGroundingResultFromOutput(
+  output: unknown,
+  context: ExecutionContext
+): { groundingResult: GroundingResult; parsedJson: boolean } {
+  const parsed = parseAgentJson<GroundingOutputPayload>(output);
+
+  if (!parsed) {
+    return {
+      parsedJson: false,
+      groundingResult: {
+        brandIdentity: context.brandIdentity,
+        guardrails: context.guardrails,
+        context,
+      },
+    };
+  }
+
+  const brandIdentity = parsed.brandIdentity ?? context.brandIdentity;
+  const guardrails = parsed.guardrails ?? context.guardrails;
+
+  return {
+    parsedJson: true,
+    groundingResult: {
+      brandIdentity,
+      guardrails,
+      context: {
+        ...context,
+        brandIdentity,
+        guardrails,
+      },
+    },
+  };
+}
 
 /**
  * Grounding Task
@@ -23,27 +62,14 @@ export const groundTask = task({
       tokens: result.tokensUsed,
     });
 
-    // Parse the agent's JSON output into typed result
-    let groundingResult: GroundingResult;
-    try {
-      const parsed = JSON.parse(result.output as string);
-      groundingResult = {
-        brandIdentity: parsed.brandIdentity ?? context.brandIdentity,
-        guardrails: parsed.guardrails ?? context.guardrails,
-        context: {
-          ...context,
-          brandIdentity: parsed.brandIdentity ?? context.brandIdentity,
-          guardrails: parsed.guardrails ?? context.guardrails,
-        },
-      };
-    } catch {
+    const { groundingResult, parsedJson } = buildGroundingResultFromOutput(
+      result.output,
+      context
+    );
+
+    if (!parsedJson) {
       // If the agent output isn't valid JSON, use the pre-parsed context
       logger.warn("Grounding agent output wasn't valid JSON, using parsed context");
-      groundingResult = {
-        brandIdentity: context.brandIdentity,
-        guardrails: context.guardrails,
-        context,
-      };
     }
 
     return groundingResult;
