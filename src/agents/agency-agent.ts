@@ -2,6 +2,7 @@ import type { Tool } from "ai";
 import { BaseAgent } from "./base-agent.js";
 import type { AgentConfig, ExecutionContext } from "../core/types.js";
 import { getModelAssignment } from "../config/models.js";
+import { loadAgentPromptSpec } from "../tools/agent-spec-loader.js";
 
 const DEFAULT_CONFIG: AgentConfig = {
   id: "agency",
@@ -29,40 +30,18 @@ const DEFAULT_CONFIG: AgentConfig = {
   },
 };
 
-/**
- * Agency Agent
- *
- * Third stage of the guardrail pipeline.
- * In the trigger.dev architecture, this agent's logic is mostly coordination:
- * the actual sub-agent execution happens via trigger.dev batch tasks.
- *
- * This agent handles:
- * - Interpreting subtask results
- * - Aggregating outputs from parallel sub-agents
- * - Making decisions when subtasks fail or return unexpected results
- */
-export class AgencyAgent extends BaseAgent {
-  constructor(config?: Partial<AgentConfig>) {
-    super({ ...DEFAULT_CONFIG, ...config });
-  }
+type PromptLoader = typeof loadAgentPromptSpec;
 
-  getTools(_context: ExecutionContext): Record<string, Tool> {
-    // Tools are injected at the trigger.dev task level
-    // (sub-agents are triggered via batch.triggerByTaskAndWait)
-    return {};
-  }
+export const AGENCY_SYSTEM_PROMPT_FILE =
+  "knowledge/agents/agency/system-prompt.md";
 
-  buildSystemPrompt(context: ExecutionContext): string {
-    const brand = context.brandIdentity;
-    const guardrails = context.guardrails;
-
-    return `You are the Agency Agent in a multi-agent marketing platform for "${brand.name}".
+export const AGENCY_SYSTEM_PROMPT_FALLBACK = `You are the Agency Agent in a multi-agent marketing platform for "{{BRAND_NAME}}".
 
 Your role is to analyze the results from sub-agent executions and produce a coherent summary.
 
 ## Guardrails
-- Never do: ${guardrails.neverDo.join("; ")}
-- Always do: ${guardrails.alwaysDo.join("; ")}
+- Never do: {{GUARDRAILS_NEVER_DO}}
+- Always do: {{GUARDRAILS_ALWAYS_DO}}
 
 ## Instructions
 
@@ -91,6 +70,51 @@ Return a JSON object with this structure:
   "issues": ["Any issues or warnings to flag"],
   "needsHumanReview": false
 }`;
+
+/**
+ * Agency Agent
+ *
+ * Third stage of the guardrail pipeline.
+ * In the trigger.dev architecture, this agent's logic is mostly coordination:
+ * the actual sub-agent execution happens via trigger.dev batch tasks.
+ *
+ * This agent handles:
+ * - Interpreting subtask results
+ * - Aggregating outputs from parallel sub-agents
+ * - Making decisions when subtasks fail or return unexpected results
+ */
+export class AgencyAgent extends BaseAgent {
+  private promptLoader: PromptLoader;
+  private promptFile: string;
+
+  constructor(
+    config?: Partial<AgentConfig>,
+    options?: { promptLoader?: PromptLoader; promptFile?: string }
+  ) {
+    super({ ...DEFAULT_CONFIG, ...config });
+    this.promptLoader = options?.promptLoader ?? loadAgentPromptSpec;
+    this.promptFile = options?.promptFile ?? AGENCY_SYSTEM_PROMPT_FILE;
+  }
+
+  getTools(_context: ExecutionContext): Record<string, Tool> {
+    // Tools are injected at the trigger.dev task level
+    // (sub-agents are triggered via batch.triggerByTaskAndWait)
+    return {};
+  }
+
+  buildSystemPrompt(context: ExecutionContext): string {
+    const vars = {
+      BRAND_NAME: context.brandIdentity.name,
+      GUARDRAILS_NEVER_DO: context.guardrails.neverDo.join("; "),
+      GUARDRAILS_ALWAYS_DO: context.guardrails.alwaysDo.join("; "),
+    };
+
+    return this.promptLoader(
+      this.config.id,
+      this.promptFile,
+      AGENCY_SYSTEM_PROMPT_FALLBACK,
+      vars
+    );
   }
 }
 

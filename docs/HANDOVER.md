@@ -683,5 +683,19 @@ Key interfaces: `PipelinePayload`, `PipelineResult`, `SubTask`, `AgentResult`, `
 - Updated docs:
   - `docs/usage-guide.md` now includes cognition in `knowledge/agents/...` runtime spec pattern.
 
+### Agency Spec Migration (Plan 39) — Completed
+- Agency runtime prompt source moved to knowledge docs:
+  - `knowledge/agents/agency/system-prompt.md`
+  - `knowledge/agents/agency/decision-logic.md`
+- Refactored `AgencyAgent` to load its system prompt from `knowledge/` with placeholder variable interpolation:
+  - dynamic brand context
+  - dynamic guardrail context
+- Added tests:
+  - `tests/unit/agency-agent.test.ts`
+- Added fixture:
+  - `tests/fixtures/agency-system-prompt-custom.md`
+- Updated docs:
+  - `docs/usage-guide.md` now includes agency in the `knowledge/agents/...` runtime spec pattern.
+
 ### Next Planned Migration
-- Agency agent prompt + aggregation/issue decisioning docs under `knowledge/agents/agency/` using the same runtime loader pattern.
+- Interface agent prompt + notification decision docs under `knowledge/agents/interface/` using the same runtime loader pattern.
