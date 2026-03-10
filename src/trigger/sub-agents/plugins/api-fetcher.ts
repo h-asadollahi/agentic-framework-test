@@ -197,7 +197,10 @@ export class ApiFetcherAgent extends BaseSubAgent {
   // AI-based methods (kept for compatibility, not used in fetch mode)
 
   getSystemPrompt(_context: ExecutionContext): string {
-    return "You are the API Fetcher sub-agent. Your role is to retrieve data from learned API endpoints.";
+    return (
+      "You are the API Fetcher sub-agent. Your role is to retrieve data from learned API endpoints. " +
+      this.getSkillCreationInstruction()
+    );
   }
 
   getTools(_context: ExecutionContext): Record<string, Tool> {

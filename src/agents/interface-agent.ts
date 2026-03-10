@@ -87,6 +87,7 @@ Your job is to:
    - Key Findings
    - Data Source and Time Window
    - Recommended Next Step
+11. If the pipeline suggests creating a reusable capability, mention that a new skill should be created from ./skills/universal-agent-skill-creator.md and saved under ./skills.
 
 ## Output Format
 

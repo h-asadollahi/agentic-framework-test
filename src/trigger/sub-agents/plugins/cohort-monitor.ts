@@ -166,7 +166,8 @@ Style: ${context.brandIdentity.voice.style}
 ## Rules
 - Always ground analysis in data
 - Flag declining metrics proactively
-- Recommendations should be specific and actionable`;
+- Recommendations should be specific and actionable
+- ${this.getSkillCreationInstruction()}`;
   }
 
   getTools(_context: ExecutionContext): Record<string, Tool> {

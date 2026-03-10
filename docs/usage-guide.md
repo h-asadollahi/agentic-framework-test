@@ -807,6 +807,14 @@ These prompts should trigger the Agency MCP-builder workflow (skill-guided respo
 - `Build an MCP server integration for this REST API with OAuth and pagination.`
 - `Help me expose our support platform API as MCP tools in TypeScript.`
 
+### Universal Skill Creator prompts
+
+These prompts should trigger the universal skill-creator workflow (using `skills/universal-agent-skill-creator.md`) and recommend saving output under `./skills`:
+
+- `Create a reusable skill for campaign QA reviews with clear pass/fail criteria.`
+- `Build a new agent skill for onboarding marketers to KPI analysis workflows.`
+- `Generate a skill template for handling weekly retention reporting requests.`
+
 ### Alert-routing validation prompts
 
 Use these to verify Slack alert routing behavior:

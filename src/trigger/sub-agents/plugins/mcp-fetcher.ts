@@ -331,7 +331,7 @@ export class McpFetcherAgent extends BaseSubAgent {
   }
 
   getSystemPrompt(_context: ExecutionContext): string {
-    return "You are the MCP Fetcher sub-agent.";
+    return `You are the MCP Fetcher sub-agent. ${this.getSkillCreationInstruction()}`;
   }
 
   getTools(_context: ExecutionContext): Record<string, Tool> {

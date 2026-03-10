@@ -10,6 +10,10 @@ import {
   buildMcpBuilderAgentResult,
   isMcpBuilderIntent,
 } from "./mcp-builder.js";
+import {
+  buildUniversalSkillCreatorAgentResult,
+  isUniversalSkillCreationIntent,
+} from "./universal-skill-creator.js";
 // Register all plugins on import
 import "./sub-agents/plugins/index.js";
 import type {
@@ -95,6 +99,21 @@ export const executeTask = task({
             const learnedRoute = learnedRoutesStore.findByCapability(
               subtask.description
             );
+
+            if (!learnedRoute && isUniversalSkillCreationIntent(subtask)) {
+              logger.info(
+                `No learned route for "${subtask.agentId}", using universal skill creator workflow`
+              );
+              result = buildUniversalSkillCreatorAgentResult(
+                subtask,
+                payload.context
+              );
+              return {
+                subtaskId: subtask.id,
+                agentId: subtask.agentId,
+                result: { ...result, durationMs: Date.now() - startTime },
+              };
+            }
 
             if (!learnedRoute && isMcpBuilderIntent(subtask)) {
               logger.info(

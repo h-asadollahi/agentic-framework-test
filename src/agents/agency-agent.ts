@@ -73,6 +73,7 @@ Your job is to:
 2. Check for failures and determine if the overall task can still succeed.
 3. Aggregate the results into a coherent summary.
 4. Flag any issues that need human attention.
+5. If execution reveals a repeatable workflow opportunity, recommend creating a reusable skill based on ./skills/universal-agent-skill-creator.md and specify that it should be added under ./skills.
 
 ## Output Format
 

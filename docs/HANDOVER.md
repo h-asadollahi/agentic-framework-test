@@ -435,6 +435,28 @@ src/
   - `docs/usage-guide.md` now includes MCP-builder trigger prompts.
 - Validation:
   - `npm test` passed (`15` files, `87` tests).
+
+### Additional Fix (2026-03-10): Universal Skill-Creator Across Agents/Sub-Agents
+- Added universal skill-creator workflow module:
+  - `src/trigger/universal-skill-creator.ts`
+  - Detects skill-creation intent and returns structured guidance based on `skills/universal-agent-skill-creator.md`.
+  - Guidance explicitly targets `./skills` as destination for new reusable skills.
+- Agency routing update:
+  - `src/trigger/execute.ts` now routes unknown subtasks with skill-creation intent to universal skill-creator workflow before generic fallback.
+- Prompt-level behavior update across agents and sub-agents:
+  - Main agents updated (`grounding`, `cognition`, `agency`, `interface`) to explicitly recommend creating reusable skills via `./skills/universal-agent-skill-creator.md` and storing new skills under `./skills`.
+  - Sub-agent base class adds shared skill-creation instruction helper.
+  - Sub-agent prompts updated (`cohort-monitor`, `api-fetcher`, `mcp-fetcher`) to include this instruction.
+- Tests added:
+  - `tests/unit/universal-skill-creator.test.ts`
+    - intent detection
+    - guidance structure
+    - destination folder assertions
+    - Agency-compatible result output
+- Usage docs updated:
+  - Added universal skill-creator prompts in `docs/usage-guide.md`.
+- Validation:
+  - `npm test` passed (`16` files, `91` tests).
   - `escalate-to-human` timeout path verified end-to-end
   - `learn-route` fallback path verified end-to-end
 - Verified interactive runtime paths:

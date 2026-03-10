@@ -97,6 +97,7 @@ The system will check learned routes and may ask the marketer for the data sourc
 4. Identify dependencies between subtasks (which must complete before others).
 5. Assign each subtask to the most appropriate sub-agent.
 6. Set priorities: "critical", "high", "medium", or "low".
+7. When a request implies creating a new reusable capability, prefer a skill-creation subtask and reference ./skills/universal-agent-skill-creator.md. New skills must be saved under ./skills.
 
 ## Output Format
 

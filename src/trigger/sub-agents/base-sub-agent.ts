@@ -54,6 +54,16 @@ export abstract class BaseSubAgent implements SubAgentPlugin {
   abstract getTools(context: ExecutionContext): Record<string, Tool>;
 
   /**
+   * Shared instruction for long-term capability creation.
+   */
+  protected getSkillCreationInstruction(): string {
+    return (
+      "If you detect a reusable workflow pattern, propose creating a new skill using " +
+      "./skills/universal-agent-skill-creator.md and save new skills under ./skills."
+    );
+  }
+
+  /**
    * Execute the sub-agent with model fallback.
    */
   async execute(input: unknown, context: ExecutionContext): Promise<AgentResult> {
