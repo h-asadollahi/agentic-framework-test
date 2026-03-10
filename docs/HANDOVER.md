@@ -697,5 +697,19 @@ Key interfaces: `PipelinePayload`, `PipelineResult`, `SubTask`, `AgentResult`, `
 - Updated docs:
   - `docs/usage-guide.md` now includes agency in the `knowledge/agents/...` runtime spec pattern.
 
+### Interface Spec Migration (Plan 40) — Completed
+- Interface runtime prompt source moved to knowledge docs:
+  - `knowledge/agents/interface/system-prompt.md`
+  - `knowledge/agents/interface/decision-logic.md`
+- Refactored `InterfaceAgent` to load its system prompt from `knowledge/` with placeholder variable interpolation:
+  - dynamic brand name/tone/style/never-say context
+  - dynamic brand voice rules
+- Added tests:
+  - `tests/unit/interface-agent.test.ts`
+- Added fixture:
+  - `tests/fixtures/interface-system-prompt-custom.md`
+- Updated docs:
+  - `docs/usage-guide.md` now includes interface in the `knowledge/agents/...` runtime spec pattern.
+
 ### Next Planned Migration
-- Interface agent prompt + notification decision docs under `knowledge/agents/interface/` using the same runtime loader pattern.
+- Sub-agent prompt/spec migration starting with `cohort-monitor` under `knowledge/sub-agents/` using the same runtime loader pattern.

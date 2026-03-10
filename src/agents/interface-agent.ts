@@ -2,6 +2,7 @@ import type { Tool } from "ai";
 import { BaseAgent } from "./base-agent.js";
 import type { AgentConfig, ExecutionContext } from "../core/types.js";
 import { getModelAssignment } from "../config/models.js";
+import { loadAgentPromptSpec } from "../tools/agent-spec-loader.js";
 
 const DEFAULT_CONFIG: AgentConfig = {
   id: "interface",
@@ -29,40 +30,22 @@ const DEFAULT_CONFIG: AgentConfig = {
   },
 };
 
-/**
- * Interface Agent
- *
- * Fourth and final stage of the guardrail pipeline.
- * Takes the aggregated results from the Agency stage and:
- * 1. Formats a human-friendly response for the marketer
- * 2. Determines which notifications should be sent (and via which channel)
- * 3. Applies brand voice rules to the output
- */
-export class InterfaceAgent extends BaseAgent {
-  constructor(config?: Partial<AgentConfig>) {
-    super({ ...DEFAULT_CONFIG, ...config });
-  }
+type PromptLoader = typeof loadAgentPromptSpec;
 
-  getTools(_context: ExecutionContext): Record<string, Tool> {
-    // Notification tools are handled at the trigger.dev deliver task level
-    return {};
-  }
+export const INTERFACE_SYSTEM_PROMPT_FILE =
+  "knowledge/agents/interface/system-prompt.md";
 
-  buildSystemPrompt(context: ExecutionContext): string {
-    const brand = context.brandIdentity;
-    const guardrails = context.guardrails;
-
-    return `You are the Interface Agent in a multi-agent marketing platform for "${brand.name}".
+export const INTERFACE_SYSTEM_PROMPT_FALLBACK = `You are the Interface Agent in a multi-agent marketing platform for "{{BRAND_NAME}}".
 
 Your role is to format the final response for the marketer and decide on notifications.
 
 ## Brand Voice
-- Tone: ${brand.voice.tone}
-- Style: ${brand.voice.style}
-- Never say: ${brand.voice.neverSay.join(", ")}
+- Tone: {{BRAND_TONE}}
+- Style: {{BRAND_STYLE}}
+- Never say: {{BRAND_NEVER_SAY}}
 
 ## Brand Voice Rules
-${guardrails.brandVoiceRules.map((r) => `- ${r}`).join("\n")}
+{{BRAND_VOICE_RULES}}
 
 ## Instructions
 
@@ -107,6 +90,51 @@ Return a JSON object with this structure:
 
 If no notifications are needed, return an empty array for "notifications".
 Always prioritize clarity and actionability in the formattedResponse.`;
+
+/**
+ * Interface Agent
+ *
+ * Fourth and final stage of the guardrail pipeline.
+ * Takes the aggregated results from the Agency stage and:
+ * 1. Formats a human-friendly response for the marketer
+ * 2. Determines which notifications should be sent (and via which channel)
+ * 3. Applies brand voice rules to the output
+ */
+export class InterfaceAgent extends BaseAgent {
+  private promptLoader: PromptLoader;
+  private promptFile: string;
+
+  constructor(
+    config?: Partial<AgentConfig>,
+    options?: { promptLoader?: PromptLoader; promptFile?: string }
+  ) {
+    super({ ...DEFAULT_CONFIG, ...config });
+    this.promptLoader = options?.promptLoader ?? loadAgentPromptSpec;
+    this.promptFile = options?.promptFile ?? INTERFACE_SYSTEM_PROMPT_FILE;
+  }
+
+  getTools(_context: ExecutionContext): Record<string, Tool> {
+    // Notification tools are handled at the trigger.dev deliver task level
+    return {};
+  }
+
+  buildSystemPrompt(context: ExecutionContext): string {
+    const vars = {
+      BRAND_NAME: context.brandIdentity.name,
+      BRAND_TONE: context.brandIdentity.voice.tone,
+      BRAND_STYLE: context.brandIdentity.voice.style,
+      BRAND_NEVER_SAY: context.brandIdentity.voice.neverSay.join(", "),
+      BRAND_VOICE_RULES: context.guardrails.brandVoiceRules
+        .map((rule) => `- ${rule}`)
+        .join("\n"),
+    };
+
+    return this.promptLoader(
+      this.config.id,
+      this.promptFile,
+      INTERFACE_SYSTEM_PROMPT_FALLBACK,
+      vars
+    );
   }
 }
 

@@ -857,7 +857,7 @@ These prompts map to the current notification-policy tests and help verify the n
 
 ## 14. Agent Specs in Knowledge
 
-Grounding, Cognition, and Agency agent prompt/specs are runtime-loaded from the `knowledge` folder:
+Grounding, Cognition, Agency, and Interface agent prompt/specs are runtime-loaded from the `knowledge` folder:
 
 - `knowledge/agents/grounding/system-prompt.md`
 - `knowledge/agents/grounding/decision-logic.md`
@@ -865,16 +865,20 @@ Grounding, Cognition, and Agency agent prompt/specs are runtime-loaded from the 
 - `knowledge/agents/cognition/decision-logic.md`
 - `knowledge/agents/agency/system-prompt.md`
 - `knowledge/agents/agency/decision-logic.md`
+- `knowledge/agents/interface/system-prompt.md`
+- `knowledge/agents/interface/decision-logic.md`
 
 How it works:
 
 - `src/agents/grounding-agent.ts` loads the system prompt from `knowledge/agents/grounding/system-prompt.md`.
 - `src/agents/cognition-agent.ts` loads the system prompt from `knowledge/agents/cognition/system-prompt.md`.
 - `src/agents/agency-agent.ts` loads the system prompt from `knowledge/agents/agency/system-prompt.md`.
+- `src/agents/interface-agent.ts` loads the system prompt from `knowledge/agents/interface/system-prompt.md`.
 - `src/tools/agent-spec-loader.ts` handles file loading, placeholder interpolation (`{{KEY}}`), and fallback to hardcoded prompt if the file is missing/empty.
 - `src/trigger/ground.ts` remains authoritative for parse/fallback decision logic; the markdown decision file mirrors behavior for human maintainability.
 - `src/trigger/think.ts` + `src/trigger/cognition-guardrails.ts` remain authoritative for cognition parse fallback and deterministic out-of-scope rejection logic.
 - `src/trigger/execute.ts` + `src/trigger/execute-routing.ts` remain authoritative for Agency execution routing, summarization, and fallback behavior.
+- `src/trigger/deliver.ts` + `src/trigger/deliver-notifications.ts` + `src/trigger/delivery-fidelity.ts` remain authoritative for Interface rendering, notification routing, and fidelity safeguards.
 
 Extension pattern for future agents:
 
