@@ -233,6 +233,21 @@ h1 {
   padding-top: 10px;
 }
 
+.raw-json-panel {
+  margin-top: 8px;
+  border: 1px solid #d9e5da;
+  border-radius: 8px;
+  background: #f8fbf9;
+  padding: 8px;
+}
+
+.raw-json-panel summary {
+  cursor: pointer;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 12px;
+  color: #355346;
+}
+
 .step-row {
   padding: 8px;
   border-radius: 8px;

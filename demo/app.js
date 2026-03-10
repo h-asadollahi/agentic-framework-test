@@ -54,6 +54,21 @@ function tryParsePossiblyJson(value) {
   return tryParseJsonString(value) || extractJsonFromFencedBlock(value);
 }
 
+function normalizeMarkdownForRendering(text) {
+  const normalizedLines = String(text || "")
+    .replace(/\r\n/g, "\n")
+    .split("\n")
+    .map((line) => {
+      const trimmed = line.trim();
+      if (/^[-*]\s+\|.+\|\s*$/.test(trimmed)) {
+        return line.replace(/^(\s*)[-*]\s+(\|.+\|\s*)$/, "$1$2");
+      }
+      return line;
+    });
+
+  return normalizedLines.join("\n");
+}
+
 function getReadableAssistantText(output) {
   const raw = output?.formattedResponse;
 
@@ -179,7 +194,7 @@ function renderAssistantMarkdown(text) {
   const root = document.createElement("div");
   root.className = "md-content";
 
-  const normalized = String(text || "").replace(/\r\n/g, "\n");
+  const normalized = normalizeMarkdownForRendering(text);
   const lines = normalized.split("\n");
   let i = 0;
 
@@ -394,6 +409,39 @@ function buildTraceBlock(trace = []) {
   return wrapper;
 }
 
+function buildRawJsonBlock(output) {
+  const wrapper = document.createElement("div");
+  wrapper.className = "step-block";
+
+  const title = document.createElement("div");
+  title.className = "step-title";
+  title.textContent = "Raw JSON";
+  wrapper.appendChild(title);
+
+  const payloadDetails = document.createElement("details");
+  payloadDetails.className = "raw-json-panel";
+
+  const payloadSummary = document.createElement("summary");
+  payloadSummary.textContent = "Pipeline output payload";
+  payloadDetails.appendChild(payloadSummary);
+  payloadDetails.appendChild(renderJsonTree(output ?? {}));
+  wrapper.appendChild(payloadDetails);
+
+  const parsedFormattedResponse = tryParsePossiblyJson(output?.formattedResponse);
+  if (parsedFormattedResponse !== null) {
+    const formattedDetails = document.createElement("details");
+    formattedDetails.className = "raw-json-panel";
+
+    const formattedSummary = document.createElement("summary");
+    formattedSummary.textContent = "Parsed formattedResponse JSON";
+    formattedDetails.appendChild(formattedSummary);
+    formattedDetails.appendChild(renderJsonTree(parsedFormattedResponse));
+    wrapper.appendChild(formattedDetails);
+  }
+
+  return wrapper;
+}
+
 async function triggerPipeline(userMessage) {
   const base = apiBaseInput.value.trim().replace(/\/$/, "");
   const payload = { userMessage };
@@ -503,6 +551,7 @@ async function onSend() {
     wrap.appendChild(finalText);
 
     wrap.appendChild(buildTraceBlock(output.trace || []));
+    wrap.appendChild(buildRawJsonBlock(output));
 
     if ((output.notifications || []).length) {
       const notif = document.createElement("div");

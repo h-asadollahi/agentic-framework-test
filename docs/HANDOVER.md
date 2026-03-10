@@ -796,3 +796,15 @@ Key interfaces: `PipelinePayload`, `PipelineResult`, `SubTask`, `AgentResult`, `
   - cases: plain JSON, fenced JSON, non-JSON fallback.
 - Validation:
   - Full unit suite passed (`25` test files, `117` tests).
+
+### Demo UI Fidelity + Raw JSON Inspector (Plan 47) — Completed
+- Fixed markdown rendering edge case in demo where table rows emitted as bullet-prefixed lines (e.g. `- | Metric | Value |`) looked truncated/malformed in "Detailed Findings":
+  - `demo/app.js` now normalizes bullet-prefixed table rows before markdown rendering.
+- Added expandable raw JSON visibility in demo assistant messages:
+  - new collapsible `Raw JSON` section showing full pipeline output payload.
+  - if `formattedResponse` is itself JSON/fenced JSON, demo now shows an additional parsed collapsible block.
+- Added demo styling for JSON inspector panels:
+  - `demo/styles.css`.
+- Validation:
+  - `node --check demo/app.js`
+  - full unit suite passed (`25` test files, `117` tests).
