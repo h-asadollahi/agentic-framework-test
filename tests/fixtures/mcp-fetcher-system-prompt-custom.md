@@ -1,0 +1,3 @@
+Custom MCP Fetcher Prompt
+
+{{SKILL_CREATION_INSTRUCTION}}

@@ -5,6 +5,7 @@ import type { ExecutionContext, AgentResult } from "../../../core/types.js";
 import { mcpManager } from "../../../tools/mcp-client.js";
 import { learnedRoutesStore } from "../../../routing/learned-routes-store.js";
 import { logger } from "../../../core/logger.js";
+import { loadAgentPromptSpec } from "../../../tools/agent-spec-loader.js";
 
 type JsonRecord = Record<string, unknown>;
 
@@ -38,6 +39,32 @@ const McpFetcherOutput = z.object({
   data: z.unknown(),
   executedAt: z.string(),
 });
+
+type PromptLoader = typeof loadAgentPromptSpec;
+
+export const MCP_FETCHER_SYSTEM_PROMPT_FILE =
+  "knowledge/sub-agents/mcp-fetcher/system-prompt.md";
+
+export const MCP_FETCHER_SYSTEM_PROMPT_FALLBACK = `You are the MCP Fetcher sub-agent.
+
+Your role is to execute configured MCP tools using learned-route defaults and runtime input.
+
+## What you do
+- Validate MCP execution inputs (serverName, toolName, args/params)
+- Hydrate missing inputs from learned-route defaults when routeId is provided
+- Resolve template values in tool args
+- Execute MCP tool calls and return structured results
+- Compact oversized outputs to keep pipeline payloads manageable
+
+## Output expectations
+- Return machine-readable output compatible with Agency aggregation.
+- Include server/tool identifiers, resolved args, shaped output data, and execution timestamp.
+
+## Rules
+- Use learned routes and configured MCP servers as source of truth.
+- Return explicit errors for invalid input, missing tools, or execution failures.
+- Do not fabricate MCP tool outputs.
+- {{SKILL_CREATION_INSTRUCTION}}`;
 
 const MAX_OUTPUT_CHARS = 80_000;
 
@@ -240,9 +267,13 @@ export class McpFetcherAgent extends BaseSubAgent {
 
   inputSchema = McpFetcherInput;
   outputSchema = McpFetcherOutput;
+  private promptLoader: PromptLoader;
+  private promptFile: string;
 
-  constructor() {
+  constructor(options?: { promptLoader?: PromptLoader; promptFile?: string }) {
     super("anthropic:fast", ["openai:fast", "google:fast"], 3, 0.1);
+    this.promptLoader = options?.promptLoader ?? loadAgentPromptSpec;
+    this.promptFile = options?.promptFile ?? MCP_FETCHER_SYSTEM_PROMPT_FILE;
   }
 
   async execute(input: unknown, _context: ExecutionContext): Promise<AgentResult> {
@@ -330,8 +361,17 @@ export class McpFetcherAgent extends BaseSubAgent {
     }
   }
 
-  getSystemPrompt(_context: ExecutionContext): string {
-    return `You are the MCP Fetcher sub-agent. ${this.getSkillCreationInstruction()}`;
+  getSystemPrompt(context: ExecutionContext): string {
+    const vars = {
+      SKILL_CREATION_INSTRUCTION: this.getSkillCreationInstruction(),
+      BRAND_NAME: context.brandIdentity.name,
+    };
+    return this.promptLoader(
+      this.id,
+      this.promptFile,
+      MCP_FETCHER_SYSTEM_PROMPT_FALLBACK,
+      vars
+    );
   }
 
   getTools(_context: ExecutionContext): Record<string, Tool> {

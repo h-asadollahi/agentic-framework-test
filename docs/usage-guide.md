@@ -872,6 +872,8 @@ Sub-agent specs are now also being migrated there (starting with `cohort-monitor
 - `knowledge/sub-agents/cohort-monitor/decision-logic.md`
 - `knowledge/sub-agents/api-fetcher/system-prompt.md`
 - `knowledge/sub-agents/api-fetcher/decision-logic.md`
+- `knowledge/sub-agents/mcp-fetcher/system-prompt.md`
+- `knowledge/sub-agents/mcp-fetcher/decision-logic.md`
 
 How it works:
 
@@ -886,6 +888,7 @@ How it works:
 - `src/trigger/deliver.ts` + `src/trigger/deliver-notifications.ts` + `src/trigger/delivery-fidelity.ts` remain authoritative for Interface rendering, notification routing, and fidelity safeguards.
 - `src/trigger/sub-agents/plugins/cohort-monitor.ts` remains authoritative for current mock-first sub-agent execution behavior.
 - `src/trigger/sub-agents/plugins/api-fetcher.ts` remains authoritative for deterministic learned-route fetch execution behavior.
+- `src/trigger/sub-agents/plugins/mcp-fetcher.ts` remains authoritative for deterministic MCP tool execution, hydration, and output shaping behavior.
 
 Extension pattern for future agents:
 
