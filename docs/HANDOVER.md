@@ -47,6 +47,30 @@ src/
 
 ## Post-Handover Progress (2026-03-10, Codex)
 
+### Plan 77: Deliver-stage latency optimization (deterministic fast path)
+
+Status: Implemented in code and tests.
+
+What changed:
+- Added deterministic fast path in `pipeline-deliver`:
+  - For safe single-route deterministic outputs (`mcp-fetcher`, `api-fetcher`, `cohort-monitor`) with successful results and no human-review requirement, deliver now skips the Interface LLM call.
+  - It renders a human-readable markdown response directly from agency summary + critical facts.
+- For non-fast-path runs, deliver now sends compacted result previews to the Interface agent (instead of full raw subtask payloads) to reduce prompt-token load and latency.
+- Notification normalization/enforcement behavior remains unchanged (admin/marketer HITL + monitoring routing still applied after rendering).
+
+Files:
+- `src/trigger/deliver.ts`
+- `tests/unit/deliver-fast-path.test.ts`
+
+Validation benchmark:
+- Prompt: `Show engagement changes for our at-risk cohort in the last 30 days`
+- Before (`run_cmmm3cdsy007q3annp21cu8z3`):
+  - `pipeline-deliver`: `22,361ms`
+- After (`run_cmmm3hoqz00813annhc1u9twm`):
+  - `pipeline-deliver`: `17ms`
+- After minor humanization tweak (`run_cmmm3jhfk008b3annglp10pq9`):
+  - `pipeline-deliver`: `13ms`
+
 ### Plan 76: Deterministic synthesis-subtask skip for single-route prompts
 
 Status: Implemented in code and tests.

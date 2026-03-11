@@ -742,6 +742,17 @@ The current memory stores are in-process (lost on restart). For production:
 
 Every agent has a preferred model and a fallback chain. If all models fail, the result is `{ success: false }`. For critical paths, consider adding the `escalate-to-human` task as a last resort.
 
+### Deliver-stage latency
+
+`pipeline-deliver` now has a deterministic fast path for safe single-route responses (for `mcp-fetcher`, `api-fetcher`, or `cohort-monitor` outputs with no human-review requirement), so it can skip the Interface model call entirely.
+
+For non-fast-path responses, deliver sends compact result previews to the Interface model to reduce prompt-token load.
+
+If you still need lower latency, prefer faster interface model aliases in `.env`:
+
+- `AGENT_INTERFACE_MODELS=google:fast,openai:fast,anthropic:fast`
+- Keep `MODEL_OPENAI_FAST` on a low-latency model ID (for example `gpt-4o-mini` if your environment supports it).
+
 ### Notification channels
 
 Channels degrade gracefully — if a channel isn't configured (missing env var), `send()` returns `{ success: false }` with a descriptive error rather than throwing.
@@ -928,6 +939,7 @@ How it works:
 - `src/trigger/execute.ts` + `src/trigger/execute-routing.ts` remain authoritative for Agency execution routing, summarization, and fallback behavior. Autonomous skill persistence is intentionally not in the critical path.
 - `src/trigger/think.ts` prunes redundant synthesis-only `general/assistant` subtasks for safe single-route deterministic plans.
 - `src/trigger/execute.ts` includes deterministic fast paths for safe single-route deterministic executions: it skips the Agency summary model call and also skips redundant synthesis-only subtasks when they only depend on a successful deterministic route task.
+- `src/trigger/deliver.ts` includes deterministic fast paths for safe single-route deterministic responses and compact prompt payloads for non-fast-path Interface model calls.
 - `src/trigger/skill-learner.ts` + `src/trigger/skill-learning.ts` run asynchronous post-execution skill filtering/materialization (`max 1` suggestion per run with anti-spam locking).
 - `src/trigger/orchestrate.ts` now queues `pipeline-skill-learner` in fire-and-forget mode after Agency stage and proceeds directly to Interface.
 - `src/routing/skill-candidates-store.ts` is authoritative for skill recommendation persistence, prompt-match scoring, and materialization-state checks.
