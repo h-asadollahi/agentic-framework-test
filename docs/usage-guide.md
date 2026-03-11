@@ -925,7 +925,10 @@ How it works:
 - `src/tools/agent-spec-loader.ts` handles file loading, placeholder interpolation (`{{KEY}}`), and fallback to hardcoded prompt if the file is missing/empty.
 - `src/trigger/ground.ts` remains authoritative for parse/fallback decision logic; the markdown decision file mirrors behavior for human maintainability.
 - `src/trigger/think.ts` + `src/trigger/cognition-guardrails.ts` remain authoritative for cognition parse fallback and deterministic out-of-scope rejection logic.
-- `src/trigger/execute.ts` + `src/trigger/execute-routing.ts` remain authoritative for Agency execution routing, summarization, and fallback behavior.
+- `src/trigger/execute.ts` + `src/trigger/execute-routing.ts` remain authoritative for Agency execution routing, summarization, and fallback behavior. Autonomous skill persistence is intentionally not in the critical path.
+- `src/trigger/execute.ts` includes a deterministic summary fast path for simple single-route deterministic executions (skips Agency summary model call when safety criteria are met).
+- `src/trigger/skill-learner.ts` + `src/trigger/skill-learning.ts` run asynchronous post-execution skill filtering/materialization (`max 1` suggestion per run with anti-spam locking).
+- `src/trigger/orchestrate.ts` now queues `pipeline-skill-learner` in fire-and-forget mode after Agency stage and proceeds directly to Interface.
 - `src/routing/skill-candidates-store.ts` is authoritative for skill recommendation persistence, prompt-match scoring, and materialization-state checks.
 - `src/trigger/universal-skill-creator.ts` is authoritative for deterministic autonomous skill-file materialization under `./skills/learned`.
 - `src/trigger/deliver.ts` + `src/trigger/deliver-notifications.ts` + `src/trigger/delivery-fidelity.ts` remain authoritative for Interface rendering, notification routing, and fidelity safeguards.

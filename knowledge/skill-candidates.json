@@ -1,99 +1,45 @@
 {
   "version": "1.0.0",
-  "lastUpdated": "2026-03-10T19:55:43.204Z",
+  "lastUpdated": "2026-03-11T12:55:55.576Z",
   "candidates": [
     {
       "id": "skill-001",
-      "capability": "mapp-monthly-analysis-usage",
-      "description": "Automate monthly API calculation usage retrieval and summary.",
-      "suggestedSkillFile": "skills/learned/mapp-monthly-analysis-usage.md",
+      "capability": "monthly-cohort-churn-risk-scan",
+      "description": "Automate a 30-day cross-cohort churn analysis with baseline comparison, rank cohorts by risk, and generate a concise summary with mitigation actions.",
+      "suggestedSkillFile": "skills/learned/monthly-cohort-churn-risk-scan.md",
       "triggerPatterns": [
-        "how many api calculations have i used this month",
-        "monthly api usage",
-        "api calculations remaining this month",
-        "current month api calculation usage",
-        "mapp api usage this month"
+        "run a 30-day churn analysis across cohorts",
+        "which cohort has highest churn risk",
+        "monthly churn-risk report",
+        "30-day churn comparison"
       ],
       "confidence": "high",
       "requiresApproval": false,
       "source": "autonomous",
-      "addedAt": "2026-03-10T15:39:22.304Z",
-      "lastUsedAt": "2026-03-10T19:55:13.042Z",
-      "usageCount": 1
+      "addedAt": "2026-03-11T11:19:34.622Z",
+      "lastUsedAt": "2026-03-11T12:55:55.576Z",
+      "usageCount": 4
     },
     {
       "id": "skill-002",
-      "capability": "mapp-mcp-list-dimensions-metrics",
-      "description": "Automate retrieval and presentation of all available Mapp Intelligence dimensions and metrics via MCP, including counts and optional export.",
-      "suggestedSkillFile": "skills/learned/mapp-mcp-list-dimensions-metrics.md",
+      "capability": "mapp-monthly-analysis-usage-summary",
+      "description": "Automate retrieval (MCP route-007) and concise summary of monthly API calculation usage (used, limit, remaining, month/year, and % used).",
+      "suggestedSkillFile": "skills/learned/mapp-monthly-analysis-usage-summary.md",
       "triggerPatterns": [
-        "list all dimensions and metrics in mapp",
-        "what dimensions are available in mapp intelligence",
-        "mapp metrics list",
-        "show available dimensions",
-        "catalog of mapp dimensions and metrics"
+        "how many api calculations have i used this month",
+        "monthly api usage",
+        "what's my remaining quota",
+        "usage summary this month",
+        "route-007 monthly usage",
+        "mapp intelligence calculations this month",
+        "what's my api calculation usage for the month"
       ],
       "confidence": "high",
       "requiresApproval": false,
       "source": "autonomous",
-      "addedAt": "2026-03-10T19:37:37.509Z",
-      "lastUsedAt": null,
-      "usageCount": 0
-    },
-    {
-      "id": "skill-003",
-      "capability": "mapp-intelligence-cohort-performance-report",
-      "description": "Automate running the Mapp Intelligence Cohorts Performance report via the report-query API with configurable time ranges, cohort definitions, and metric sets. Handle deterministic polling and return a concise summary with validation of non-empty results.",
-      "suggestedSkillFile": "skills/learned/mapp-intelligence-cohort-performance-report.md",
-      "triggerPatterns": [
-        "run cohorts performance report",
-        "mapp intelligence cohort performance",
-        "cohort retention report",
-        "cohort conversion rate report",
-        "fetch cohort report"
-      ],
-      "confidence": "high",
-      "requiresApproval": false,
-      "source": "autonomous",
-      "addedAt": "2026-03-10T19:40:31.379Z",
-      "lastUsedAt": "2026-03-10T19:50:59.246Z",
-      "usageCount": 1
-    },
-    {
-      "id": "skill-004",
-      "capability": "cohort-comparison-consolidator",
-      "description": "Automate consolidation of multiple cohort-monitor results into a single comparative report, computing absolute and relative deltas, parity gaps, trends vs baseline, and generating concise insights and recommended actions.",
-      "suggestedSkillFile": "skills/learned/cohort-comparison-consolidator.md",
-      "triggerPatterns": [
-        "compare conversion for vip and new-user",
-        "cohort conversion comparison last 30 days",
-        "consolidate cohort-monitor outputs",
-        "conversion deltas vs baseline"
-      ],
-      "confidence": "high",
-      "requiresApproval": false,
-      "source": "autonomous",
-      "addedAt": "2026-03-10T19:51:50.178Z",
-      "lastUsedAt": null,
-      "usageCount": 0
-    },
-    {
-      "id": "skill-005",
-      "capability": "baseline-consistency-validator",
-      "description": "Validate that cohort pulls share consistent time windows and baseline definitions; recompute percent changes from raw values, detect identical outputs across cohorts, and flag anomalies prior to recommendation.",
-      "suggestedSkillFile": "skills/learned/baseline-consistency-validator.md",
-      "triggerPatterns": [
-        "enable baseline comparisons",
-        "validate baseline alignment",
-        "check cohort definitions",
-        "verify last 30 days with baseline"
-      ],
-      "confidence": "high",
-      "requiresApproval": false,
-      "source": "autonomous",
-      "addedAt": "2026-03-10T19:51:50.182Z",
-      "lastUsedAt": null,
-      "usageCount": 0
+      "addedAt": "2026-03-11T11:42:50.760Z",
+      "lastUsedAt": "2026-03-11T12:17:08.302Z",
+      "usageCount": 2
     }
   ]
 }

@@ -1,6 +1,7 @@
 import { task, logger } from "@trigger.dev/sdk/v3";
 import { cognitionAgent } from "../agents/cognition-agent.js";
 import type { CognitionResult, GroundingResult, SubTask } from "../core/types.js";
+import { learnedRoutesStore } from "../routing/learned-routes-store.js";
 import { skillCandidatesStore } from "../routing/skill-candidates-store.js";
 import {
   buildRejectedCognitionResult,
@@ -22,6 +23,10 @@ export const thinkTask = task({
     groundingResult: GroundingResult;
   }) => {
     logger.info("Starting cognition phase");
+
+    // pipeline-think runs in its own task process; always preload DB-backed
+    // route/skill stores before cognition prompt construction.
+    await preloadCognitionStores();
 
     const context = payload.groundingResult.context;
 
@@ -91,6 +96,11 @@ export const thinkTask = task({
     return cognitionResult;
   },
 });
+
+export async function preloadCognitionStores(): Promise<void> {
+  await learnedRoutesStore.load();
+  skillCandidatesStore.load();
+}
 
 export function applyAutonomousSkillCreation(
   cognitionResult: CognitionResult,

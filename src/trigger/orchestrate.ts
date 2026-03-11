@@ -3,11 +3,39 @@ import { groundTask } from "./ground.js";
 import { thinkTask } from "./think.js";
 import { executeTask } from "./execute.js";
 import { deliverTask } from "./deliver.js";
+import { skillLearnerTask } from "./skill-learner.js";
 import { notifyTask } from "./notify.js";
 import { escalateTask } from "./escalate.js";
 import { learnedRoutesStore } from "../routing/learned-routes-store.js";
 import { skillCandidatesStore } from "../routing/skill-candidates-store.js";
-import type { PipelinePayload, PipelineResult, TraceEntry } from "../core/types.js";
+import type {
+  CognitionResult,
+  ExecutionContext,
+  PipelinePayload,
+  PipelineResult,
+  SkillSuggestion,
+  TraceEntry,
+} from "../core/types.js";
+
+type QueueSkillLearnerInput = {
+  sessionId: string;
+  cognitionResult: CognitionResult;
+  context: ExecutionContext;
+  skillSuggestions: SkillSuggestion[];
+};
+
+export function queueSkillLearnerInBackground(
+  payload: QueueSkillLearnerInput,
+  triggerFn: typeof skillLearnerTask.trigger = skillLearnerTask.trigger
+): void {
+  // Fire-and-forget: never block marketer-facing delivery on autonomous learning.
+  void triggerFn(payload).catch((error) => {
+    logger.warn("Failed to queue asynchronous skill learner", {
+      sessionId: payload.sessionId,
+      error: error instanceof Error ? error.message : String(error),
+    });
+  });
+}
 
 /**
  * Orchestrate Task
@@ -152,6 +180,27 @@ export const orchestrateTask = task({
       action: executeRun.output.summary,
       durationMs: Date.now() - agencyStart,
     });
+
+    const skillSuggestions = executeRun.output.skillSuggestions ?? [];
+    if (skillSuggestions.length > 0) {
+      logger.info("Queueing asynchronous skill learner", {
+        sessionId: payload.sessionId,
+        suggestions: skillSuggestions.length,
+      });
+      trace.push({
+        timestamp: new Date(),
+        phase: "orchestration",
+        agent: "skill-learner",
+        action: `Queued asynchronous skill-learning for ${skillSuggestions.length} suggestion(s)`,
+      });
+
+      queueSkillLearnerInBackground({
+        sessionId: payload.sessionId,
+        cognitionResult: thinkRun.output,
+        context: groundingRun.output.context,
+        skillSuggestions,
+      });
+    }
 
     // ── Stage 4: Interface ─────────────────────────────────
     logger.info("Stage 4/4: Interface");

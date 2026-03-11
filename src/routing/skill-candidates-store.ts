@@ -92,6 +92,41 @@ function tokenOverlapScore(a: string, b: string): number {
   return overlap;
 }
 
+function extractSkillFileStem(path: string): string {
+  const normalized = path.replace(/\\/g, "/");
+  const fileName = normalized.split("/").pop() ?? normalized;
+  return fileName.replace(/\.md$/i, "");
+}
+
+function hasTriggerPatternSimilarity(
+  existingPatterns: string[],
+  incomingPatterns: string[]
+): boolean {
+  const normalizedExisting = normalizePatterns(existingPatterns);
+  const normalizedIncoming = normalizePatterns(incomingPatterns);
+
+  if (normalizedExisting.length === 0 || normalizedIncoming.length === 0) {
+    return false;
+  }
+
+  const existingSet = new Set(normalizedExisting);
+  for (const pattern of normalizedIncoming) {
+    if (existingSet.has(pattern)) {
+      return true;
+    }
+  }
+
+  for (const existing of normalizedExisting) {
+    for (const incoming of normalizedIncoming) {
+      if (tokenOverlapScore(existing, incoming) >= 3) {
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+
 function nextCandidateId(candidates: SkillCandidate[]): string {
   return `skill-${String(candidates.length + 1).padStart(3, "0")}`;
 }
@@ -167,6 +202,7 @@ class SkillCandidatesStoreImpl {
     const skillFile = normalizeSuggestedSkillFilePath(data.suggestedSkillFile);
     const description = data.description.trim();
     const confidence = data.confidence ?? "medium";
+    const incomingPatterns = normalizePatterns(data.triggerPatterns ?? []);
 
     const existing = this.candidates.find(
       (candidate) =>
@@ -178,7 +214,7 @@ class SkillCandidatesStoreImpl {
       existing.description = description || existing.description;
       existing.triggerPatterns = normalizePatterns([
         ...existing.triggerPatterns,
-        ...(data.triggerPatterns ?? []),
+        ...incomingPatterns,
       ]);
       existing.requiresApproval = data.requiresApproval ?? existing.requiresApproval;
       existing.source = data.source ?? existing.source;
@@ -189,12 +225,55 @@ class SkillCandidatesStoreImpl {
       return existing;
     }
 
+    const fuzzyExisting = this.candidates.find((candidate) => {
+      const capabilityOverlap = tokenOverlapScore(
+        candidate.capability,
+        capability
+      );
+      const descriptionOverlap = tokenOverlapScore(
+        candidate.description,
+        description
+      );
+      const fileStemOverlap = tokenOverlapScore(
+        extractSkillFileStem(candidate.suggestedSkillFile),
+        extractSkillFileStem(skillFile)
+      );
+      const hasPatternOverlap = hasTriggerPatternSimilarity(
+        candidate.triggerPatterns,
+        incomingPatterns
+      );
+
+      if (hasPatternOverlap) return true;
+      if (capabilityOverlap >= 3 && (descriptionOverlap >= 3 || fileStemOverlap >= 2)) {
+        return true;
+      }
+      return false;
+    });
+
+    if (fuzzyExisting) {
+      fuzzyExisting.description = description || fuzzyExisting.description;
+      fuzzyExisting.triggerPatterns = normalizePatterns([
+        ...fuzzyExisting.triggerPatterns,
+        ...incomingPatterns,
+      ]);
+      fuzzyExisting.requiresApproval =
+        data.requiresApproval ?? fuzzyExisting.requiresApproval;
+      fuzzyExisting.source = data.source ?? fuzzyExisting.source;
+      if (
+        CONFIDENCE_RANK[confidence] > CONFIDENCE_RANK[fuzzyExisting.confidence]
+      ) {
+        fuzzyExisting.confidence = confidence;
+      }
+      this.save();
+      return fuzzyExisting;
+    }
+
     const candidate: SkillCandidate = {
       id: nextCandidateId(this.candidates),
       capability,
       description,
       suggestedSkillFile: skillFile || "skills/learned/new-agent-skill.md",
-      triggerPatterns: normalizePatterns(data.triggerPatterns ?? []),
+      triggerPatterns: incomingPatterns,
       confidence,
       requiresApproval: data.requiresApproval ?? false,
       source: data.source ?? "agency",

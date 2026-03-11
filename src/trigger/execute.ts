@@ -17,7 +17,6 @@ import {
 import {
   buildUniversalSkillCreatorAgentResult,
   isUniversalSkillCreationIntent,
-  materializeUniversalSkillFromSuggestion,
 } from "./universal-skill-creator.js";
 import { skillCandidatesStore } from "../routing/skill-candidates-store.js";
 // Register all plugins on import
@@ -27,9 +26,20 @@ import type {
   AgentResult,
   CognitionResult,
   ExecutionContext,
-  SkillSuggestion,
   SubTask,
 } from "../core/types.js";
+
+type ExecutedSubtaskResult = {
+  subtaskId: string;
+  agentId: string;
+  result: AgentResult;
+};
+
+type AgencySummaryFastPath = {
+  summary: string;
+  routeAgentId: string;
+  issues?: string[];
+};
 
 /**
  * Execute Task (Agency)
@@ -51,6 +61,10 @@ export const executeTask = task({
     cognitionResult: CognitionResult;
     context: ExecutionContext;
   }) => {
+    // pipeline-execute may run in a different task process than orchestrate/think.
+    // Always preload DB-backed stores in this process before any route access.
+    await preloadExecutionStores();
+
     const { subtasks } = payload.cognitionResult;
 
     logger.info("Starting agency phase", {
@@ -61,11 +75,7 @@ export const executeTask = task({
     // ── Topological grouping ────────────────────────────────
     const levels = topologicalGroup(subtasks);
 
-    const allResults: Array<{
-      subtaskId: string;
-      agentId: string;
-      result: AgentResult;
-    }> = [];
+    const allResults: ExecutedSubtaskResult[] = [];
 
     for (const level of levels) {
       logger.info(`Running ${level.length} subtask(s) in parallel`);
@@ -308,83 +318,165 @@ export const executeTask = task({
       }
     }
 
-    // ── Summarise via the Agency LLM agent ────────────────
-    const summaryInput = JSON.stringify({
-      plan: payload.cognitionResult.plan,
-      reasoning: payload.cognitionResult.reasoning,
-      results: allResults.map((r) => ({
-        subtaskId: r.subtaskId,
-        agentId: r.agentId,
-        success: r.result.success,
-        output: r.result.output,
-      })),
-    });
-
-    const summaryResult = await agencyAgent.execute(
-      summaryInput,
-      payload.context
+    let agencyResult: AgencyResult;
+    let parsedSummary: AgencyResult | null = null;
+    const fastPath = buildDeterministicAgencyFastPathSummary(
+      payload.cognitionResult,
+      allResults
     );
 
-    logger.info("Agency phase complete", {
-      totalSubtasks: allResults.length,
-      successful: allResults.filter((r) => r.result.success).length,
-      model: summaryResult.modelUsed,
-    });
-
-    let agencyResult: AgencyResult;
-    const parsedSummary = parseAgentJson<AgencyResult>(summaryResult.output);
-    if (parsedSummary) {
-      agencyResult = parsedSummary;
-      // Ensure our actual results are included
-      agencyResult.results = allResults;
-    } else {
+    if (fastPath) {
       agencyResult = {
         results: allResults,
-        summary: (summaryResult.output as string) ?? "Execution complete",
+        summary: fastPath.summary,
+        ...(fastPath.issues ? { issues: fastPath.issues } : {}),
       };
+      logger.info("Agency phase complete (deterministic fast path)", {
+        totalSubtasks: allResults.length,
+        successful: allResults.filter((r) => r.result.success).length,
+        model: "deterministic-fast-path",
+        routeAgentId: fastPath.routeAgentId,
+      });
+    } else {
+      // ── Summarise via the Agency LLM agent ────────────────
+      const summaryInput = JSON.stringify({
+        plan: payload.cognitionResult.plan,
+        reasoning: payload.cognitionResult.reasoning,
+        results: allResults.map((r) => ({
+          subtaskId: r.subtaskId,
+          agentId: r.agentId,
+          success: r.result.success,
+          output: r.result.output,
+        })),
+      });
+
+      const summaryResult = await agencyAgent.execute(
+        summaryInput,
+        payload.context
+      );
+
+      logger.info("Agency phase complete", {
+        totalSubtasks: allResults.length,
+        successful: allResults.filter((r) => r.result.success).length,
+        model: summaryResult.modelUsed,
+      });
+
+      parsedSummary = parseAgentJson<AgencyResult>(summaryResult.output);
+      if (parsedSummary) {
+        agencyResult = parsedSummary;
+        // Ensure our actual results are included
+        agencyResult.results = allResults;
+      } else {
+        agencyResult = {
+          results: allResults,
+          summary: (summaryResult.output as string) ?? "Execution complete",
+        };
+      }
     }
 
-    const { suggestions, issue: suggestionIssue } =
-      parseAgencySkillSuggestions(parsedSummary ?? null);
+    const { suggestions: rawSuggestions, issue: suggestionIssue } =
+      parseAgencySkillSuggestions(parsedSummary);
     if (suggestionIssue) {
       agencyResult.issues = [...(agencyResult.issues ?? []), suggestionIssue];
     }
 
-    if (suggestions.length > 0) {
-      agencyResult.skillSuggestions = suggestions;
-      try {
-        const { materializations, issues } =
-          persistAndMaterializeSkillSuggestions(
-            suggestions,
-            payload.context
-          );
-        agencyResult.skillMaterializations = materializations;
-        if (issues.length > 0) {
-          agencyResult.issues = [...(agencyResult.issues ?? []), ...issues];
-        }
-        logger.info(`Persisted ${suggestions.length} skill suggestion(s)`, {
-          suggestions: suggestions.map((item) => item.capability).slice(0, 5),
-          materialized: materializations
-            .filter((item) => item.success)
-            .map((item) => `${item.capability}:${item.action}`)
-            .slice(0, 5),
-        });
-      } catch (error) {
-        logger.error("Failed to persist agency skill suggestions", {
-          error: error instanceof Error ? error.message : String(error),
-        });
-        agencyResult.issues = [
-          ...(agencyResult.issues ?? []),
-          "Failed to persist agency skill suggestions for future cognition prompts.",
-        ];
-      }
+    if (rawSuggestions.length > 0) {
+      // Persistence/materialization happens asynchronously in pipeline-skill-learner.
+      // Keep execute focused on response-critical work.
+      agencyResult.skillSuggestions = rawSuggestions;
     }
 
     return agencyResult;
   },
 });
 
+export async function preloadExecutionStores(): Promise<void> {
+  await learnedRoutesStore.load();
+  skillCandidatesStore.load();
+}
+
 // ── Helpers ───────────────────────────────────────────────────
+
+const DETERMINISTIC_ROUTE_AGENT_IDS = new Set([
+  "mcp-fetcher",
+  "api-fetcher",
+  "cohort-monitor",
+]);
+
+const ALLOWED_SYNTHESIS_AGENT_IDS = new Set([
+  "general",
+  "assistant",
+  "skill-creator",
+  "skill_creator",
+  "universal-skill-creator",
+]);
+
+function looksLikeSynthesisSubtask(description: string): boolean {
+  const lower = description.toLowerCase();
+  return [
+    "summarize",
+    "summary",
+    "synthesize",
+    "consolidate",
+    "rollup",
+    "roll-up",
+    "aggregate",
+    "narrative",
+    "recommendation",
+    "combine",
+    "compile",
+    "final answer",
+  ].some((signal) => lower.includes(signal));
+}
+
+export function buildDeterministicAgencyFastPathSummary(
+  cognitionResult: CognitionResult,
+  results: ExecutedSubtaskResult[]
+): AgencySummaryFastPath | null {
+  if (results.length === 0) return null;
+  if (results.some((item) => item.result.success !== true)) return null;
+
+  const deterministicResults = results.filter((item) =>
+    DETERMINISTIC_ROUTE_AGENT_IDS.has(item.agentId)
+  );
+  if (deterministicResults.length !== 1) return null;
+
+  const subtaskMap = new Map(cognitionResult.subtasks.map((task) => [task.id, task]));
+  const nonDeterministic = results.filter(
+    (item) => !DETERMINISTIC_ROUTE_AGENT_IDS.has(item.agentId)
+  );
+
+  for (const item of nonDeterministic) {
+    const correspondingSubtask = subtaskMap.get(item.subtaskId);
+    if (!ALLOWED_SYNTHESIS_AGENT_IDS.has(item.agentId)) {
+      return null;
+    }
+    if (!correspondingSubtask) {
+      return null;
+    }
+    if (!looksLikeSynthesisSubtask(correspondingSubtask.description)) {
+      return null;
+    }
+  }
+
+  const routeResult = deterministicResults[0];
+  const routeSubtask =
+    subtaskMap.get(routeResult.subtaskId) ??
+    cognitionResult.subtasks.find((task) => task.agentId === routeResult.agentId);
+
+  if (!routeSubtask) return null;
+
+  const elapsedMs = results.reduce((sum, item) => sum + (item.result.durationMs ?? 0), 0);
+  const summary =
+    `Deterministic fast path: ${routeSubtask.description} ` +
+    `completed via ${routeResult.agentId}` +
+    (elapsedMs > 0 ? ` in ${elapsedMs}ms (subtask time).` : ".");
+
+  return {
+    summary,
+    routeAgentId: routeResult.agentId,
+  };
+}
 
 /**
  * Group subtasks into dependency levels for parallel execution.
@@ -532,57 +624,4 @@ function isDeterministicSkillCreatorAgent(agentId: string): boolean {
     normalized === "skill_creator" ||
     normalized === "universal-skill-creator"
   );
-}
-
-export function persistAndMaterializeSkillSuggestions(
-  suggestions: SkillSuggestion[],
-  context: ExecutionContext
-): {
-  materializations: NonNullable<AgencyResult["skillMaterializations"]>;
-  issues: string[];
-} {
-  const materializations: NonNullable<AgencyResult["skillMaterializations"]> = [];
-  const issues: string[] = [];
-
-  for (const suggestion of suggestions) {
-    const materialization = materializeUniversalSkillFromSuggestion(
-      {
-        capability: suggestion.capability,
-        description: suggestion.description,
-        suggestedSkillFile: suggestion.suggestedSkillFile,
-        triggerPatterns: suggestion.triggerPatterns,
-      },
-      context,
-      "autonomous"
-    );
-
-    const persisted = skillCandidatesStore.upsertCandidate({
-      capability: suggestion.capability,
-      description: suggestion.description,
-      suggestedSkillFile: materialization.skillFile,
-      triggerPatterns: suggestion.triggerPatterns,
-      confidence: suggestion.confidence,
-      requiresApproval: false,
-      source: "autonomous",
-    });
-
-    materializations.push({
-      candidateId: persisted.id,
-      capability: suggestion.capability,
-      skillFile: materialization.skillFile,
-      action: materialization.action,
-      success: materialization.success,
-      reason: materialization.reason,
-    });
-
-    if (!materialization.success) {
-      issues.push(
-        `Autonomous skill materialization failed for ${suggestion.capability}: ${
-          materialization.reason ?? "unknown error"
-        }`
-      );
-    }
-  }
-
-  return { materializations, issues };
 }

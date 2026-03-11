@@ -100,6 +100,38 @@ describe.sequential("skill-candidates store", () => {
     expect(updated.triggerPatterns).toContain("api calculations this month");
   });
 
+  it("fuzzy-deduplicates semantically similar candidates", () => {
+    const first = skillCandidatesStore.upsertCandidate({
+      capability: "mapp-monthly-analysis-usage",
+      description: "Automate monthly analysis usage reporting.",
+      suggestedSkillFile: "skills/learned/mapp-monthly-analysis-usage.md",
+      triggerPatterns: [
+        "how many api calculations have i used this month",
+        "monthly api usage",
+      ],
+      confidence: "high",
+      requiresApproval: false,
+    });
+
+    const second = skillCandidatesStore.upsertCandidate({
+      capability: "monthly-api-usage-summarizer",
+      description: "Summarize monthly API calculation usage for Mapp.",
+      suggestedSkillFile: "skills/learned/monthly-api-usage-summarizer.md",
+      triggerPatterns: [
+        "how many api calculations have i used this month",
+        "api calculations remaining this month",
+      ],
+      confidence: "medium",
+      requiresApproval: false,
+    });
+
+    expect(skillCandidatesStore.count()).toBe(1);
+    expect(second.id).toBe(first.id);
+    expect(second.triggerPatterns).toContain(
+      "api calculations remaining this month"
+    );
+  });
+
   it("finds best matching candidate by prompt text", () => {
     skillCandidatesStore.upsertCandidate({
       capability: "mapp-monthly-analysis-usage",

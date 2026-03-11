@@ -89,6 +89,9 @@ export const learnRouteTask = task({
   id: "learn-route",
   retry: { maxAttempts: 1 },
   run: async (payload: LearnRoutePayload): Promise<LearnRouteResult> => {
+    // learn-route is also a standalone task process; preload DB-backed routes.
+    await learnedRoutesStore.load();
+
     const {
       subtaskDescription,
       subtaskInput,

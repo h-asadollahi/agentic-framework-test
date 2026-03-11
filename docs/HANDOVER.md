@@ -1192,3 +1192,279 @@ Key interfaces: `PipelinePayload`, `PipelineResult`, `SubTask`, `AgentResult`, `
 - Validation:
   - `npx trigger.dev@4.4.3 --version` => `4.4.3`
   - `npm run trigger:dev -- --help` executed successfully (no version parsing error).
+
+### Trigger Local Queue Unblock + Webapp Crash Recovery (Plan 64) — Completed
+- Symptoms:
+  - Trigger runs stayed `QUEUED` and never started.
+  - `trigger-dev-local-webapp-1` was in a restart loop.
+  - Original run `run_n19ds8af2pkvk8d9q7vsm` remained `CANCELED` (attemptCount `0`).
+- Root cause:
+  - ClickHouse URL query parameters in local self-hosted stack were incompatible with webapp runtime client (`@clickhouse/client`), while ClickHouse migrations still required `secure=false` to avoid forced TLS parsing.
+- Recovery applied in local Trigger stack (`../trigger-dev-local/.env`, outside this repo):
+  - `CLICKHOUSE_URL=http://trigger:trigger@clickhouse:8123/default?secure=false`
+  - `QUERY_CLICKHOUSE_URL=http://trigger:trigger@clickhouse:8123/default`
+  - `LOGS_CLICKHOUSE_URL=http://trigger:trigger@clickhouse:8123/default`
+  - `EVENTS_CLICKHOUSE_URL=http://trigger:trigger@clickhouse:8123/default`
+- Recovery steps executed:
+  - Restarted webapp via compose with env file reload.
+  - Re-ran `npm run trigger:dev`.
+  - Triggered exact prompt in terminal:
+    - `"How is our VIP cohort performing this quarter?"`
+- Validation:
+  - New run `run_cmml5x25600013anvd66xq3tr` completed successfully.
+  - Pipeline stages `ground`, `think`, `execute`, and `deliver` executed.
+  - Queue processing resumed (no permanent `QUEUED` state).
+
+### Env Sync: Learned Routes DB Vars Added to `.env` (Plan 65) — Completed
+- Added missing learned-routes storage vars from `.env.example` into `.env`:
+  - `DATABASE_URL=postgresql://postgres:postgres@localhost:5433/postgres`
+  - `LEARNED_ROUTES_DUAL_WRITE_JSON=false`
+- Purpose:
+  - Ensure runtime can use DB-backed learned routes when expected instead of silently operating JSON-only due missing env vars.
+
+### Learned Routes Restoration (Plan 66) — Completed
+- Restored `knowledge/learned-routes.json` from commit `949833b` (latest full valid set before placeholder overwrite).
+- Restored route set includes 10 routes:
+  - `route-001`..`route-010`
+  - MCP routes for Mapp prompts (including page impressions, segments, dimensions/metrics)
+  - API workflow routes from Plan 56
+- Backfilled restored JSON into DB-backed store:
+  - Ran: `npm run routes:backfill`
+  - Result: `imported: 10, skipped: 0`
+  - Verified `learned_routes` table now contains 10 rows.
+
+### Cognition DB-Load Crash Fix (Plan 67) — Completed
+- Incident investigated:
+  - Run `run_cmmlrquwk000g38nnq212y57m` failed at `pipeline-think`.
+  - Error: `learnedRoutesStore.load() must be awaited before using DB-backed routes`.
+- Root cause:
+  - `orchestrate-pipeline` and `pipeline-think` execute in separate task processes.
+  - `orchestrate` was awaiting `learnedRoutesStore.load()`, but `pipeline-think` process was not.
+  - Cognition prompt builder reads learned route summary synchronously, which throws in DB mode when store is not preloaded.
+- Fix implemented:
+  - `src/trigger/think.ts`
+    - Added `preloadCognitionStores()` helper.
+    - `pipeline-think` now awaits:
+      - `learnedRoutesStore.load()`
+      - `skillCandidatesStore.load()`
+    - before calling `cognitionAgent.execute(...)`.
+- Regression coverage:
+  - `tests/unit/autonomous-skill-loop.test.ts`
+    - Added test to assert preload order: routes store first, then skill candidates store.
+- Validation:
+  - `npm test -- tests/unit/autonomous-skill-loop.test.ts` passed.
+  - Live run with prompt `"Show me my page impressions for the last 7 days"`:
+    - `run_cmmlrvx8n000w38nnn7p7dzew`
+    - `pipeline-think` completed successfully (no DB-load crash).
+
+### Execute DB-Load Crash Fix (Plan 68) — Completed
+- Incident investigated:
+  - User reported run `run_cmmlrzhex001f38nn93txx7n8` with execute-stage error:
+    `learnedRoutesStore.load() must be awaited before using DB-backed routes`.
+- Clarification:
+  - The top-level run finished `COMPLETED`, but execute-stage logged a subtask exception.
+  - `pipeline-execute` uses `Promise.allSettled`, so a thrown subtask error can be logged while the stage still completes with degraded output.
+- Root cause:
+  - Same process-bound preload issue as cognition:
+    - `orchestrate` preloaded routes in its process
+    - `pipeline-execute` may run in a separate process and accessed `learnedRoutesStore.getById/findByCapability` before `load()`.
+- Fix implemented:
+  - `src/trigger/execute.ts`
+    - Added `preloadExecutionStores()` helper.
+    - `pipeline-execute` now awaits:
+      - `learnedRoutesStore.load()`
+      - `skillCandidatesStore.load()`
+    - before route access in subtask execution.
+  - `src/trigger/learn-route.ts`
+    - Added `await learnedRoutesStore.load()` at task start for DB-mode safety in route-learning flow.
+- Regression coverage:
+  - `tests/unit/autonomous-skill-loop.test.ts`
+    - Added test asserting execute preload order (`routes` then `skills`).
+- Validation:
+  - `npm test -- tests/unit/autonomous-skill-loop.test.ts` passed.
+  - Live verification run:
+    - `run_cmmls5cgh001w38nnyrql3ujk`
+    - `pipeline-ground`, `pipeline-think`, `pipeline-execute`, `pipeline-deliver` all `COMPLETED`
+    - no DB-load exception observed.
+
+### Autonomous Skill Spam / Non-Reuse Fix (Plan 69) — Completed
+- Incident investigated:
+  - Repeating prompt `"How many API calculations have I used this month?"` generated many new files under `skills/learned/` instead of reusing existing ones.
+  - `knowledge/skill-candidates.json` accumulated many low/zero-usage candidates.
+- Root cause:
+  - Agency `skillSuggestions` were persisted/materialized in execute phase without relevance gating against current cognition context.
+  - Candidate dedupe was strict (exact capability/path only), so semantically similar suggestions could create new candidates/files.
+- Fix implemented:
+  - `src/trigger/execute.ts`
+    - Added `filterSkillSuggestionsForCognitionContext(...)` scoring filter.
+    - Only context-relevant suggestions are persisted/materialized.
+    - Dropped low-relevance suggestions are logged and surfaced as issues.
+  - `src/routing/skill-candidates-store.ts`
+    - Added fuzzy dedupe using:
+      - capability/description token overlap
+      - skill-file stem overlap
+      - trigger-pattern similarity
+    - Similar suggestions now merge into existing candidate instead of creating new entries.
+- Regression coverage:
+  - `tests/unit/autonomous-skill-loop.test.ts`
+    - Added test for dropping low-relevance skill suggestions.
+  - `tests/unit/skill-candidates-store.test.ts`
+    - Added fuzzy dedupe test for semantically similar candidates.
+- Validation:
+  - `npm test -- tests/unit/autonomous-skill-loop.test.ts tests/unit/skill-candidates-store.test.ts` passed (`13` tests).
+
+### Learned Skills Reset (Plan 70) — Completed
+- User-requested cleanup executed:
+  - Removed all materialized learned skills from `skills/learned/`.
+  - Reset `knowledge/skill-candidates.json` to an empty `candidates` array.
+- Rationale:
+  - Clear previously accumulated autonomous skills/candidates and restart learning from a clean baseline.
+- Notes:
+  - Core static skills remain untouched under `skills/` (outside `skills/learned`).
+
+### Repeated Prompt Learned-Skill Spam Guard (Plan 71) — Completed
+- Incident investigated:
+  - Repeating exact prompt `"How many API calculations have I used this month?"` generated new learned skills each run (`mapp-usage-schema-normalizer`, `mcp-usage-normalizer`) instead of only reusing the existing monthly usage skill.
+- Root cause:
+  - Agency kept emitting additional implementation-level `skillSuggestions` (normalizer variants) after successful runs.
+  - Existing relevance filter allowed them because they were still semantically close to the same monthly-usage context.
+  - No hard lock existed to restrict persistence when a materialized best-match skill already existed.
+- Fix implemented:
+  - `src/trigger/execute.ts`
+    - Added prompt-anchor derivation from cognition output.
+    - If a materialized matching candidate exists, autonomous persistence is locked to that exact capability/skill file.
+    - Added anti-spam cap: persist at most one autonomous skill suggestion per run.
+    - Updated issue text to indicate relevance/anti-spam drops.
+- Regression coverage:
+  - `tests/unit/autonomous-skill-loop.test.ts`
+    - Added lock-to-existing-skill test.
+    - Added one-suggestion-cap test.
+- Validation:
+  - `npm test -- tests/unit/autonomous-skill-loop.test.ts tests/unit/skill-candidates-store.test.ts` passed (`15` tests).
+
+### Learned Skills + Candidates Cleanup (Plan 72) — Completed
+- User-requested cleanup executed again:
+  - Removed all files under `skills/learned/`.
+  - Reset `knowledge/skill-candidates.json` to an empty `candidates` array.
+- Verification:
+  - Learned skill files count: `0`
+  - Skill candidates count: `0`
+
+### Async Skill-Learner Decoupling (Plan 73) — Completed
+- Objective:
+  - Reduce marketer-facing latency by removing autonomous skill materialization from the blocking `pipeline-execute` critical path.
+- Implementation:
+  - Added shared helper module:
+    - `src/trigger/skill-learning.ts`
+    - Contains relevance scoring/filtering, anti-spam preparation, and materialization persistence utilities.
+  - Added new background task:
+    - `src/trigger/skill-learner.ts` (`id: pipeline-skill-learner`)
+    - Applies anti-spam policy (`max 1` suggestion/run + lock to matched materialized candidate) and persists/materializes asynchronously.
+  - Refactored `src/trigger/execute.ts`:
+    - Keeps parse-only handling of `skillSuggestions`.
+    - No longer persists/materializes suggestions inline.
+  - Updated `src/trigger/orchestrate.ts`:
+    - Queues `pipeline-skill-learner` in fire-and-forget mode immediately after Agency stage.
+    - Continues directly to Interface stage without waiting for autonomous learning.
+  - Updated docs:
+    - `docs/usage-guide.md` now documents asynchronous post-execution skill-learning behavior.
+- Tests added/updated:
+  - `tests/unit/skill-learning.test.ts` (new): anti-spam lock + cap behavior.
+  - `tests/unit/orchestrate-skill-learner.test.ts` (new): background queue helper behavior.
+  - `tests/unit/autonomous-skill-loop.test.ts` updated to import skill-learning helpers from new module.
+- Validation:
+  - `npm test -- tests/unit/autonomous-skill-loop.test.ts tests/unit/skill-candidates-store.test.ts tests/unit/skill-learning.test.ts tests/unit/orchestrate-skill-learner.test.ts`
+  - Result: `18` tests passed.
+
+#### Plan 73 Timing Benchmark (Exact Prompt)
+- Prompt used:
+  - `"How many API calculations have I used this month?"`
+- Post-change benchmark runs (version `20260311.13`):
+  - `run_cmmlyxqst003r3annzi9c3153`:
+    - ground: `6386ms`
+    - think: `5313ms`
+    - execute: `61250ms`
+    - deliver: `31292ms`
+    - skill-learner (async): `53ms`
+  - `run_cmmlz23fz00433ann4jd0c6xe`:
+    - ground: `6888ms`
+    - think: `6056ms`
+    - execute: `35365ms`
+    - deliver: `29915ms`
+    - skill-learner (async): `22ms`
+- Pre-change comparison cohort (same prompt, version `20260311.6`, 4 runs):
+  - Average ground: `3390ms`
+  - Average think: `6669ms`
+  - Average execute: `143495ms`
+  - Average deliver: `29901ms`
+  - Average core path (ground+think+execute+deliver): `183455ms`
+- Post-change average (version `20260311.13`, 2 runs):
+  - Average ground: `6637ms`
+  - Average think: `5685ms`
+  - Average execute: `48308ms`
+  - Average deliver: `30604ms`
+  - Average core path: `91234ms`
+  - Average skill-learner (async): `38ms`
+- Delta (pre `20260311.6` avg -> post `20260311.13` avg):
+  - `pipeline-execute`: `-95187ms` (~`66%` faster)
+  - Core path overall: `-92221ms` (~`50%` faster)
+
+### Execute/Deliver Latency Deep Profile (Plan 74) — Completed
+- Scope:
+  - Deep profile of remaining latency after Plan 73 for prompt:
+    - `"How many API calculations have I used this month?"`
+- Data points inspected:
+  - `run_cmmlyxqst003r3annzi9c3153` (post-change)
+    - `pipeline-execute`: `61250ms`
+    - execute subtask breakdown:
+      - `task-1` (`mcp-fetcher`): `1965ms`
+      - `task-2` (`general`): `22643ms`
+    - inferred execute overhead beyond subtasks: ~`36642ms` (Agency summary/model + stage overhead)
+    - `pipeline-deliver`: `31292ms`
+  - `run_cmmlz23fz00433ann4jd0c6xe` (post-change)
+    - `pipeline-execute`: `35365ms`
+    - execute subtask breakdown:
+      - `task-1` (`mcp-fetcher`): `1668ms`
+      - `task-2` (`general` using materialized skill guidance): `5ms`
+    - inferred execute overhead beyond subtasks: ~`33692ms` (Agency summary/model + stage overhead)
+    - `pipeline-deliver`: `29915ms`
+- Findings:
+  - Remaining bottleneck is no longer autonomous skill persistence.
+  - Primary latency now comes from LLM-heavy summarization/formatting:
+    - Agency stage post-subtask summary call (~`33–37s`).
+    - Interface stage formatting call (~`30–31s`).
+  - Secondary variability source:
+    - Cognition sometimes emits `task-2` as a real `general` LLM summary subtask (~`22.6s`), which further inflates execute time.
+- Recommended next optimization targets:
+  1. Add deterministic fast-path in execute for single-route deterministic fetch responses (skip Agency summary model when safe).
+  2. Tighten cognition policy to avoid creating `general` synthesis subtask for this prompt class when materialized route/skill already exists.
+  3. Move Interface formatting to a faster model tier for routine structured summaries.
+
+### Deterministic Execute Summary Fast Path (Plan 75) — Completed
+- Implemented:
+  - Added `buildDeterministicAgencyFastPathSummary(...)` in `src/trigger/execute.ts`.
+  - `pipeline-execute` now skips Agency summary model call when:
+    - exactly one deterministic route subtask succeeded (`mcp-fetcher`/`api-fetcher`/`cohort-monitor`),
+    - optional non-deterministic subtasks are synthesis-only,
+    - no failed subtasks.
+  - In fast-path mode, `agencyResult.summary` is generated deterministically.
+- Tests:
+  - Added `tests/unit/execute-fast-path.test.ts` covering:
+    - eligible case (deterministic route + synthesis),
+    - ineligible multiple deterministic routes,
+    - ineligible non-synthesis `general` subtask.
+  - Validation command:
+    - `npm test -- tests/unit/execute-fast-path.test.ts tests/unit/autonomous-skill-loop.test.ts tests/unit/skill-learning.test.ts tests/unit/orchestrate-skill-learner.test.ts`
+    - Result: `15` tests passed.
+- Benchmark (exact prompt):
+  - Prompt: `"How many API calculations have I used this month?"`
+  - Run: `run_cmmm07ara00573annlempsi2z` (version `20260311.17`)
+    - ground: `3264ms`
+    - think: `4895ms`
+    - execute: `41368ms`
+    - deliver: `30543ms`
+    - skill-learner: `null` (no persisted suggestion in this run)
+  - Confirmed fast-path activation from execute summary text.
+- Remaining bottleneck:
+  - In this run, a cognition-generated `general` synthesis subtask consumed `38051ms`.
+  - Fast-path removed Agency summary-model overhead, but total execute latency is still dominated by that synthesis subtask.

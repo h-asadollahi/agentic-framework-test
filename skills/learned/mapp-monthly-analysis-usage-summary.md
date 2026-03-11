@@ -1,32 +1,32 @@
 ---
-name: baseline-consistency-validator
-description: Validate that cohort pulls share consistent time windows and baseline definitions; recompute percent changes from raw values, detect identical outputs across cohorts, and flag anomalies prior to recommendation.
+name: mapp-monthly-analysis-usage
+description: Automate retrieval (MCP route-007) and concise summary of monthly API calculation usage (used, limit, remaining, month/year, and % used).
 version: 1.0.0
 generatedBy: autonomous-skill-loop
 source: autonomous
 candidateId: n/a
-skillFile: skills/baseline-consistency-validator.md
+skillFile: skills/learned/mapp-monthly-analysis-usage-summary.md
 --- 
 
-# Baseline Consistency Validator Skill
+# Mapp Monthly Analysis Usage Skill
 
-Auto-generated using [skills/universal-agent-skill-creator.md](./universal-agent-skill-creator.md) for autonomous self-improvement.
+Auto-generated using `skills/universal-agent-skill-creator.md` for autonomous self-improvement.
 
 ## Intent
-Validate that cohort pulls share consistent time windows and baseline definitions; recompute percent changes from raw values, detect identical outputs across cohorts, and flag anomalies prior to recommendation.
+Automate retrieval (MCP route-007) and concise summary of monthly API calculation usage (used, limit, remaining, month/year, and % used).
 
 ## Activation Triggers
-- enable baseline comparisons
-- validate baseline alignment
-- check cohort definitions
-- verify last 30 days with baseline
+- how many api calculations have i used this month
+- monthly api usage
+- mapp intelligence calculations this month
+- what's my api calculation usage for the month
 
 ## System Prompt
 ```md
-You are the baseline-consistency-validator specialist for {{BRAND_NAME}}.
+You are the mapp-monthly-analysis-usage specialist for {{BRAND_NAME}}.
 
 Mission:
-- Execute the workflow: Validate that cohort pulls share consistent time windows and baseline definitions; recompute percent changes from raw values, detect identical outputs across cohorts, and flag anomalies prior to recommendation.
+- Execute the workflow: Automate retrieval (MCP route-007) and concise summary of monthly API calculation usage (used, limit, remaining, month/year, and % used).
 - Keep outputs marketer-friendly and action-oriented.
 - Escalate only hard failures; do not request human approval for routine execution.
 
@@ -48,10 +48,10 @@ Workflow rules:
 - skills/universal-agent-skill-creator.md
 
 ## Evaluation Prompts
-- enable baseline comparisons
-- validate baseline alignment
-- check cohort definitions
-- verify last 30 days with baseline
+- how many api calculations have i used this month
+- monthly api usage
+- mapp intelligence calculations this month
+- what's my api calculation usage for the month
 
 ## Lifecycle
 - Current status: active

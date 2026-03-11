@@ -1,10 +1,12 @@
 import {
+  afterEach,
   afterAll,
   beforeAll,
   beforeEach,
   describe,
   expect,
   it,
+  vi,
 } from "vitest";
 import {
   existsSync,
@@ -14,9 +16,19 @@ import {
 } from "node:fs";
 import { resolve } from "node:path";
 import { buildExecutionContext } from "../../src/core/context.js";
-import { applyAutonomousSkillCreation } from "../../src/trigger/think.js";
-import { persistAndMaterializeSkillSuggestions } from "../../src/trigger/execute.js";
+import {
+  applyAutonomousSkillCreation,
+  preloadCognitionStores,
+} from "../../src/trigger/think.js";
+import {
+  preloadExecutionStores,
+} from "../../src/trigger/execute.js";
+import {
+  filterSkillSuggestionsForCognitionContext,
+  persistAndMaterializeSkillSuggestions,
+} from "../../src/trigger/skill-learning.js";
 import { materializeUniversalSkill } from "../../src/trigger/universal-skill-creator.js";
+import { learnedRoutesStore } from "../../src/routing/learned-routes-store.js";
 import { skillCandidatesStore } from "../../src/routing/skill-candidates-store.js";
 import type { CognitionResult, SkillSuggestion } from "../../src/core/types.js";
 
@@ -49,6 +61,10 @@ describe.sequential("autonomous skill loop", () => {
   beforeEach(() => {
     writeFileSync(candidatesFile, initialCandidatesFile, "utf-8");
     skillCandidatesStore.load();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
   afterAll(() => {
@@ -228,5 +244,192 @@ describe.sequential("autonomous skill loop", () => {
     expect(summary[0].suggestedSkillFile).toBe(skillFile);
 
     cleanupSkillFile(skillFile);
+  });
+
+  it("preloads DB-backed route store before skill candidates for cognition", async () => {
+    const callOrder: string[] = [];
+    const routeLoadSpy = vi
+      .spyOn(learnedRoutesStore, "load")
+      .mockImplementation(async () => {
+        callOrder.push("routes");
+      });
+    const candidateLoadSpy = vi
+      .spyOn(skillCandidatesStore, "load")
+      .mockImplementation(() => {
+        callOrder.push("skills");
+      });
+
+    await preloadCognitionStores();
+
+    expect(routeLoadSpy).toHaveBeenCalledOnce();
+    expect(candidateLoadSpy).toHaveBeenCalledOnce();
+    expect(callOrder).toEqual(["routes", "skills"]);
+  });
+
+  it("preloads DB-backed route store before skill candidates for execute", async () => {
+    const callOrder: string[] = [];
+    const routeLoadSpy = vi
+      .spyOn(learnedRoutesStore, "load")
+      .mockImplementation(async () => {
+        callOrder.push("routes");
+      });
+    const candidateLoadSpy = vi
+      .spyOn(skillCandidatesStore, "load")
+      .mockImplementation(() => {
+        callOrder.push("skills");
+      });
+
+    await preloadExecutionStores();
+
+    expect(routeLoadSpy).toHaveBeenCalledOnce();
+    expect(candidateLoadSpy).toHaveBeenCalledOnce();
+    expect(callOrder).toEqual(["routes", "skills"]);
+  });
+
+  it("drops low-relevance skill suggestions against cognition context", () => {
+    const cognitionResult: CognitionResult = {
+      subtasks: [
+        {
+          id: "task-1",
+          agentId: "mcp-fetcher",
+          description: "How many API calculations have I used this month?",
+          input: { routeId: "route-007" },
+          dependencies: [],
+          priority: "high",
+        },
+      ],
+      reasoning: "Monthly Mapp API usage request.",
+      plan: "Fetch monthly API usage and summarize.",
+      rejected: false,
+      rejectionReason: undefined,
+    };
+
+    const suggestions: SkillSuggestion[] = [
+      {
+        capability: "mapp-monthly-analysis-usage",
+        description: "Summarize monthly API usage in Mapp.",
+        suggestedSkillFile: "skills/learned/mapp-monthly-analysis-usage.md",
+        triggerPatterns: ["how many api calculations have i used this month"],
+        confidence: "high",
+        requiresApproval: false,
+      },
+      {
+        capability: "initialize-learned-routes-store",
+        description: "Initialize learnedRoutesStore load lifecycle in startup.",
+        suggestedSkillFile: "skills/learned/initialize-learned-routes-store.md",
+        triggerPatterns: ["learnedRoutesStore.load must be awaited"],
+        confidence: "medium",
+        requiresApproval: false,
+      },
+    ];
+
+    const filtered = filterSkillSuggestionsForCognitionContext(
+      suggestions,
+      cognitionResult
+    );
+
+    expect(filtered.suggestions).toHaveLength(1);
+    expect(filtered.suggestions[0].capability).toBe("mapp-monthly-analysis-usage");
+    expect(filtered.droppedCount).toBe(1);
+  });
+
+  it("locks autonomous suggestion persistence to an existing matched skill", () => {
+    const cognitionResult: CognitionResult = {
+      subtasks: [
+        {
+          id: "task-1",
+          agentId: "mcp-fetcher",
+          description: "How many API calculations have I used this month?",
+          input: { routeId: "route-007" },
+          dependencies: [],
+          priority: "high",
+        },
+      ],
+      reasoning: "Monthly Mapp API usage request.",
+      plan: "How many API calculations have I used this month?",
+      rejected: false,
+      rejectionReason: undefined,
+    };
+
+    const suggestions: SkillSuggestion[] = [
+      {
+        capability: "mapp-monthly-analysis-usage",
+        description: "Summarize monthly API usage in Mapp.",
+        suggestedSkillFile: "skills/learned/mapp-monthly-analysis-usage.md",
+        triggerPatterns: ["how many api calculations have i used this month"],
+        confidence: "high",
+        requiresApproval: false,
+      },
+      {
+        capability: "mcp-usage-normalizer",
+        description:
+          "Normalize MCP usage payloads into a standard schema for summarization.",
+        suggestedSkillFile: "skills/learned/mcp-usage-normalizer.md",
+        triggerPatterns: ["normalize mcp usage", "summarize api quota"],
+        confidence: "high",
+        requiresApproval: false,
+      },
+    ];
+
+    const filtered = filterSkillSuggestionsForCognitionContext(
+      suggestions,
+      cognitionResult,
+      {
+        lockedCapability: "mapp-monthly-analysis-usage",
+        lockedSkillFile: "skills/learned/mapp-monthly-analysis-usage.md",
+        maxSuggestions: 1,
+      }
+    );
+
+    expect(filtered.suggestions).toHaveLength(1);
+    expect(filtered.suggestions[0].capability).toBe("mapp-monthly-analysis-usage");
+    expect(filtered.droppedCount).toBe(1);
+  });
+
+  it("caps autonomous persisted suggestions to a single highest-relevance item", () => {
+    const cognitionResult: CognitionResult = {
+      subtasks: [
+        {
+          id: "task-1",
+          agentId: "mcp-fetcher",
+          description: "How many API calculations have I used this month?",
+          input: { routeId: "route-007" },
+          dependencies: [],
+          priority: "high",
+        },
+      ],
+      reasoning: "Monthly Mapp API usage request.",
+      plan: "How many API calculations have I used this month?",
+      rejected: false,
+      rejectionReason: undefined,
+    };
+
+    const suggestions: SkillSuggestion[] = [
+      {
+        capability: "mapp-monthly-analysis-usage",
+        description: "Summarize monthly API usage in Mapp.",
+        suggestedSkillFile: "skills/learned/mapp-monthly-analysis-usage.md",
+        triggerPatterns: ["how many api calculations have i used this month"],
+        confidence: "high",
+        requiresApproval: false,
+      },
+      {
+        capability: "monthly-api-usage-summarizer",
+        description: "Summarize API calculations used this month.",
+        suggestedSkillFile: "skills/learned/monthly-api-usage-summarizer.md",
+        triggerPatterns: ["how many api calculations have i used this month"],
+        confidence: "high",
+        requiresApproval: false,
+      },
+    ];
+
+    const filtered = filterSkillSuggestionsForCognitionContext(
+      suggestions,
+      cognitionResult,
+      { maxSuggestions: 1 }
+    );
+
+    expect(filtered.suggestions).toHaveLength(1);
+    expect(filtered.droppedCount).toBe(1);
   });
 });
