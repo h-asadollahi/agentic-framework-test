@@ -1,6 +1,6 @@
 # Development Handover — Continue from Here
 
-> **Last updated:** 2026-03-10
+> **Last updated:** 2026-03-11
 > **Previous AI:** Claude Opus 4.6 via Claude Code
 > **Next AI:** OpenAI Codex (or any agent picking this up)
 
@@ -46,6 +46,27 @@ src/
 ---
 
 ## Post-Handover Progress (2026-03-10, Codex)
+
+### Plan 76: Deterministic synthesis-subtask skip for single-route prompts
+
+Status: Implemented in code and tests.
+
+What changed:
+- `pipeline-think` now prunes redundant synthesis-only `general`/`assistant` subtasks when cognition produced exactly one deterministic route subtask (`mcp-fetcher`, `api-fetcher`, or `cohort-monitor`) and the synthesis task only depends on that deterministic task.
+- `pipeline-execute` now has a runtime safety guard that skips redundant synthesis subtasks if they still appear, returning a deterministic synthetic completion record (`modelUsed: deterministic-skip`) instead of calling a model.
+- This keeps output shape intact while removing unnecessary long-running synthesis calls in deterministic single-route flows.
+
+Tests added:
+- `tests/unit/think-deterministic-optimization.test.ts`
+- Added skip-helper coverage in `tests/unit/execute-fast-path.test.ts`
+
+Validation benchmark:
+- Prompt: `How many API calculations have I used this month?`
+- Before (baseline `run_cmmm07ara00573annlempsi2z`):
+  - `pipeline-execute`: `41,368ms`
+- After (optimized `run_cmmm22vpw00693ann1avwcxn1`):
+  - `pipeline-execute`: `3,184ms`
+- Net execute-stage reduction: ~`92.3%`.
 
 ### Plan 57: Autonomous Skill Self-Learning (No HITL for Skills)
 

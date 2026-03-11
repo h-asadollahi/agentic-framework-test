@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { buildDeterministicAgencyFastPathSummary } from "../../src/trigger/execute.js";
+import {
+  buildDeterministicAgencyFastPathSummary,
+  shouldSkipSynthesisSubtaskForDeterministicRoute,
+} from "../../src/trigger/execute.js";
 import type { AgentResult, CognitionResult } from "../../src/core/types.js";
 
 function okResult(output: unknown, durationMs = 1000): AgentResult {
@@ -136,5 +139,74 @@ describe("execute deterministic agency fast path", () => {
     ]);
 
     expect(fastPath).toBeNull();
+  });
+
+  it("detects skippable synthesis subtask when deterministic dependency already completed", () => {
+    const shouldSkip = shouldSkipSynthesisSubtaskForDeterministicRoute(
+      {
+        id: "task-2",
+        agentId: "general",
+        description: "Summarize the usage output for the marketer.",
+        input: {},
+        dependencies: ["task-1"],
+        priority: "medium",
+      },
+      [
+        {
+          subtaskId: "task-1",
+          agentId: "mcp-fetcher",
+          result: okResult("usage payload", 1600),
+        },
+      ]
+    );
+
+    expect(shouldSkip.skip).toBe(true);
+    expect(shouldSkip.sourceSubtaskId).toBe("task-1");
+    expect(shouldSkip.sourceAgentId).toBe("mcp-fetcher");
+  });
+
+  it("does not skip non-synthesis or missing dependency success", () => {
+    const noSkip = shouldSkipSynthesisSubtaskForDeterministicRoute(
+      {
+        id: "task-2",
+        agentId: "general",
+        description: "Call external CRM and mutate records.",
+        input: {},
+        dependencies: ["task-1"],
+        priority: "high",
+      },
+      [
+        {
+          subtaskId: "task-1",
+          agentId: "mcp-fetcher",
+          result: okResult("usage payload", 1600),
+        },
+      ]
+    );
+    expect(noSkip.skip).toBe(false);
+
+    const failedDep = shouldSkipSynthesisSubtaskForDeterministicRoute(
+      {
+        id: "task-2",
+        agentId: "general",
+        description: "Summarize usage output.",
+        input: {},
+        dependencies: ["task-1"],
+        priority: "medium",
+      },
+      [
+        {
+          subtaskId: "task-1",
+          agentId: "mcp-fetcher",
+          result: {
+            success: false,
+            output: "error",
+            modelUsed: "test",
+            durationMs: 100,
+          },
+        },
+      ]
+    );
+    expect(failedDep.skip).toBe(false);
   });
 });

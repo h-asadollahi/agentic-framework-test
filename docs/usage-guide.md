@@ -926,7 +926,8 @@ How it works:
 - `src/trigger/ground.ts` remains authoritative for parse/fallback decision logic; the markdown decision file mirrors behavior for human maintainability.
 - `src/trigger/think.ts` + `src/trigger/cognition-guardrails.ts` remain authoritative for cognition parse fallback and deterministic out-of-scope rejection logic.
 - `src/trigger/execute.ts` + `src/trigger/execute-routing.ts` remain authoritative for Agency execution routing, summarization, and fallback behavior. Autonomous skill persistence is intentionally not in the critical path.
-- `src/trigger/execute.ts` includes a deterministic summary fast path for simple single-route deterministic executions (skips Agency summary model call when safety criteria are met).
+- `src/trigger/think.ts` prunes redundant synthesis-only `general/assistant` subtasks for safe single-route deterministic plans.
+- `src/trigger/execute.ts` includes deterministic fast paths for safe single-route deterministic executions: it skips the Agency summary model call and also skips redundant synthesis-only subtasks when they only depend on a successful deterministic route task.
 - `src/trigger/skill-learner.ts` + `src/trigger/skill-learning.ts` run asynchronous post-execution skill filtering/materialization (`max 1` suggestion per run with anti-spam locking).
 - `src/trigger/orchestrate.ts` now queues `pipeline-skill-learner` in fire-and-forget mode after Agency stage and proceeds directly to Interface.
 - `src/routing/skill-candidates-store.ts` is authoritative for skill recommendation persistence, prompt-match scoring, and materialization-state checks.

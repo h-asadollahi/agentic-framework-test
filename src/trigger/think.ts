@@ -90,6 +90,9 @@ export const thinkTask = task({
         cognitionResult,
         payload.userMessage
       );
+      cognitionResult = constrainDeterministicSingleRouteSynthesis(
+        cognitionResult
+      );
     }
 
     logger.info(`Cognition produced ${cognitionResult.subtasks.length} subtasks`);
@@ -189,6 +192,80 @@ export function applyAutonomousSkillCreation(
     ...cognitionResult,
     subtasks: updatedSubtasks,
     reasoning: `${cognitionResult.reasoning} | Autonomous self-learning: missing skill "${matchedCandidate.capability}" will be created via skill-creator before execution.`,
+  };
+}
+
+const DETERMINISTIC_ROUTE_AGENT_IDS = new Set([
+  "mcp-fetcher",
+  "api-fetcher",
+  "cohort-monitor",
+]);
+
+const ALLOWED_NON_DETERMINISTIC_IDS = new Set([
+  "skill-creator",
+  "skill_creator",
+  "universal-skill-creator",
+  "general",
+  "assistant",
+]);
+
+export function constrainDeterministicSingleRouteSynthesis(
+  cognitionResult: CognitionResult
+): CognitionResult {
+  const deterministic = cognitionResult.subtasks.filter((subtask) =>
+    DETERMINISTIC_ROUTE_AGENT_IDS.has(subtask.agentId)
+  );
+  if (deterministic.length !== 1) {
+    return cognitionResult;
+  }
+
+  const deterministicTask = deterministic[0];
+  const removableSynthesis = cognitionResult.subtasks.filter((subtask) => {
+    const normalizedAgentId = subtask.agentId.trim().toLowerCase();
+    if (normalizedAgentId !== "general" && normalizedAgentId !== "assistant") {
+      return false;
+    }
+    if (!looksLikeSynthesisSubtask(subtask.description)) {
+      return false;
+    }
+    return subtask.dependencies.includes(deterministicTask.id);
+  });
+
+  if (removableSynthesis.length === 0) {
+    return cognitionResult;
+  }
+
+  const hasUnsupportedSubtasks = cognitionResult.subtasks.some((subtask) => {
+    if (DETERMINISTIC_ROUTE_AGENT_IDS.has(subtask.agentId)) return false;
+    if (ALLOWED_NON_DETERMINISTIC_IDS.has(subtask.agentId)) return false;
+    return true;
+  });
+  if (hasUnsupportedSubtasks) {
+    return cognitionResult;
+  }
+
+  const removeIds = new Set(removableSynthesis.map((subtask) => subtask.id));
+  const updatedSubtasks = cognitionResult.subtasks
+    .filter((subtask) => !removeIds.has(subtask.id))
+    .map((subtask) => ({
+      ...subtask,
+      dependencies: subtask.dependencies.filter((dep) => !removeIds.has(dep)),
+    }));
+
+  if (updatedSubtasks.length === cognitionResult.subtasks.length) {
+    return cognitionResult;
+  }
+
+  logger.info("Cognition constrained redundant synthesis subtasks", {
+    removed: removableSynthesis.length,
+    deterministicTaskId: deterministicTask.id,
+    deterministicAgentId: deterministicTask.agentId,
+  });
+
+  return {
+    ...cognitionResult,
+    subtasks: updatedSubtasks,
+    reasoning: `${cognitionResult.reasoning} | Deterministic-route optimization: removed ${removableSynthesis.length} redundant synthesis subtask(s).`,
   };
 }
 

@@ -87,6 +87,34 @@ export const executeTask = task({
 
           let result: AgentResult;
 
+          const skipSynthesis = shouldSkipSynthesisSubtaskForDeterministicRoute(
+            subtask,
+            allResults
+          );
+          if (skipSynthesis.skip) {
+            logger.info("Skipping redundant synthesis subtask for deterministic route", {
+              subtaskId: subtask.id,
+              sourceSubtaskId: skipSynthesis.sourceSubtaskId,
+              sourceAgentId: skipSynthesis.sourceAgentId,
+            });
+            return {
+              subtaskId: subtask.id,
+              agentId: subtask.agentId,
+              result: {
+                success: true,
+                output: {
+                  mode: "deterministic-skip",
+                  reason:
+                    "Skipped redundant synthesis subtask; deterministic route result will be formatted in later stage.",
+                  sourceSubtaskId: skipSynthesis.sourceSubtaskId,
+                  sourceAgentId: skipSynthesis.sourceAgentId,
+                },
+                modelUsed: "deterministic-skip",
+                durationMs: Date.now() - startTime,
+              },
+            };
+          }
+
           if (isDeterministicSkillCreatorAgent(subtask.agentId)) {
             logger.info(
               `Using deterministic universal skill creator workflow for "${subtask.agentId}"`
@@ -475,6 +503,49 @@ export function buildDeterministicAgencyFastPathSummary(
   return {
     summary,
     routeAgentId: routeResult.agentId,
+  };
+}
+
+export function shouldSkipSynthesisSubtaskForDeterministicRoute(
+  subtask: SubTask,
+  completedResults: ExecutedSubtaskResult[]
+): {
+  skip: boolean;
+  sourceSubtaskId?: string;
+  sourceAgentId?: string;
+} {
+  const normalizedAgentId = subtask.agentId.trim().toLowerCase();
+  if (normalizedAgentId !== "general" && normalizedAgentId !== "assistant") {
+    return { skip: false };
+  }
+  if (!looksLikeSynthesisSubtask(subtask.description)) {
+    return { skip: false };
+  }
+  if (!Array.isArray(subtask.dependencies) || subtask.dependencies.length === 0) {
+    return { skip: false };
+  }
+
+  const dependencyResults = completedResults.filter((result) =>
+    subtask.dependencies.includes(result.subtaskId)
+  );
+  if (dependencyResults.length === 0) {
+    return { skip: false };
+  }
+  if (dependencyResults.some((result) => result.result.success !== true)) {
+    return { skip: false };
+  }
+
+  const deterministicSource = dependencyResults.find((result) =>
+    DETERMINISTIC_ROUTE_AGENT_IDS.has(result.agentId)
+  );
+  if (!deterministicSource) {
+    return { skip: false };
+  }
+
+  return {
+    skip: true,
+    sourceSubtaskId: deterministicSource.subtaskId,
+    sourceAgentId: deterministicSource.agentId,
   };
 }
 
