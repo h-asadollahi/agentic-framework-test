@@ -112,8 +112,8 @@ export class CohortMonitorAgent extends BaseSubAgent {
 
   constructor(options?: { promptLoader?: PromptLoader; promptFile?: string }) {
     super(
-      "anthropic:fast",              // preferred (used only in AI mode)
-      ["openai:fast", "google:fast"],
+      "openai:fast", // preferred (used only in AI mode)
+      ["anthropic:fast", "google:fast"],
       5,
       0.1
     );

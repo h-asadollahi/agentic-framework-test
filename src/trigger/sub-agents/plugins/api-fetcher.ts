@@ -762,7 +762,7 @@ export class ApiFetcherAgent extends BaseSubAgent {
   private promptFile: string;
 
   constructor(options?: { promptLoader?: PromptLoader; promptFile?: string }) {
-    super("anthropic:fast", ["openai:fast", "google:fast"], 3, 0.1);
+    super("openai:fast", ["anthropic:fast", "google:fast"], 3, 0.1);
     this.promptLoader = options?.promptLoader ?? loadAgentPromptSpec;
     this.promptFile = options?.promptFile ?? API_FETCHER_SYSTEM_PROMPT_FILE;
   }

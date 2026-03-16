@@ -32,8 +32,8 @@ export abstract class BaseSubAgent implements SubAgentPlugin {
   protected temperature: number;
 
   constructor(
-    preferredModel: string = "anthropic:balanced",
-    fallbackModels: string[] = ["openai:balanced", "google:balanced"],
+    preferredModel: string = "openai:balanced",
+    fallbackModels: string[] = ["anthropic:balanced", "google:balanced"],
     maxSteps: number = 10,
     temperature: number = 0.2
   ) {

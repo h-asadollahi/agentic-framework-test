@@ -1,6 +1,6 @@
 # Development Handover — Continue from Here
 
-> **Last updated:** 2026-03-11
+> **Last updated:** 2026-03-16
 > **Previous AI:** Claude Opus 4.6 via Claude Code
 > **Next AI:** OpenAI Codex (or any agent picking this up)
 
@@ -70,6 +70,29 @@ Validation benchmark:
   - `pipeline-deliver`: `17ms`
 - After minor humanization tweak (`run_cmmm3jhfk008b3annglp10pq9`):
   - `pipeline-deliver`: `13ms`
+
+### Plan 78: Sub-agent default model priority switched to OpenAI-first
+
+Status: Implemented in code and focused tests.
+
+What changed:
+- Switched `BaseSubAgent` default model order to OpenAI-first:
+  - preferred: `openai:balanced`
+  - fallbacks: `anthropic:balanced`, `google:balanced`
+- Updated sub-agent plugin constructors to OpenAI-first:
+  - `cohort-monitor`: `openai:fast` -> `anthropic:fast`, `google:fast`
+  - `api-fetcher`: `openai:fast` -> `anthropic:fast`, `google:fast`
+  - `mcp-fetcher`: `openai:fast` -> `anthropic:fast`, `google:fast`
+
+Files:
+- `src/trigger/sub-agents/base-sub-agent.ts`
+- `src/trigger/sub-agents/plugins/cohort-monitor.ts`
+- `src/trigger/sub-agents/plugins/api-fetcher.ts`
+- `src/trigger/sub-agents/plugins/mcp-fetcher.ts`
+
+Validation:
+- `npm run test -- tests/unit/cohort-monitor-sub-agent.test.ts tests/unit/api-fetcher-sub-agent.test.ts tests/unit/mcp-fetcher-sub-agent.test.ts tests/unit/execute-routing.test.ts`
+- Result: `15/15` passed.
 
 ### Plan 76: Deterministic synthesis-subtask skip for single-route prompts
 
