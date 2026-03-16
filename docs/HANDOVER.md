@@ -110,6 +110,61 @@ Next recommended verification after switching accounts:
    - no admin HITL message is sent for normalization/presentation-only follow-up work
 4. If a similar case still appears, inspect the exact cognition wording first; the synthesis detector is now broader, but new phrasing variants may still need to be folded into the shared detector in `src/trigger/execute-routing.ts`
 
+### Open Investigation Note: dimensions/metrics route returns data but final response is too generic
+
+Status: Investigated, not implemented yet.
+
+Observed run:
+- Root run: `run_cmmtcszej00303bnnddz8fs1o`
+- Prompt: `List all available dimensions and metrics in Mapp Intelligence`
+
+What happened:
+- The pipeline completed successfully.
+- `pipeline-think` produced only one subtask:
+  - `mcp-fetcher` with `routeId: route-002`
+- `pipeline-execute` successfully retrieved the compacted catalog payload from the MCP server.
+- However, the final marketer-facing response only said that results were retrieved and did not expose the actual list/counts in a useful way.
+
+Confirmed execute-stage payload:
+- `mcp-fetcher` returned:
+  - `dimensionsCount: 351`
+  - `metricsCount: 619`
+  - full `dimensions[]` array
+  - full `metrics[]` array
+- So the retrieval worked; the loss happened after execute, not before.
+
+Root cause:
+- `pipeline-deliver` used the deterministic deliver fast path for this run.
+- Current fast path in `src/trigger/deliver.ts` is summary-oriented and optimized for performance:
+  - it builds the response from `agencyResult.summary` + extracted `criticalFacts`
+  - it does not have a route-specific renderer for catalog/list outputs
+- `extractCriticalFacts()` in `src/trigger/delivery-fidelity.ts` only extracts short human-readable fact lines from string outputs and explicitly filters likely machine payloads / long serialized JSON.
+- The `mcp-fetcher` output for `list_dimensions_and_metrics` is a serialized JSON payload containing counts plus large arrays, so the list data is filtered out and never appears in the final fast-path response.
+- Result: marketer gets a successful but low-value summary instead of the requested catalog/list.
+
+Secondary observation:
+- In this same run, cognition reasoning also reported autonomous skill reuse of:
+  - `mapp-monthly-analysis-usage-summary`
+- That skill is unrelated to the dimensions/metrics catalog request.
+- This likely happened because current prompt-to-skill matching is too permissive for common tokens like `mapp intelligence`.
+- It did not break this run because the synthesis subtask was pruned, but it is still noisy and should be tightened later.
+
+Recommended next implementation:
+1. Add a route-specific deterministic deliver renderer for `route-002` / `list_dimensions_and_metrics`:
+   - show counts
+   - show representative slices or grouped sections of dimensions/metrics
+   - optionally provide collapsible/raw-json support in demo/admin UI only, not in marketer default output
+2. Or, bypass deterministic deliver fast path for catalog/list-style routes and let `interface-agent` format the structured payload.
+3. Tighten skill-candidate prompt matching so unrelated learned skills are not reported for generic `Mapp Intelligence` prompts.
+
+Acceptance criteria for the future fix:
+- The marketer sees at minimum:
+  - total dimensions count
+  - total metrics count
+  - a readable subset/grouping of the returned dimensions and metrics
+- The full payload remains available for UI expansion/debugging without dumping raw JSON into the marketer summary by default.
+- `run_cmmtcszej00303bnnddz8fs1o` class of prompt no longer returns only “Results were retrieved successfully.”
+
 ### Plan 77: Deliver-stage latency optimization (deterministic fast path)
 
 Status: Implemented in code and tests.
