@@ -94,6 +94,35 @@ Validation:
 - `npm run test -- tests/unit/cohort-monitor-sub-agent.test.ts tests/unit/api-fetcher-sub-agent.test.ts tests/unit/mcp-fetcher-sub-agent.test.ts tests/unit/execute-routing.test.ts`
 - Result: `15/15` passed.
 
+### Plan 79: Admin UI route browser for current DB-backed learned routes
+
+Status: Implemented in UI and verified.
+
+What changed:
+- Upgraded the admin UI route list into an administrator-focused route browser.
+- Added a visible route source indicator driven by `/admin/health` so the UI shows whether learned routes are currently coming from:
+  - Postgres / DB-backed store
+  - JSON fallback
+- Expanded the routes table with richer operational fields:
+  - workflow type
+  - last used timestamp
+  - target
+  - match-pattern preview
+- Added route inspection workflow:
+  - selecting a route now loads full details from `/admin/routes/:routeId`
+  - human-readable details panel
+  - collapsible raw JSON payload for exact route inspection
+
+Files:
+- `admin/public/index.html`
+- `admin/public/app.js`
+- `docs/ai-coding-plans/codex-plan-79.md`
+
+Validation:
+- `node --check admin/public/app.js`
+- `npm run test -- tests/unit/admin-routes.test.ts`
+- local smoke check: `admin/server.mjs` served the updated page successfully at `http://localhost:4174`
+
 ### Plan 76: Deterministic synthesis-subtask skip for single-route prompts
 
 Status: Implemented in code and tests.

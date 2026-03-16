@@ -13,6 +13,9 @@
         --accent: #0067b8;
         --danger: #b42318;
         --border: #d9e2ec;
+        --success: #137333;
+        --warning: #9a6700;
+        --shadow: 0 18px 40px rgba(15, 23, 42, 0.08);
       }
       body {
         margin: 0;
@@ -38,6 +41,7 @@
         border-radius: 12px;
         padding: 16px;
         margin-bottom: 16px;
+        box-shadow: var(--shadow);
       }
       .row {
         display: flex;
@@ -90,6 +94,121 @@
       .status {
         margin-left: auto;
       }
+      .metrics {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 12px;
+      }
+      .metric {
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 14px;
+        background: linear-gradient(180deg, #fff 0%, #f8fbff 100%);
+      }
+      .metric-label {
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: var(--muted);
+        margin-bottom: 8px;
+      }
+      .metric-value {
+        font-size: 24px;
+        font-weight: 700;
+      }
+      .metric-copy {
+        margin-top: 8px;
+        font-size: 12px;
+        color: var(--muted);
+      }
+      .badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 10px;
+        border-radius: 999px;
+        font-size: 12px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+      }
+      .badge.db {
+        background: #e8f5ee;
+        color: var(--success);
+      }
+      .badge.json {
+        background: #fff4db;
+        color: var(--warning);
+      }
+      .route-table tr[data-route-id] {
+        cursor: pointer;
+      }
+      .route-table tr[data-route-id]:hover {
+        background: #f7fbff;
+      }
+      .route-table tr.selected {
+        background: #eaf4ff;
+      }
+      .chip-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+      }
+      .chip {
+        display: inline-flex;
+        align-items: center;
+        padding: 4px 8px;
+        border-radius: 999px;
+        border: 1px solid var(--border);
+        background: #f8fafc;
+        font-size: 12px;
+      }
+      .detail-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        gap: 12px;
+      }
+      .detail-card {
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 14px;
+        background: #fbfdff;
+      }
+      .detail-card h4 {
+        margin: 0 0 10px;
+        font-size: 13px;
+        color: var(--muted);
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+      }
+      .detail-card dl {
+        margin: 0;
+        display: grid;
+        grid-template-columns: 110px 1fr;
+        gap: 8px 10px;
+      }
+      .detail-card dt {
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .detail-card dd {
+        margin: 0;
+        font-size: 13px;
+      }
+      .empty-state {
+        border: 1px dashed var(--border);
+        border-radius: 10px;
+        padding: 18px;
+        color: var(--muted);
+        background: #fcfdff;
+      }
+      details.raw-json {
+        margin-top: 14px;
+      }
+      details.raw-json summary {
+        cursor: pointer;
+        font-weight: 600;
+      }
       @media (max-width: 768px) {
         .row {
           flex-direction: column;
@@ -130,27 +249,67 @@
       </div>
 
       <div class="panel">
-        <h3>Route Stats</h3>
-        <pre id="stats" class="muted">No data loaded.</pre>
+        <h3>Route Source</h3>
+        <div class="metrics">
+          <div class="metric">
+            <div class="metric-label">Active Source</div>
+            <div class="metric-value"><span id="sourceBadge" class="badge json">Unknown</span></div>
+            <div class="metric-copy" id="sourceMeta">Load the API to inspect the currently active route storage.</div>
+          </div>
+          <div class="metric">
+            <div class="metric-label">Total Routes</div>
+            <div class="metric-value" id="totalRoutes">-</div>
+            <div class="metric-copy">Current learned routes visible to the admin API.</div>
+          </div>
+          <div class="metric">
+            <div class="metric-label">API Routes</div>
+            <div class="metric-value" id="apiRoutes">-</div>
+            <div class="metric-copy">Routes backed by HTTP/API workflow definitions.</div>
+          </div>
+          <div class="metric">
+            <div class="metric-label">Sub-Agent Routes</div>
+            <div class="metric-value" id="subAgentRoutes">-</div>
+            <div class="metric-copy">Routes dispatched directly to registered sub-agents.</div>
+          </div>
+          <div class="metric">
+            <div class="metric-label">Dual Write</div>
+            <div class="metric-value" id="dualWriteState">-</div>
+            <div class="metric-copy">Whether DB writes are also mirrored to JSON.</div>
+          </div>
+        </div>
       </div>
 
       <div class="panel">
         <h3>Routes</h3>
         <div style="overflow:auto">
-          <table>
+          <table class="route-table">
             <thead>
               <tr>
                 <th>ID</th>
                 <th>Capability</th>
                 <th>Type</th>
+                <th>Workflow</th>
                 <th>Usage</th>
+                <th>Last Used</th>
                 <th>Target</th>
+                <th>Patterns</th>
                 <th>Actions</th>
               </tr>
             </thead>
             <tbody id="routesTable"></tbody>
           </table>
         </div>
+      </div>
+
+      <div class="panel">
+        <h3>Route Details</h3>
+        <div id="routeDetailSummary" class="empty-state">
+          Select a route from the table to inspect the current DB-backed definition.
+        </div>
+        <details class="raw-json">
+          <summary>Raw Route JSON</summary>
+          <pre id="routeRaw" class="muted">No route selected.</pre>
+        </details>
       </div>
 
       <div class="panel">
