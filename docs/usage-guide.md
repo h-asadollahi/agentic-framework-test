@@ -789,6 +789,12 @@ These prompts should route to `mcp-fetcher` with `serverName: "mapp-michel"` (fr
 - `What segments are defined in my Mapp Intelligence account?`
 - `How many API calculations have I used this month?`
 
+### Force a new learned route: 
+- `Fetch weekly creative fatigue index by ad set from our internal ads API endpoint /v2/ads/creative-fatigue-index for the last 45 days, and flag ad sets with fatigue index above 0.7.`
+
+### Force new skill to learn:
+- `Show me my page impressions for the last 7 days in Mapp Intelligence, then classify sessions into engagement buckets (High: 80+, Medium: 60–79, Low: <60), calculate each bucket’s share of total impressions, and return it in a reusable weekly report format.`
+
 ### Mapp Intelligence API template workflows (`api-fetcher`)
 
 These prompts should route to `api-fetcher` using template-backed `apiWorkflow` routes and deterministic `mcp-builder-SKILL.md` preflight metadata:
@@ -967,6 +973,47 @@ The platform now supports DB-backed learned routes for better observability and 
 - `LEARNED_ROUTES_DUAL_WRITE_JSON`: `true|false`. If `true`, DB writes are mirrored to `knowledge/learned-routes.json` during migration.
 - `ADMIN_ALLOWED_IPS`: comma-separated allowlist for `/admin/*` access (e.g., `127.0.0.1,::1`).
 - `ADMIN_API_TOKEN`: bearer token fallback for `/admin/*` access when IP is not allowlisted.
+
+### Setting up `ADMIN_API_TOKEN`
+
+Use `ADMIN_API_TOKEN` when you want administrators to access `/admin/*` endpoints without relying on IP allowlisting.
+
+Generate a token locally:
+
+```bash
+openssl rand -hex 32
+```
+
+Add it to `.env`:
+
+```bash
+ADMIN_API_TOKEN=replace-with-your-generated-token
+```
+
+How auth works:
+
+- If `ADMIN_ALLOWED_IPS` contains the caller IP, admin requests are allowed without a token.
+- If the caller IP is not allowlisted, the API expects `ADMIN_API_TOKEN`.
+- The admin UI token field expects the raw token value only. The UI automatically sends it as `Authorization: Bearer <token>`.
+- The API also accepts `x-admin-token` as a fallback header for scripts/tools.
+
+Example direct API call:
+
+```bash
+curl http://localhost:3001/admin/routes \
+  -H "Authorization: Bearer replace-with-your-generated-token"
+```
+
+Example admin UI flow:
+
+1. Start the API server with `.env` containing `ADMIN_API_TOKEN`.
+2. Start the admin UI with `npm run admin:ui`.
+3. Open `http://localhost:4174`.
+4. Set `API Base URL` to your API server, for example `http://localhost:3001`.
+5. Paste the raw `ADMIN_API_TOKEN` into the token field.
+6. Click `Load`.
+
+If both `ADMIN_ALLOWED_IPS` and `ADMIN_API_TOKEN` are empty, `/admin/*` requests are rejected.
 
 ### Admin API endpoints
 

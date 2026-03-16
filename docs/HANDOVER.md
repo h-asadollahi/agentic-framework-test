@@ -123,6 +123,19 @@ Validation:
 - `npm run test -- tests/unit/admin-routes.test.ts`
 - local smoke check: `admin/server.mjs` served the updated page successfully at `http://localhost:4174`
 
+### Plan 80: Usage guide documentation for `ADMIN_API_TOKEN`
+
+Status: Implemented in docs.
+
+What changed:
+- Expanded `docs/usage-guide.md` to explain how `ADMIN_API_TOKEN` works.
+- Added:
+  - token generation example (`openssl rand -hex 32`)
+  - `.env` setup example
+  - explanation of the auth flow (`ADMIN_ALLOWED_IPS` vs bearer token)
+  - direct `curl` example for `/admin/routes`
+  - admin UI setup steps showing that the UI token field expects the raw token value
+
 ### Plan 76: Deterministic synthesis-subtask skip for single-route prompts
 
 Status: Implemented in code and tests.
