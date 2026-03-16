@@ -104,4 +104,38 @@ describe("execute routing strategy", () => {
       })
     ).toBe(false);
   });
+
+  it("treats normalize/present formatting subtasks as synthesis instead of route-learning", () => {
+    const strategy = resolveUnknownSubtaskStrategy(
+      {
+        agentId: "general",
+        description:
+          "Normalize and present the returned dimensions/metrics list in a concise, scannable format grouped and de-duplicated for marketing use.",
+      },
+      false
+    );
+
+    expect(strategy).toBe("llm-fallback");
+    expect(
+      shouldAttemptRouteLearning({
+        agentId: "general",
+        description:
+          "Normalize and present the returned dimensions/metrics list in a concise, scannable format grouped and de-duplicated for marketing use.",
+      })
+    ).toBe(false);
+  });
+
+  it("does not route-learn synthesis subtasks when deterministic route context exists", () => {
+    const strategy = resolveUnknownSubtaskStrategy(
+      {
+        agentId: "general",
+        description:
+          "Present the deterministic dimensions and metrics result in a readable grouped format.",
+      },
+      false,
+      { hasDeterministicRouteContext: true }
+    );
+
+    expect(strategy).toBe("llm-fallback");
+  });
 });

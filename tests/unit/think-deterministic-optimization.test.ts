@@ -101,4 +101,38 @@ describe("think deterministic-route synthesis constraint", () => {
     const constrained = constrainDeterministicSingleRouteSynthesis(input);
     expect(constrained.subtasks).toHaveLength(2);
   });
+
+  it("removes normalization/presentation follow-up for single deterministic MCP route", () => {
+    const input: CognitionResult = {
+      subtasks: [
+        {
+          id: "task-1",
+          agentId: "mcp-fetcher",
+          description: "Retrieve all available dimensions and metrics from Mapp Intelligence.",
+          input: { routeId: "route-002" },
+          dependencies: [],
+          priority: "high",
+        },
+        {
+          id: "task-2",
+          agentId: "general",
+          description:
+            "Normalize and present the returned dimensions/metrics list in a concise, scannable format grouped and de-duplicated.",
+          input: { routeId: "route-002" },
+          dependencies: ["task-1"],
+          priority: "medium",
+        },
+      ],
+      reasoning: "fetch then normalize",
+      plan: "retrieve route result and format it",
+      rejected: false,
+    };
+
+    const constrained = constrainDeterministicSingleRouteSynthesis(input);
+    expect(constrained.subtasks).toHaveLength(1);
+    expect(constrained.subtasks[0].id).toBe("task-1");
+    expect(constrained.reasoning).toContain(
+      "Deterministic-route optimization"
+    );
+  });
 });

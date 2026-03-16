@@ -8,6 +8,7 @@ import {
   detectCognitionGuardrailRejection,
 } from "./cognition-guardrails.js";
 import { parseAgentJson } from "./agent-output-parser.js";
+import { isSynthesisLikeDescription } from "./execute-routing.js";
 
 /**
  * Think Task (Cognition)
@@ -332,21 +333,7 @@ function shouldAttachMaterializedSkillHint(
 }
 
 function looksLikeSynthesisSubtask(description: string): boolean {
-  const lower = description.toLowerCase();
-  return [
-    "summarize",
-    "summary",
-    "synthesize",
-    "consolidate",
-    "rollup",
-    "roll-up",
-    "aggregate",
-    "narrative",
-    "recommendation",
-    "combine",
-    "compile",
-    "final answer",
-  ].some((signal) => lower.includes(signal));
+  return isSynthesisLikeDescription(description);
 }
 
 function isSkillCreatorAgent(agentId: string): boolean {

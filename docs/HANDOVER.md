@@ -47,6 +47,69 @@ src/
 
 ## Post-Handover Progress (2026-03-10, Codex)
 
+### Plan 81: Stop deterministic MCP formatting subtasks from entering `learn-route`
+
+Status: Implemented in code and tests.
+
+Problem observed:
+- Prompt: `List all available dimensions and metrics in Mapp Intelligence`
+- The original MCP route match was correct, but a second `general` formatting subtask entered `learn-route` and triggered false admin HITL / route-learning Slack noise.
+- The formatting subtask wording looked like:
+  - `Normalize and present the returned dimensions/metrics list in a concise, scannable format...`
+
+Root cause:
+- Cognition correctly matched the deterministic MCP route (`route-002` / `mcp-fetcher`).
+- Cognition sometimes adds a second `general` post-processing subtask for presentation/normalization.
+- Unknown-task fallback in `pipeline-execute` matched learned routes by description text only and did not treat this wording as synthesis.
+- Synthesis detection was too narrow and missed phrases such as:
+  - `normalize`
+  - `present`
+  - `readable`
+  - `scannable`
+  - `grouped`
+  - `de-duplicated`
+- Because those subtasks still contained data words such as `metrics`, they were incorrectly classified as route-learning candidates.
+
+What changed:
+- Added shared synthesis-description detection in:
+  - `src/trigger/execute-routing.ts`
+- Expanded synthesis keywords to include normalization/presentation wording commonly produced by cognition.
+- `pipeline-think` deterministic-route pruning now recognizes those formatting subtasks as redundant synthesis:
+  - `src/trigger/think.ts`
+- `pipeline-execute` now adds a deterministic-route-context safety guard:
+  - if an unknown `general` / `assistant` subtask has deterministic route context (`routeId` or successful deterministic dependency) and is synthesis-like, it will not go to `learn-route`
+  - `src/trigger/execute.ts`
+
+Tests added/updated:
+- `tests/unit/execute-routing.test.ts`
+  - formatting subtasks are treated as synthesis, not route-learning
+  - deterministic route context forces `llm-fallback` over `learn-new-route`
+- `tests/unit/execute-fast-path.test.ts`
+  - deterministic `mcp-fetcher` result + normalization/presentation follow-up gets skipped as redundant synthesis
+- `tests/unit/think-deterministic-optimization.test.ts`
+  - cognition pruning removes normalization/presentation follow-up for single deterministic MCP route
+
+Validation:
+- Focused tests passed:
+  - `npm test -- tests/unit/execute-routing.test.ts tests/unit/execute-fast-path.test.ts tests/unit/think-deterministic-optimization.test.ts`
+- Full unit suite passed:
+  - `npm test`
+  - Result: `41/41` files, `187/187` tests
+
+Operational outcome:
+- Deterministic MCP prompts like the dimensions/metrics catalog should now stay on the MCP path without opening route-learning.
+- False Slack admin HITL alerts caused only by deterministic formatting subtasks should stop.
+
+Next recommended verification after switching accounts:
+1. Re-run the prompt:
+   - `List all available dimensions and metrics in Mapp Intelligence`
+2. Confirm in Trigger:
+   - cognition still emits `mcp-fetcher` / `route-002`
+   - execute does not spawn `learn-route` for the formatting subtask
+3. Confirm Slack:
+   - no admin HITL message is sent for normalization/presentation-only follow-up work
+4. If a similar case still appears, inspect the exact cognition wording first; the synthesis detector is now broader, but new phrasing variants may still need to be folded into the shared detector in `src/trigger/execute-routing.ts`
+
 ### Plan 77: Deliver-stage latency optimization (deterministic fast path)
 
 Status: Implemented in code and tests.

@@ -5,7 +5,10 @@ import { agencyAgent } from "../agents/agency-agent.js";
 import { subAgentRegistry } from "./sub-agents/registry.js";
 import { learnedRoutesStore } from "../routing/learned-routes-store.js";
 import { learnRouteTask } from "./learn-route.js";
-import { resolveUnknownSubtaskStrategy } from "./execute-routing.js";
+import {
+  isSynthesisLikeDescription,
+  resolveUnknownSubtaskStrategy,
+} from "./execute-routing.js";
 import { parseAgentJson } from "./agent-output-parser.js";
 import { hydrateRegisteredSubtaskInput } from "./learned-route-input-hydration.js";
 import { resolveExecutionAgentId } from "./route-target-resolution.js";
@@ -235,7 +238,11 @@ export const executeTask = task({
 
             const strategy = resolveUnknownSubtaskStrategy(
               subtask,
-              Boolean(learnedRoute)
+              Boolean(learnedRoute),
+              {
+                hasDeterministicRouteContext:
+                  hasDeterministicRouteContext(subtask, allResults),
+              }
             );
 
             if (strategy === "use-learned-route" && learnedRoute) {
@@ -440,21 +447,31 @@ const ALLOWED_SYNTHESIS_AGENT_IDS = new Set([
 ]);
 
 function looksLikeSynthesisSubtask(description: string): boolean {
-  const lower = description.toLowerCase();
-  return [
-    "summarize",
-    "summary",
-    "synthesize",
-    "consolidate",
-    "rollup",
-    "roll-up",
-    "aggregate",
-    "narrative",
-    "recommendation",
-    "combine",
-    "compile",
-    "final answer",
-  ].some((signal) => lower.includes(signal));
+  return isSynthesisLikeDescription(description);
+}
+
+function hasDeterministicRouteContext(
+  subtask: SubTask,
+  completedResults: ExecutedSubtaskResult[]
+): boolean {
+  const normalizedAgentId = subtask.agentId.trim().toLowerCase();
+  if (normalizedAgentId !== "general" && normalizedAgentId !== "assistant") {
+    return false;
+  }
+
+  const routeIdFromInput =
+    typeof subtask.input?.routeId === "string" &&
+    subtask.input.routeId.trim().length > 0;
+  if (routeIdFromInput) {
+    return true;
+  }
+
+  return completedResults.some(
+    (result) =>
+      subtask.dependencies.includes(result.subtaskId) &&
+      result.result.success === true &&
+      DETERMINISTIC_ROUTE_AGENT_IDS.has(result.agentId)
+  );
 }
 
 export function buildDeterministicAgencyFastPathSummary(

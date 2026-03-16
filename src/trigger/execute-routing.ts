@@ -5,6 +5,10 @@ export type UnknownSubtaskStrategy =
   | "learn-new-route"
   | "llm-fallback";
 
+export type UnknownSubtaskStrategyOptions = {
+  hasDeterministicRouteContext?: boolean;
+};
+
 const DATA_SIGNALS = [
   "api",
   "endpoint",
@@ -34,6 +38,19 @@ const SYNTHESIS_SIGNALS = [
   "combine",
   "compile",
   "final answer",
+  "normalize",
+  "present",
+  "presentation",
+  "readable",
+  "scannable",
+  "grouped",
+  "group by",
+  "de-duplicated",
+  "deduplicated",
+  "de-duplicate",
+  "deduplicate",
+  "structured",
+  "format",
 ];
 
 const BUILD_SIGNALS = [
@@ -64,7 +81,7 @@ function isGeneralAgent(agentId: string): boolean {
   return normalized === "general" || normalized === "assistant";
 }
 
-function looksLikeSynthesis(description: string): boolean {
+export function isSynthesisLikeDescription(description: string): boolean {
   const lower = description.toLowerCase();
   if (SYNTHESIS_SIGNALS.some((signal) => lower.includes(signal))) {
     return true;
@@ -81,7 +98,8 @@ export function shouldAttemptRouteLearning(subtask: Pick<SubTask, "agentId" | "d
     haystack.includes(signal)
   );
   const isSynthesisIntent =
-    isGeneralAgent(subtask.agentId) && looksLikeSynthesis(subtask.description);
+    isGeneralAgent(subtask.agentId) &&
+    isSynthesisLikeDescription(subtask.description);
 
   if (isBuildIntent && isIntegrationRequest) {
     return false;
@@ -96,10 +114,19 @@ export function shouldAttemptRouteLearning(subtask: Pick<SubTask, "agentId" | "d
 
 export function resolveUnknownSubtaskStrategy(
   subtask: Pick<SubTask, "agentId" | "description">,
-  hasLearnedRoute: boolean
+  hasLearnedRoute: boolean,
+  options: UnknownSubtaskStrategyOptions = {}
 ): UnknownSubtaskStrategy {
   if (hasLearnedRoute) {
     return "use-learned-route";
+  }
+
+  if (
+    options.hasDeterministicRouteContext &&
+    isGeneralAgent(subtask.agentId) &&
+    isSynthesisLikeDescription(subtask.description)
+  ) {
+    return "llm-fallback";
   }
 
   if (shouldAttemptRouteLearning(subtask)) {

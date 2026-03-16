@@ -165,6 +165,31 @@ describe("execute deterministic agency fast path", () => {
     expect(shouldSkip.sourceAgentId).toBe("mcp-fetcher");
   });
 
+  it("detects skippable normalization/presentation subtask for deterministic route output", () => {
+    const shouldSkip = shouldSkipSynthesisSubtaskForDeterministicRoute(
+      {
+        id: "task-2",
+        agentId: "general",
+        description:
+          "Normalize and present the returned dimensions/metrics list in a concise, scannable format grouped and de-duplicated.",
+        input: { routeId: "route-002" },
+        dependencies: ["task-1"],
+        priority: "medium",
+      },
+      [
+        {
+          subtaskId: "task-1",
+          agentId: "mcp-fetcher",
+          result: okResult("catalog payload", 1800),
+        },
+      ]
+    );
+
+    expect(shouldSkip.skip).toBe(true);
+    expect(shouldSkip.sourceSubtaskId).toBe("task-1");
+    expect(shouldSkip.sourceAgentId).toBe("mcp-fetcher");
+  });
+
   it("does not skip non-synthesis or missing dependency success", () => {
     const noSkip = shouldSkipSynthesisSubtaskForDeterministicRoute(
       {
