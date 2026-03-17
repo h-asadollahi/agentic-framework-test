@@ -12,6 +12,9 @@ import {
 import {
   LearnedRoutesDbRepository,
   type LearnedRouteEventRecord,
+  type SlackHitlSummaryRecord,
+  type SlackHitlThreadInput,
+  type SlackHitlThreadRecord,
 } from "./learned-routes-db-repository.js";
 import { logger } from "../core/logger.js";
 
@@ -375,6 +378,77 @@ class LearnedRoutesStoreImpl {
     if (!repo || this.dualWriteJsonEnabled()) {
       this.saveJson();
     }
+  }
+
+  async upsertSlackHitlThreadForAdmin(thread: SlackHitlThreadInput): Promise<void> {
+    this.ensureLoaded();
+
+    const repo = this.dbEnabled ? this.resolveDbRepository() : null;
+    if (!repo) return;
+
+    const existing = await repo.getSlackHitlThreadByThreadTs(thread.threadTs);
+    await repo.upsertSlackHitlThread({
+      kind: thread.kind ?? existing?.kind ?? "route-learning",
+      channel: thread.channel ?? existing?.channel ?? "",
+      messageTs: thread.messageTs ?? existing?.messageTs ?? thread.threadTs,
+      threadTs: thread.threadTs,
+      status: thread.status ?? existing?.status ?? "sent",
+      taskDescription: thread.taskDescription ?? existing?.taskDescription ?? null,
+      reason: thread.reason ?? existing?.reason ?? null,
+      severity: thread.severity ?? existing?.severity ?? null,
+      runId: thread.runId ?? existing?.runId ?? null,
+      agentId: thread.agentId ?? existing?.agentId ?? null,
+      routeId: thread.routeId ?? existing?.routeId ?? null,
+      respondedBy: thread.respondedBy ?? existing?.respondedBy ?? null,
+      responseText: thread.responseText ?? existing?.responseText ?? null,
+      addedRouteId: thread.addedRouteId ?? existing?.addedRouteId ?? null,
+      metadata: {
+        ...(existing?.metadata ?? {}),
+        ...(thread.metadata ?? {}),
+      },
+      respondedAt: thread.respondedAt ?? existing?.respondedAt ?? null,
+      resolvedAt: thread.resolvedAt ?? existing?.resolvedAt ?? null,
+    });
+  }
+
+  async listSlackHitlThreadsForAdmin(options: {
+    channel?: string;
+    kind?: "escalation" | "route-learning" | "notification";
+    status?: string;
+    limit?: number;
+    offset?: number;
+  } = {}): Promise<SlackHitlThreadRecord[]> {
+    this.ensureLoaded();
+
+    const repo = this.dbEnabled ? this.resolveDbRepository() : null;
+    if (!repo) return [];
+
+    return repo.listSlackHitlThreads(options);
+  }
+
+  async getSlackHitlSummaryForAdmin(options: {
+    channel?: string;
+    kind?: "escalation" | "route-learning" | "notification";
+  } = {}): Promise<SlackHitlSummaryRecord> {
+    this.ensureLoaded();
+
+    const repo = this.dbEnabled ? this.resolveDbRepository() : null;
+    if (!repo) {
+      return {
+        total: 0,
+        responded: 0,
+        pending: 0,
+        routeAdded: 0,
+        approved: 0,
+        rejected: 0,
+        timedOut: 0,
+        escalations: 0,
+        routeLearning: 0,
+        notifications: 0,
+      };
+    }
+
+    return repo.getSlackHitlSummary(options);
   }
 
   async listEventsForAdmin(options: {

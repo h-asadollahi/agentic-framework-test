@@ -2,6 +2,7 @@ import { WebClient } from "@slack/web-api";
 import { wait } from "@trigger.dev/sdk/v3";
 import type { HumanEscalation, EscalationResult } from "../core/types.js";
 import { logger } from "../core/logger.js";
+import { learnedRoutesStore } from "../routing/learned-routes-store.js";
 
 // ── Keyword sets for parsing decisions ──────────────────────
 
@@ -144,6 +145,24 @@ export async function sendEscalationMessage(
         runId: escalation.runId,
       });
 
+      await learnedRoutesStore.upsertSlackHitlThreadForAdmin({
+        kind: "escalation",
+        channel: resolvedChannel,
+        messageTs: result.ts,
+        threadTs: result.ts,
+        status: "sent",
+        taskDescription: escalation.taskDescription,
+        reason: escalation.reason,
+        severity: escalation.severity,
+        runId: escalation.runId,
+        metadata: {
+          notifyAdmin: escalation.notifyAdmin,
+          notifyMarketer: escalation.notifyMarketer,
+          contextKeys: Object.keys(escalation.context ?? {}).sort(),
+          timeoutMinutes,
+        },
+      });
+
       return { channel: resolvedChannel, ts: result.ts };
     } catch (error) {
       lastError = error;
@@ -267,6 +286,21 @@ export async function pollForDecision(
             attempt: attempt + 1,
           });
 
+          await learnedRoutesStore.upsertSlackHitlThreadForAdmin({
+            kind: "escalation",
+            channel,
+            messageTs: threadTs,
+            threadTs,
+            status: parsed.approved ? "approved" : "rejected",
+            respondedBy: userId,
+            responseText: text,
+            respondedAt: new Date().toISOString(),
+            resolvedAt: new Date().toISOString(),
+            metadata: {
+              feedbackCount: collectedFeedback.length,
+            },
+          });
+
           return {
             approved: parsed.approved,
             decision: parsed.decision,
@@ -301,6 +335,18 @@ export async function pollForDecision(
     threadTs,
     totalAttempts: maxAttempts,
     feedbackCount: collectedFeedback.length,
+  });
+
+  await learnedRoutesStore.upsertSlackHitlThreadForAdmin({
+    kind: "escalation",
+    channel,
+    messageTs: threadTs,
+    threadTs,
+    status: "timed_out",
+    resolvedAt: new Date().toISOString(),
+    metadata: {
+      feedbackCount: collectedFeedback.length,
+    },
   });
 
   return {

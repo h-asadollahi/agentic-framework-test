@@ -159,6 +159,23 @@ export const learnRouteTask = task({
       endpoint: newRoute.endpoint?.url,
     });
 
+    await learnedRoutesStore.upsertSlackHitlThreadForAdmin({
+      kind: "route-learning",
+      channel: slackRef.channel,
+      messageTs: slackRef.ts,
+      threadTs: slackRef.ts,
+      status: "route_added",
+      routeId: newRoute.id,
+      addedRouteId: newRoute.id,
+      respondedBy: result.respondedBy ?? null,
+      responseText: result.rawReply ?? null,
+      resolvedAt: new Date().toISOString(),
+      metadata: {
+        endpoint: newRoute.endpoint?.url ?? null,
+        capability: newRoute.capability,
+      },
+    });
+
     // ── 4. Immediately fetch data ───────────────────────────
     let fetchResult: AgentResult;
 

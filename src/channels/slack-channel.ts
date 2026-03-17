@@ -2,6 +2,7 @@ import { WebClient } from "@slack/web-api";
 import type { ChannelAdapter } from "./channel-interface.js";
 import type { NotificationRequest, NotificationResult } from "../core/types.js";
 import { logger } from "../core/logger.js";
+import { learnedRoutesStore } from "../routing/learned-routes-store.js";
 
 /**
  * Slack Channel Adapter
@@ -66,6 +67,37 @@ export class SlackChannel implements ChannelAdapter {
         ts: result.ts,
       });
 
+      if (result.ts) {
+        try {
+          await learnedRoutesStore.load();
+          await learnedRoutesStore.upsertSlackHitlThreadForAdmin({
+            kind: "notification",
+            channel,
+            messageTs: result.ts,
+            threadTs: result.ts,
+            status: "sent",
+            taskDescription: request.subject,
+            reason: summarizeNotificationBody(request.body),
+            severity: request.priority,
+            metadata: {
+              source: request.metadata?.source ?? "notify-task",
+              priority: request.priority,
+              subject: request.subject,
+              bodyPreview: summarizeNotificationBody(request.body, 320),
+              ...normalizeNotificationMetadata(request.metadata),
+            },
+            resolvedAt: new Date().toISOString(),
+          });
+        } catch (auditError) {
+          logger.warn("Failed to record Slack notification in admin audit store", {
+            channel,
+            ts: result.ts,
+            error:
+              auditError instanceof Error ? auditError.message : String(auditError),
+          });
+        }
+      }
+
       return {
         success: true,
         messageId: result.ts ?? `slack-${Date.now()}`,
@@ -76,6 +108,21 @@ export class SlackChannel implements ChannelAdapter {
       return { success: false, error: message };
     }
   }
+}
+
+function summarizeNotificationBody(body: string, maxLength: number = 180): string {
+  const normalized = String(body ?? "").replace(/\s+/g, " ").trim();
+  if (normalized.length <= maxLength) return normalized;
+  return `${normalized.slice(0, maxLength - 1)}…`;
+}
+
+function normalizeNotificationMetadata(
+  metadata: Record<string, unknown> | undefined
+): Record<string, unknown> {
+  if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) {
+    return {};
+  }
+  return metadata;
 }
 
 export const slackChannel = new SlackChannel();

@@ -1,6 +1,7 @@
 import { WebClient } from "@slack/web-api";
 import { wait } from "@trigger.dev/sdk/v3";
 import { logger } from "../core/logger.js";
+import { learnedRoutesStore } from "./learned-routes-store.js";
 
 // ── Types ───────────────────────────────────────────────────
 
@@ -148,6 +149,21 @@ export async function sendRouteLearningMessage(
         description: request.subtaskDescription.slice(0, 80),
       });
 
+      await learnedRoutesStore.upsertSlackHitlThreadForAdmin({
+        kind: "route-learning",
+        channel: resolvedChannel,
+        messageTs: result.ts,
+        threadTs: result.ts,
+        status: "sent",
+        taskDescription: request.subtaskDescription,
+        runId: request.runId,
+        agentId: request.agentId,
+        metadata: {
+          timeoutMinutes,
+          subtaskInputKeys: Object.keys(request.subtaskInput ?? {}).sort(),
+        },
+      });
+
       return { channel: resolvedChannel, ts: result.ts };
     } catch (error) {
       lastError = error;
@@ -287,6 +303,21 @@ export async function pollForRouteInfo(
             respondedBy: userId,
           });
 
+          await learnedRoutesStore.upsertSlackHitlThreadForAdmin({
+            kind: "route-learning",
+            channel,
+            messageTs: threadTs,
+            threadTs,
+            status: "responded",
+            respondedBy: userId,
+            responseText: text,
+            respondedAt: new Date().toISOString(),
+            metadata: {
+              parsedMethod: parsed.method,
+              parsedUrl: parsed.url,
+            },
+          });
+
           return {
             learned: true,
             route: parsed,
@@ -310,6 +341,15 @@ export async function pollForRouteInfo(
   }
 
   logger.warn("Route learning poll timed out", { channel, threadTs });
+
+  await learnedRoutesStore.upsertSlackHitlThreadForAdmin({
+    kind: "route-learning",
+    channel,
+    messageTs: threadTs,
+    threadTs,
+    status: "timed_out",
+    resolvedAt: new Date().toISOString(),
+  });
 
   return {
     learned: false,

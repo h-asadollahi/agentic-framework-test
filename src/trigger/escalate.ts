@@ -11,6 +11,7 @@ import {
   pollForDecision,
   postDecisionConfirmation,
 } from "../escalation/slack-escalation.js";
+import { learnedRoutesStore } from "../routing/learned-routes-store.js";
 
 /**
  * Escalation Task — Human-in-the-Loop via Slack Thread Replies
@@ -30,6 +31,8 @@ export const escalateTask = task({
   id: "escalate-to-human",
   retry: { maxAttempts: 1 }, // don't retry escalations
   run: async (payload: EscalationPayload): Promise<EscalationResult> => {
+    await learnedRoutesStore.load();
+
     const { escalation, timeoutMinutes = 60 } = payload;
 
     logger.info("Human escalation triggered", {

@@ -27,6 +27,49 @@ function makeAgency(overrides?: Partial<AgencyResult>): AgencyResult {
   };
 }
 
+function makeCatalogAgency(): AgencyResult {
+  return makeAgency({
+    results: [
+      {
+        subtaskId: "task-1",
+        agentId: "mcp-fetcher",
+        result: {
+          success: true,
+          output: JSON.stringify({
+            serverName: "mapp-michel",
+            toolName: "list_dimensions_and_metrics",
+            data: {
+              dimensionsCount: 6,
+              metricsCount: 6,
+              dimensions: [
+                "time_day",
+                "time_week",
+                "browser_name",
+                "browser_version",
+                "geo_country",
+                "geo_region",
+              ],
+              metrics: [
+                "pages_pageImpressions",
+                "pages_entryRate",
+                "visits_total",
+                "visits_bounceRate",
+                "revenue_total",
+                "revenue_averageOrderValue",
+              ],
+            },
+            executedAt: "2026-03-16T12:00:00.000Z",
+          }),
+          modelUsed: "mcp-fetcher (no model)",
+          durationMs: 1200,
+        },
+      },
+    ],
+    summary:
+      "Deterministic fast path: List all available dimensions and metrics in Mapp Intelligence completed via mcp-fetcher in 1200ms (subtask time).",
+  });
+}
+
 describe("deliver deterministic fast path", () => {
   it("activates for safe single deterministic-route outputs", () => {
     expect(shouldUseDeterministicDeliverFastPath(makeAgency())).toBe(true);
@@ -54,6 +97,19 @@ describe("deliver deterministic fast path", () => {
     expect(result.formattedResponse).toContain("## Data Source and Time Window");
     expect(result.formattedResponse).toContain("## Recommended Next Step");
     expect(result.formattedResponse).toContain("Calculations Used: 49");
+  });
+
+  it("renders grouped catalog details for list_dimensions_and_metrics payloads", () => {
+    const result = buildDeterministicDeliveryFastPath(makeCatalogAgency(), []);
+
+    expect(result.formattedResponse).toContain("## Dimension Snapshot");
+    expect(result.formattedResponse).toContain("## Metric Snapshot");
+    expect(result.formattedResponse).toContain("Total dimensions available: 6");
+    expect(result.formattedResponse).toContain("Total metrics available: 6");
+    expect(result.formattedResponse).toContain("`browser` (2): `browser_name`, `browser_version`");
+    expect(result.formattedResponse).toContain("`pages` (2): `pages_entryRate`, `pages_pageImpressions`");
+    expect(result.formattedResponse).toContain("Time Window: Not applicable for catalog metadata requests");
+    expect(result.formattedResponse).not.toContain("Results were retrieved successfully.");
   });
 
   it("filters deterministic fast-path boilerplate from findings", () => {

@@ -6,6 +6,7 @@ import { LearnedRouteSchema } from "./learned-routes-schema.js";
 import {
   learnedRouteEventsTable,
   learnedRoutesTable,
+  slackHitlThreadsTable,
 } from "./learned-routes-db-schema.js";
 import { logger } from "../core/logger.js";
 
@@ -32,6 +33,62 @@ export interface LearnedRouteListOptions {
   routeType?: "api" | "sub-agent";
   limit?: number;
   offset?: number;
+}
+
+export interface SlackHitlThreadInput {
+  kind: "escalation" | "route-learning" | "notification";
+  channel: string;
+  messageTs: string;
+  threadTs: string;
+  status?: string;
+  taskDescription?: string | null;
+  reason?: string | null;
+  severity?: string | null;
+  runId?: string | null;
+  agentId?: string | null;
+  routeId?: string | null;
+  respondedBy?: string | null;
+  responseText?: string | null;
+  addedRouteId?: string | null;
+  metadata?: Record<string, unknown>;
+  respondedAt?: string | null;
+  resolvedAt?: string | null;
+}
+
+export interface SlackHitlThreadRecord {
+  id: number;
+  kind: string;
+  channel: string;
+  messageTs: string;
+  threadTs: string;
+  status: string;
+  taskDescription: string | null;
+  reason: string | null;
+  severity: string | null;
+  runId: string | null;
+  agentId: string | null;
+  routeId: string | null;
+  respondedBy: string | null;
+  responseText: string | null;
+  addedRouteId: string | null;
+  metadata: Record<string, unknown>;
+  respondedAt: string | null;
+  resolvedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SlackHitlSummaryRecord {
+  total: number;
+  responded: number;
+  pending: number;
+  routeAdded: number;
+  approved: number;
+  rejected: number;
+  timedOut: number;
+  escalations: number;
+  routeLearning: number;
+  notifications: number;
 }
 
 function toIsoString(value: unknown): string {
@@ -99,6 +156,41 @@ function fromLearnedRouteRow(
   });
 }
 
+function toNullableTimestamp(value: string | null | undefined): Date | null {
+  if (!value) return null;
+  return new Date(value);
+}
+
+function fromSlackHitlThreadRow(
+  row: typeof slackHitlThreadsTable.$inferSelect
+): SlackHitlThreadRecord {
+  return {
+    id: row.id,
+    kind: row.kind,
+    channel: row.channel,
+    messageTs: row.messageTs,
+    threadTs: row.threadTs,
+    status: row.status,
+    taskDescription: row.taskDescription ?? null,
+    reason: row.reason ?? null,
+    severity: row.severity ?? null,
+    runId: row.runId ?? null,
+    agentId: row.agentId ?? null,
+    routeId: row.routeId ?? null,
+    respondedBy: row.respondedBy ?? null,
+    responseText: row.responseText ?? null,
+    addedRouteId: row.addedRouteId ?? null,
+    metadata:
+      row.metadata && typeof row.metadata === "object"
+        ? (row.metadata as Record<string, unknown>)
+        : {},
+    respondedAt: row.respondedAt ? toIsoString(row.respondedAt) : null,
+    resolvedAt: row.resolvedAt ? toIsoString(row.resolvedAt) : null,
+    createdAt: toIsoString(row.createdAt),
+    updatedAt: toIsoString(row.updatedAt),
+  };
+}
+
 export class LearnedRoutesDbRepository {
   private readonly pool: Pool;
   private readonly db: ReturnType<typeof drizzle>;
@@ -141,6 +233,41 @@ export class LearnedRoutesDbRepository {
         details JSONB NOT NULL DEFAULT '{}'::jsonb,
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
       );
+    `);
+
+    await this.pool.query(`
+      CREATE TABLE IF NOT EXISTS slack_hitl_threads (
+        id SERIAL PRIMARY KEY,
+        kind TEXT NOT NULL,
+        channel TEXT NOT NULL,
+        message_ts TEXT NOT NULL,
+        thread_ts TEXT NOT NULL UNIQUE,
+        status TEXT NOT NULL DEFAULT 'sent',
+        task_description TEXT,
+        reason TEXT,
+        severity TEXT,
+        run_id TEXT,
+        agent_id TEXT,
+        route_id TEXT,
+        responded_by TEXT,
+        response_text TEXT,
+        added_route_id TEXT,
+        metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
+        responded_at TIMESTAMPTZ,
+        resolved_at TIMESTAMPTZ,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+    `);
+
+    await this.pool.query(`
+      CREATE INDEX IF NOT EXISTS slack_hitl_threads_channel_created_at_idx
+      ON slack_hitl_threads (channel, created_at DESC);
+    `);
+
+    await this.pool.query(`
+      CREATE INDEX IF NOT EXISTS slack_hitl_threads_kind_created_at_idx
+      ON slack_hitl_threads (kind, created_at DESC);
     `);
   }
 
@@ -290,6 +417,156 @@ export class LearnedRoutesDbRepository {
     }));
   }
 
+  async upsertSlackHitlThread(
+    thread: SlackHitlThreadInput
+  ): Promise<SlackHitlThreadRecord> {
+    const now = new Date();
+    const rows = await this.db
+      .insert(slackHitlThreadsTable)
+      .values({
+        kind: thread.kind,
+        channel: thread.channel,
+        messageTs: thread.messageTs,
+        threadTs: thread.threadTs,
+        status: thread.status ?? "sent",
+        taskDescription: thread.taskDescription ?? null,
+        reason: thread.reason ?? null,
+        severity: thread.severity ?? null,
+        runId: thread.runId ?? null,
+        agentId: thread.agentId ?? null,
+        routeId: thread.routeId ?? null,
+        respondedBy: thread.respondedBy ?? null,
+        responseText: thread.responseText ?? null,
+        addedRouteId: thread.addedRouteId ?? null,
+        metadata: thread.metadata ?? {},
+        respondedAt: toNullableTimestamp(thread.respondedAt),
+        resolvedAt: toNullableTimestamp(thread.resolvedAt),
+        updatedAt: now,
+      })
+      .onConflictDoUpdate({
+        target: slackHitlThreadsTable.threadTs,
+        set: {
+          kind: thread.kind,
+          channel: thread.channel,
+          messageTs: thread.messageTs,
+          status: thread.status ?? "sent",
+          taskDescription: thread.taskDescription ?? null,
+          reason: thread.reason ?? null,
+          severity: thread.severity ?? null,
+          runId: thread.runId ?? null,
+          agentId: thread.agentId ?? null,
+          routeId: thread.routeId ?? null,
+          respondedBy: thread.respondedBy ?? null,
+          responseText: thread.responseText ?? null,
+          addedRouteId: thread.addedRouteId ?? null,
+          metadata: thread.metadata ?? {},
+          respondedAt: toNullableTimestamp(thread.respondedAt),
+          resolvedAt: toNullableTimestamp(thread.resolvedAt),
+          updatedAt: now,
+        },
+      })
+      .returning();
+
+    return fromSlackHitlThreadRow(rows[0]);
+  }
+
+  async getSlackHitlThreadByThreadTs(
+    threadTs: string
+  ): Promise<SlackHitlThreadRecord | null> {
+    const rows = await this.db
+      .select()
+      .from(slackHitlThreadsTable)
+      .where(eq(slackHitlThreadsTable.threadTs, threadTs))
+      .limit(1);
+
+    if (rows.length === 0) return null;
+    return fromSlackHitlThreadRow(rows[0]);
+  }
+
+  async listSlackHitlThreads(options: {
+    channel?: string;
+    kind?: "escalation" | "route-learning" | "notification";
+    status?: string;
+    limit?: number;
+    offset?: number;
+  } = {}): Promise<SlackHitlThreadRecord[]> {
+    const limit = Math.min(Math.max(options.limit ?? 50, 1), 200);
+    const offset = Math.max(options.offset ?? 0, 0);
+    const conditions = [];
+
+    if (options.channel) {
+      conditions.push(eq(slackHitlThreadsTable.channel, options.channel));
+    }
+    if (options.kind) {
+      conditions.push(eq(slackHitlThreadsTable.kind, options.kind));
+    }
+    if (options.status) {
+      conditions.push(eq(slackHitlThreadsTable.status, options.status));
+    }
+
+    const rows = await this.db
+      .select()
+      .from(slackHitlThreadsTable)
+      .where(conditions.length > 0 ? and(...conditions) : undefined)
+      .orderBy(desc(slackHitlThreadsTable.createdAt), desc(slackHitlThreadsTable.id))
+      .limit(limit)
+      .offset(offset);
+
+    return rows.map(fromSlackHitlThreadRow);
+  }
+
+  async getSlackHitlSummary(options: {
+    channel?: string;
+    kind?: "escalation" | "route-learning" | "notification";
+  } = {}): Promise<SlackHitlSummaryRecord> {
+    const conditions = [];
+
+    if (options.channel) {
+      conditions.push(eq(slackHitlThreadsTable.channel, options.channel));
+    }
+    if (options.kind) {
+      conditions.push(eq(slackHitlThreadsTable.kind, options.kind));
+    }
+
+    const rows = await this.db
+      .select({
+        total: sql<number>`count(*)::int`,
+        responded:
+          sql<number>`count(*) filter (where ${slackHitlThreadsTable.respondedAt} is not null)::int`,
+        pending:
+          sql<number>`count(*) filter (where ${slackHitlThreadsTable.kind} != 'notification' and ${slackHitlThreadsTable.status} in ('sent', 'responded'))::int`,
+        routeAdded:
+          sql<number>`count(*) filter (where ${slackHitlThreadsTable.addedRouteId} is not null)::int`,
+        approved:
+          sql<number>`count(*) filter (where ${slackHitlThreadsTable.status} = 'approved')::int`,
+        rejected:
+          sql<number>`count(*) filter (where ${slackHitlThreadsTable.status} = 'rejected')::int`,
+        timedOut:
+          sql<number>`count(*) filter (where ${slackHitlThreadsTable.status} = 'timed_out')::int`,
+        escalations:
+          sql<number>`count(*) filter (where ${slackHitlThreadsTable.kind} = 'escalation')::int`,
+        routeLearning:
+          sql<number>`count(*) filter (where ${slackHitlThreadsTable.kind} = 'route-learning')::int`,
+        notifications:
+          sql<number>`count(*) filter (where ${slackHitlThreadsTable.kind} = 'notification')::int`,
+      })
+      .from(slackHitlThreadsTable)
+      .where(conditions.length > 0 ? and(...conditions) : undefined);
+
+    return {
+      total: rows[0]?.total ?? 0,
+      responded: rows[0]?.responded ?? 0,
+      pending: rows[0]?.pending ?? 0,
+      routeAdded: rows[0]?.routeAdded ?? 0,
+      approved: rows[0]?.approved ?? 0,
+      rejected: rows[0]?.rejected ?? 0,
+      timedOut: rows[0]?.timedOut ?? 0,
+      escalations: rows[0]?.escalations ?? 0,
+      routeLearning: rows[0]?.routeLearning ?? 0,
+      notifications: rows[0]?.notifications ?? 0,
+    };
+  }
+
   async close(): Promise<void> {
     try {
       await this.pool.end();
@@ -300,4 +577,3 @@ export class LearnedRoutesDbRepository {
     }
   }
 }
-

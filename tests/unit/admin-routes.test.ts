@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { Hono } from "hono";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
@@ -20,6 +20,9 @@ const initialRoutesFile =
 const originalAllowedIps = process.env.ADMIN_ALLOWED_IPS;
 const originalToken = process.env.ADMIN_API_TOKEN;
 const originalDatabaseUrl = process.env.DATABASE_URL;
+const originalTriggerApiUrl = process.env.TRIGGER_API_URL;
+const originalTriggerSecretKey = process.env.TRIGGER_SECRET_KEY;
+const originalSlackAdminHitlChannel = process.env.SLACK_ADMIN_HITL_CHANNEL;
 
 let backupContent: string | null = null;
 let backupExisted = false;
@@ -41,13 +44,25 @@ describe.sequential("admin routes", () => {
     process.env.ADMIN_ALLOWED_IPS = "";
     process.env.ADMIN_API_TOKEN = "admin-token";
     delete process.env.DATABASE_URL;
+    delete process.env.TRIGGER_API_URL;
+    delete process.env.TRIGGER_SECRET_KEY;
+    process.env.SLACK_ADMIN_HITL_CHANNEL = "brand-cp-admin-hitl";
     await learnedRoutesStore.load();
+  });
+
+  afterEach(() => {
+    process.env.TRIGGER_API_URL = originalTriggerApiUrl;
+    process.env.TRIGGER_SECRET_KEY = originalTriggerSecretKey;
+    vi.restoreAllMocks();
   });
 
   afterAll(() => {
     process.env.ADMIN_ALLOWED_IPS = originalAllowedIps;
     process.env.ADMIN_API_TOKEN = originalToken;
     process.env.DATABASE_URL = originalDatabaseUrl;
+    process.env.TRIGGER_API_URL = originalTriggerApiUrl;
+    process.env.TRIGGER_SECRET_KEY = originalTriggerSecretKey;
+    process.env.SLACK_ADMIN_HITL_CHANNEL = originalSlackAdminHitlChannel;
 
     if (backupExisted && backupContent !== null) {
       writeFileSync(routesFile, backupContent, "utf-8");
@@ -121,5 +136,144 @@ describe.sequential("admin routes", () => {
     );
     expect(deleteResponse.status).toBe(200);
   });
-});
 
+  it("uses Trigger's v1 run list endpoint for admin run summaries", async () => {
+    process.env.TRIGGER_API_URL = "http://trigger.local";
+    process.env.TRIGGER_SECRET_KEY = "trigger-secret";
+
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          data: [
+            {
+              id: "run-123",
+              status: "COMPLETED",
+              taskIdentifier: "orchestrate-pipeline",
+              createdAt: "2026-03-17T09:00:00.000Z",
+              finishedAt: "2026-03-17T09:00:10.000Z",
+            },
+          ],
+        }),
+        {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        }
+      )
+    );
+
+    const app = buildApp();
+    const response = await app.request(
+      "http://localhost/admin/runs/summary?limit=7",
+      { headers: { Authorization: "Bearer admin-token" } }
+    );
+
+    expect(response.status).toBe(200);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledWith(
+      "http://trigger.local/api/v1/runs?page%5Bsize%5D=7",
+      {
+        headers: { Authorization: "Bearer trigger-secret" },
+      }
+    );
+
+    const body = await response.json();
+    expect(body.total).toBe(1);
+    expect(body.byStatus).toEqual({ COMPLETED: 1 });
+    expect(body.latest).toEqual([
+      {
+        id: "run-123",
+        status: "COMPLETED",
+        taskIdentifier: "orchestrate-pipeline",
+        createdAt: "2026-03-17T09:00:00.000Z",
+        finishedAt: "2026-03-17T09:00:10.000Z",
+      },
+    ]);
+  });
+
+  it("returns Slack HITL counters and latest messages scoped to the admin channel", async () => {
+    const summarySpy = vi
+      .spyOn(learnedRoutesStore, "getSlackHitlSummaryForAdmin")
+      .mockResolvedValue({
+        total: 4,
+        responded: 3,
+        pending: 1,
+        routeAdded: 2,
+        approved: 1,
+        rejected: 1,
+        timedOut: 1,
+        escalations: 2,
+        routeLearning: 2,
+        notifications: 1,
+      });
+
+    const messagesSpy = vi
+      .spyOn(learnedRoutesStore, "listSlackHitlThreadsForAdmin")
+      .mockResolvedValue([
+        {
+          id: 1,
+          kind: "route-learning",
+          channel: "brand-cp-admin-hitl",
+          messageTs: "1710672000.000100",
+          threadTs: "1710672000.000100",
+          status: "route_added",
+          taskDescription: "Need a route for CLV contribution by segment",
+          reason: null,
+          severity: null,
+          runId: "run-1",
+          agentId: "general",
+          routeId: "route-010",
+          respondedBy: "U123",
+          responseText: "URL: https://api.example.com/clv",
+          addedRouteId: "route-010",
+          metadata: { timeoutMinutes: 30 },
+          respondedAt: "2026-03-17T09:00:00.000Z",
+          resolvedAt: "2026-03-17T09:05:00.000Z",
+          createdAt: "2026-03-17T08:55:00.000Z",
+          updatedAt: "2026-03-17T09:05:00.000Z",
+        },
+      ]);
+
+    const app = buildApp();
+    const headers = { Authorization: "Bearer admin-token" };
+
+    const summaryResponse = await app.request("http://localhost/admin/slack/summary", {
+      headers,
+    });
+    expect(summaryResponse.status).toBe(200);
+    expect(summarySpy).toHaveBeenCalledWith({
+      channel: "brand-cp-admin-hitl",
+      kind: undefined,
+    });
+
+    const summaryBody = await summaryResponse.json();
+    expect(summaryBody.configuredAdminChannel).toBe("brand-cp-admin-hitl");
+    expect(summaryBody.channelFilter).toBe("brand-cp-admin-hitl");
+    expect(summaryBody.summary).toMatchObject({
+      total: 4,
+      responded: 3,
+      routeAdded: 2,
+      approved: 1,
+    });
+
+    const messagesResponse = await app.request(
+      "http://localhost/admin/slack/messages?limit=5",
+      { headers }
+    );
+    expect(messagesResponse.status).toBe(200);
+    expect(messagesSpy).toHaveBeenCalledWith({
+      channel: "brand-cp-admin-hitl",
+      kind: undefined,
+      status: undefined,
+      limit: 5,
+      offset: 0,
+    });
+
+    const messagesBody = await messagesResponse.json();
+    expect(messagesBody.messages).toHaveLength(1);
+    expect(messagesBody.messages[0]).toMatchObject({
+      kind: "route-learning",
+      status: "route_added",
+      addedRouteId: "route-010",
+    });
+  });
+});

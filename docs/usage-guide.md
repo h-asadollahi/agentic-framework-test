@@ -127,7 +127,9 @@ You need three processes running:
 
 ```bash
 # Terminal 1 — Trigger.dev platform (if not already running)
-cd trigger-dev-local && docker compose up -d
+#cd trigger-dev-local && docker compose up -d
+cd trigger-dev-local 
+docker compose --env-file .env -f docker-compose.yml up  webapp
 
 # Terminal 2 — Trigger.dev dev worker (connects tasks to local platform)
 npm run trigger:dev
@@ -746,6 +748,8 @@ Every agent has a preferred model and a fallback chain. If all models fail, the 
 
 `pipeline-deliver` now has a deterministic fast path for safe single-route responses (for `mcp-fetcher`, `api-fetcher`, or `cohort-monitor` outputs with no human-review requirement), so it can skip the Interface model call entirely.
 
+For catalog/list-style deterministic MCP outputs such as `List all available dimensions and metrics in Mapp Intelligence`, the fast path now uses a route-specific renderer so the marketer still sees counts plus readable grouped samples instead of a generic success summary.
+
 For non-fast-path responses, deliver sends compact result previews to the Interface model to reduce prompt-token load.
 
 If you still need lower latency, prefer faster interface model aliases in `.env`:
@@ -788,6 +792,13 @@ These prompts should route to `mcp-fetcher` with `serverName: "mapp-michel"` (fr
 - `Show me my page impressions for the last 7 days`
 - `What segments are defined in my Mapp Intelligence account?`
 - `How many API calculations have I used this month?`
+
+For the dimensions/metrics catalog prompt, expected marketer output now includes:
+
+- total dimensions count
+- total metrics count
+- grouped sample sections for returned dimensions and metrics
+- raw/full payload remaining in the run trace rather than the default marketer summary
 
 ### Force a new learned route: 
 - `Fetch weekly creative fatigue index by ad set from our internal ads API endpoint /v2/ads/creative-fatigue-index for the last 45 days, and flag ad sets with fatigue index above 0.7.`
@@ -877,8 +888,10 @@ Notes:
 
 Use these to verify Slack alert routing behavior:
 
-- `Review this campaign decision for compliance and approve before execution.`  
-  Expected: `needsHumanReview` path, notification sent to `SLACK_MARKETERS_HITL_CHANNEL` or `SLACK_ADMIN_HITL_CHANNEL` based on severity.
+- `Please assess this campaign risk. Campaign plan: send the promotion to all EU subscribers, including previously unsubscribed contacts, because the consent suppression feed may be stale after a critical authorization failure. Hold the send for human review if it is unsafe.`  
+  Expected: admin human-review path with a Slack notification to `SLACK_ADMIN_HITL_CHANNEL`. Depending on current route/skill state and any deterministic failures during the run, additional admin/marketer monitoring alerts may also be emitted.
+
+  - `Please assess this campaign risk. Campaign plan: send the promotion to all EU subscribers, including previously unsubscribed contacts, because the consent suppression feed may be stale after a critical authorization failure. Hold the send for human review if it is unsafe.`
 
 - `Analyze daily KPI trends such as sessions, conversions, revenue, and retention.`  
   If it returns failed subtasks, expected: admin monitoring notification to `SLACK_ADMIN_MONITORING_CHANNEL`.
@@ -895,8 +908,8 @@ These prompts map to the current notification-policy tests and help verify the n
    - Expected: `needsHumanReview=true` with non-critical issue -> Slack to `SLACK_MARKETERS_HITL_CHANNEL`.
 
 2. Admin HITL (critical/escalation review):
-   - Prompt: `Review and approve this pipeline run; we detected a critical auth failure in a downstream analytics service.`
-   - Expected: admin escalation human review -> Slack to `SLACK_ADMIN_HITL_CHANNEL`.
+   - Prompt: `Please assess this campaign risk. Campaign plan: send the promotion to all EU subscribers, including previously unsubscribed contacts, because the consent suppression feed may be stale after a critical authorization failure. Hold the send for human review if it is unsafe.`
+   - Expected: admin human review -> Slack to `SLACK_ADMIN_HITL_CHANNEL` at minimum; monitoring alerts may also appear if the run surfaces additional failures.
 
 3. Marketer monitoring (warnings/issues, no failed subtask):
    - Prompt: `What segments are defined in my Mapp Intelligence account?`
@@ -994,8 +1007,9 @@ How auth works:
 
 - If `ADMIN_ALLOWED_IPS` contains the caller IP, admin requests are allowed without a token.
 - If the caller IP is not allowlisted, the API expects `ADMIN_API_TOKEN`.
-- The admin UI token field expects the raw token value only. The UI automatically sends it as `Authorization: Bearer <token>`.
-- The API also accepts `x-admin-token` as a fallback header for scripts/tools.
+- The separate admin UI now loads `.env` in `admin/server.mjs` and proxies `/admin/*` requests through `/_admin_proxy/*`.
+- If `ADMIN_API_TOKEN` is present in `.env`, the admin proxy automatically sends `Authorization: Bearer <token>` server-side, so no browser token input is required.
+- The API also accepts direct `Authorization: Bearer ...` or `x-admin-token` headers for scripts/tools.
 
 Example direct API call:
 
@@ -1010,8 +1024,28 @@ Example admin UI flow:
 2. Start the admin UI with `npm run admin:ui`.
 3. Open `http://localhost:4174`.
 4. Set `API Base URL` to your API server, for example `http://localhost:3001`.
-5. Paste the raw `ADMIN_API_TOKEN` into the token field.
+5. Confirm the UI shows that server-side admin auth is loaded from `.env` or that it is relying on API allowlisting.
 6. Click `Load`.
+
+Current admin shell sections:
+
+- Sidebar navigation for separate dashboard, learned-routes, activity-feed, run-watch, and slack-hitl pages
+- Route inventory and storage health cards
+- Learned-routes page with route explorer filters and table
+- Route inspection modal opened from `Inspect`
+- Activity-feed page for recent route lifecycle events
+- Run-watch page for Trigger run summaries
+- Slack-hitl page for tracked `SLACK_ADMIN_HITL_CHANNEL` messages, including direct Slack notifications, response counts, and route-added outcomes
+- Compact dashboard hero with an `i` info button for API base, auth state, and workspace status
+- `Run Watch` depends on the Trigger API configured by `TRIGGER_API_URL`; if that service is unavailable, dashboard refresh will surface a run summary error
+- Slack HITL history/metrics are durable only when `DATABASE_URL` is configured, because tracked threads are stored in Postgres
+
+Slack HITL page behavior:
+
+- Defaults to `SLACK_ADMIN_HITL_CHANNEL` when no explicit channel filter is passed
+- Shows both direct Slack notifications and threaded HITL flows on the same page
+- Counts `Responded` when a tracked thread receives a parsed human reply/decision
+- Counts `Routes Added` when a route-learning Slack thread results in a saved learned route
 
 If both `ADMIN_ALLOWED_IPS` and `ADMIN_API_TOKEN` are empty, `/admin/*` requests are rejected.
 
@@ -1025,6 +1059,8 @@ If both `ADMIN_ALLOWED_IPS` and `ADMIN_API_TOKEN` are empty, `/admin/*` requests
 - `DELETE /admin/routes/:routeId`
 - `GET /admin/events`
 - `GET /admin/runs/summary`
+- `GET /admin/slack/summary`
+- `GET /admin/slack/messages`
 - `POST /admin/backfill/import` (JSON -> DB)
 - `POST /admin/backfill/export` (DB -> JSON)
 
@@ -1039,7 +1075,8 @@ If both `ADMIN_ALLOWED_IPS` and `ADMIN_API_TOKEN` are empty, `/admin/*` requests
   - `npm run admin:ui`
 - Open:
   - `http://localhost:4174`
-- Configure API base and token in the UI to manage routes/events.
+- Configure only the API base in the UI. Admin auth is handled server-side by `admin/server.mjs`.
+- The current admin UI is a dashboard shell intended for incremental feature growth, not just a utility page.
 
 Sub-agent pattern:
 

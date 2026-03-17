@@ -29,6 +29,9 @@ const DETERMINISTIC_ROUTE_AGENT_IDS = new Set([
 
 const MAX_INTERFACE_OUTPUT_PREVIEW_CHARS = 700;
 const MAX_DETERMINISTIC_FACTS = 8;
+const MAX_CATALOG_GROUPS = 6;
+const MAX_CATALOG_GROUP_SAMPLES = 3;
+const MAX_CATALOG_ALPHA_SAMPLES = 10;
 
 /**
  * Deliver Task (Interface)
@@ -129,6 +132,17 @@ export const deliverTask = task({
 });
 
 type ExecutedSubtaskResult = AgencyResult["results"][number];
+type JsonRecord = Record<string, unknown>;
+
+interface DimensionMetricCatalogPayload {
+  serverName?: string;
+  toolName: "list_dimensions_and_metrics";
+  dimensionsCount: number;
+  metricsCount: number;
+  dimensions: string[];
+  metrics: string[];
+  executedAt?: string;
+}
 
 export function shouldUseDeterministicDeliverFastPath(
   agencyResult: AgencyResult
@@ -164,6 +178,17 @@ export function buildDeterministicDeliveryFastPath(
   const deterministicResult = agencyResult.results.find((item) =>
     DETERMINISTIC_ROUTE_AGENT_IDS.has(item.agentId)
   );
+  const catalogRender = deterministicResult
+    ? buildDimensionMetricCatalogFastPath(
+        agencyResult,
+        deterministicResult,
+        criticalFacts
+      )
+    : null;
+  if (catalogRender) {
+    return catalogRender;
+  }
+
   const sourceLabel = deterministicResult
     ? mapDeterministicSourceLabel(deterministicResult.agentId)
     : "Pipeline data source";
@@ -205,11 +230,72 @@ export function buildDeterministicDeliveryFastPath(
   };
 }
 
+function buildDimensionMetricCatalogFastPath(
+  agencyResult: AgencyResult,
+  deterministicResult: ExecutedSubtaskResult,
+  criticalFacts: string[]
+): DeliveryResult | null {
+  const catalog = extractDimensionMetricCatalogPayload(
+    deterministicResult.result.output
+  );
+  if (!catalog) return null;
+
+  const sourceLabel = mapDeterministicSourceLabel(deterministicResult.agentId);
+  const executiveSummary =
+    `Retrieved the Mapp Intelligence catalog successfully, including ` +
+    `${formatCount(catalog.dimensionsCount)} dimensions and ` +
+    `${formatCount(catalog.metricsCount)} metrics.`;
+  const supplementalFindings = selectFactBullets(criticalFacts, executiveSummary)
+    .filter((fact) => !fact.toLowerCase().includes("results were retrieved successfully"))
+    .slice(0, 4);
+  const issues = (agencyResult.issues ?? [])
+    .map((issue) => normalizeLine(issue))
+    .filter(Boolean)
+    .slice(0, 5);
+
+  const lines = [
+    "## Executive Summary",
+    executiveSummary,
+    "",
+    "## Key Findings",
+    `- Total dimensions available: ${formatCount(catalog.dimensionsCount)}`,
+    `- Total metrics available: ${formatCount(catalog.metricsCount)}`,
+    ...supplementalFindings.map((fact) => `- ${fact}`),
+    "",
+    "## Dimension Snapshot",
+    ...buildCatalogPreviewLines(catalog.dimensions, "dimensions"),
+    "",
+    "## Metric Snapshot",
+    ...buildCatalogPreviewLines(catalog.metrics, "metrics"),
+    "",
+    "## Data Source and Time Window",
+    `- Source: ${buildCatalogSourceLabel(sourceLabel, catalog.serverName)}`,
+    "- Time Window: Not applicable for catalog metadata requests",
+    "",
+    "## Recommended Next Step",
+    "Use these grouped samples to confirm naming conventions, then inspect the full payload in the admin/demo trace if you need the complete catalog.",
+  ];
+
+  if (issues.length > 0) {
+    lines.push("", "## Detailed Findings", ...issues.map((issue) => `- ${issue}`));
+  }
+
+  return {
+    formattedResponse: lines.join("\n"),
+    notifications: [],
+  };
+}
+
 function mapDeterministicSourceLabel(agentId: string): string {
   if (agentId === "mcp-fetcher") return "Mapp Intelligence MCP server";
   if (agentId === "api-fetcher") return "Analytics API route";
   if (agentId === "cohort-monitor") return "Cohort monitor service";
   return "Pipeline data source";
+}
+
+function buildCatalogSourceLabel(sourceLabel: string, serverName?: string): string {
+  if (!serverName) return sourceLabel;
+  return `${sourceLabel} (${serverName})`;
 }
 
 function humanizeAgencySummary(summary: string): string {
@@ -246,6 +332,152 @@ function looksLikeRawJson(value: string): boolean {
     (trimmed.startsWith("{") && trimmed.includes("\":")) ||
     (trimmed.startsWith("[") && trimmed.includes("{"))
   );
+}
+
+function extractDimensionMetricCatalogPayload(
+  output: unknown
+): DimensionMetricCatalogPayload | null {
+  const parsed = parseStructuredOutput(output);
+  if (!parsed) return null;
+  if (parsed.toolName !== "list_dimensions_and_metrics") return null;
+
+  const data = asRecord(parsed.data);
+  if (!data) return null;
+
+  const dimensions = asStringArray(data.dimensions);
+  const metrics = asStringArray(data.metrics);
+  const dimensionsCount = asNumber(data.dimensionsCount) ?? dimensions.length;
+  const metricsCount = asNumber(data.metricsCount) ?? metrics.length;
+
+  if (dimensions.length === 0 && metrics.length === 0) {
+    return null;
+  }
+
+  return {
+    serverName: typeof parsed.serverName === "string" ? parsed.serverName : undefined,
+    toolName: "list_dimensions_and_metrics",
+    dimensionsCount,
+    metricsCount,
+    dimensions,
+    metrics,
+    executedAt: typeof parsed.executedAt === "string" ? parsed.executedAt : undefined,
+  };
+}
+
+function parseStructuredOutput(output: unknown): JsonRecord | null {
+  if (typeof output === "string") {
+    try {
+      return asRecord(JSON.parse(output));
+    } catch {
+      return null;
+    }
+  }
+
+  return asRecord(output);
+}
+
+function asRecord(value: unknown): JsonRecord | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return null;
+  }
+
+  return value as JsonRecord;
+}
+
+function asStringArray(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .filter((item): item is string => typeof item === "string")
+    .map((item) => normalizeLine(item))
+    .filter(Boolean);
+}
+
+function asNumber(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value;
+  }
+
+  if (typeof value === "string" && /^\d+$/.test(value.trim())) {
+    return Number(value.trim());
+  }
+
+  return null;
+}
+
+function buildCatalogPreviewLines(
+  names: string[],
+  label: "dimensions" | "metrics"
+): string[] {
+  const uniqueNames = Array.from(
+    new Set(names.map((name) => normalizeLine(name)).filter(Boolean))
+  ).sort((a, b) => a.localeCompare(b));
+
+  if (uniqueNames.length === 0) {
+    return [`- No ${label} were returned.`];
+  }
+
+  const grouped = groupCatalogNames(uniqueNames).filter(([, items]) => items.length > 1);
+  if (grouped.length < 2) {
+    return [buildAlphabeticalCatalogSample(uniqueNames)];
+  }
+
+  const displayedGroups = grouped.slice(0, MAX_CATALOG_GROUPS);
+  const coveredNames = displayedGroups.reduce((sum, [, items]) => sum + items.length, 0);
+  const lines = displayedGroups.map(([family, items]) =>
+    formatCatalogGroupLine(family, items)
+  );
+  const remaining = uniqueNames.length - coveredNames;
+
+  if (remaining > 0) {
+    lines.push(`- Plus ${formatCount(remaining)} more ${label} across additional families.`);
+  }
+
+  return lines;
+}
+
+function buildAlphabeticalCatalogSample(names: string[]): string {
+  const sample = names.slice(0, MAX_CATALOG_ALPHA_SAMPLES).map((name) => `\`${name}\``);
+  const remaining = names.length - sample.length;
+  const suffix = remaining > 0 ? `, and ${formatCount(remaining)} more.` : ".";
+  return `- Alphabetical sample: ${sample.join(", ")}${suffix}`;
+}
+
+function groupCatalogNames(names: string[]): Array<[string, string[]]> {
+  const groups = new Map<string, string[]>();
+
+  for (const name of names) {
+    const family = inferCatalogFamily(name);
+    const existing = groups.get(family) ?? [];
+    existing.push(name);
+    groups.set(family, existing);
+  }
+
+  return [...groups.entries()].sort((a, b) => {
+    if (b[1].length !== a[1].length) {
+      return b[1].length - a[1].length;
+    }
+    return a[0].localeCompare(b[0]);
+  });
+}
+
+function inferCatalogFamily(name: string): string {
+  const parts = name.split(/[_:.\-\s]+/).filter(Boolean);
+  const first = parts[0]?.toLowerCase();
+  return first && first.length > 1 ? first : "other";
+}
+
+function formatCatalogGroupLine(family: string, items: string[]): string {
+  const sample = items
+    .slice(0, MAX_CATALOG_GROUP_SAMPLES)
+    .map((name) => `\`${name}\``)
+    .join(", ");
+  const remaining = items.length - MAX_CATALOG_GROUP_SAMPLES;
+  const suffix = remaining > 0 ? `, and ${formatCount(remaining)} more` : "";
+  return `- \`${family}\` (${formatCount(items.length)}): ${sample}${suffix}`;
+}
+
+function formatCount(value: number): string {
+  return new Intl.NumberFormat("en-US").format(value);
 }
 
 function buildCompactInterfacePromptResults(results: ExecutedSubtaskResult[]): unknown[] {

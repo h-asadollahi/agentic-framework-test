@@ -72,6 +72,19 @@ function parseIntParam(value: string | undefined, fallback: number): number {
   return Math.max(0, Math.floor(parsed));
 }
 
+function parseSlackKind(
+  value: string | undefined
+): "escalation" | "route-learning" | "notification" | undefined {
+  return value === "escalation" || value === "route-learning" || value === "notification"
+    ? value
+    : undefined;
+}
+
+function defaultAdminSlackChannel(): string | undefined {
+  const value = process.env.SLACK_ADMIN_HITL_CHANNEL?.trim();
+  return value && value.length > 0 ? value : undefined;
+}
+
 async function fetchRunSummary(limit: number): Promise<{
   total: number;
   byStatus: Record<string, number>;
@@ -94,7 +107,10 @@ async function fetchRunSummary(limit: number): Promise<{
     };
   }
 
-  const response = await fetch(`${apiUrl}/api/v3/runs?limit=${limit}`, {
+  const query = new URLSearchParams();
+  query.set("page[size]", String(limit));
+
+  const response = await fetch(`${apiUrl}/api/v1/runs?${query.toString()}`, {
     headers: { Authorization: `Bearer ${token}` },
   });
 
@@ -253,6 +269,47 @@ export function registerAdminRoutes(app: Hono): void {
         502
       );
     }
+  });
+
+  admin.get("/slack/summary", async (c) => {
+    const channel = c.req.query("channel") || defaultAdminSlackChannel();
+    const kind = parseSlackKind(c.req.query("kind"));
+    const summary = await learnedRoutesStore.getSlackHitlSummaryForAdmin({
+      channel,
+      kind,
+    });
+
+    return c.json({
+      configuredAdminChannel: defaultAdminSlackChannel() ?? null,
+      channelFilter: channel ?? null,
+      kindFilter: kind ?? null,
+      summary,
+    });
+  });
+
+  admin.get("/slack/messages", async (c) => {
+    const channel = c.req.query("channel") || defaultAdminSlackChannel();
+    const kind = parseSlackKind(c.req.query("kind"));
+    const statusFilter = c.req.query("status") || undefined;
+    const limit = parseIntParam(c.req.query("limit"), 20);
+    const offset = parseIntParam(c.req.query("offset"), 0);
+    const messages = await learnedRoutesStore.listSlackHitlThreadsForAdmin({
+      channel,
+      kind,
+      status: statusFilter,
+      limit,
+      offset,
+    });
+
+    return c.json({
+      configuredAdminChannel: defaultAdminSlackChannel() ?? null,
+      channelFilter: channel ?? null,
+      kindFilter: kind ?? null,
+      statusFilter: statusFilter ?? null,
+      limit,
+      offset,
+      messages,
+    });
   });
 
   admin.post("/backfill/import", async (c) => {

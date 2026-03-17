@@ -35,7 +35,7 @@ function extractJsonObjectCandidates(text: string): string[] {
 /**
  * Parses agent output that may be plain JSON, fenced JSON, or text with embedded JSON.
  */
-export function parseAgentJson<T extends JsonRecord = JsonRecord>(
+export function parseAgentJson<T extends object = JsonRecord>(
   output: unknown
 ): T | null {
   if (typeof output !== "string") return null;

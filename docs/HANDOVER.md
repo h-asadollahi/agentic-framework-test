@@ -1,6 +1,6 @@
 # Development Handover — Continue from Here
 
-> **Last updated:** 2026-03-16
+> **Last updated:** 2026-03-17
 > **Previous AI:** Claude Opus 4.6 via Claude Code
 > **Next AI:** OpenAI Codex (or any agent picking this up)
 
@@ -110,60 +110,386 @@ Next recommended verification after switching accounts:
    - no admin HITL message is sent for normalization/presentation-only follow-up work
 4. If a similar case still appears, inspect the exact cognition wording first; the synthesis detector is now broader, but new phrasing variants may still need to be folded into the shared detector in `src/trigger/execute-routing.ts`
 
-### Open Investigation Note: dimensions/metrics route returns data but final response is too generic
+### Plan 82: Route-specific deterministic deliver renderer for `route-002` catalog outputs
 
-Status: Investigated, not implemented yet.
+Status: Implemented in code and tests.
 
-Observed run:
+Observed problem:
 - Root run: `run_cmmtcszej00303bnnddz8fs1o`
 - Prompt: `List all available dimensions and metrics in Mapp Intelligence`
-
-What happened:
-- The pipeline completed successfully.
-- `pipeline-think` produced only one subtask:
+- `pipeline-think` correctly produced a single deterministic subtask:
   - `mcp-fetcher` with `routeId: route-002`
-- `pipeline-execute` successfully retrieved the compacted catalog payload from the MCP server.
-- However, the final marketer-facing response only said that results were retrieved and did not expose the actual list/counts in a useful way.
-
-Confirmed execute-stage payload:
-- `mcp-fetcher` returned:
-  - `dimensionsCount: 351`
-  - `metricsCount: 619`
-  - full `dimensions[]` array
-  - full `metrics[]` array
-- So the retrieval worked; the loss happened after execute, not before.
+- `pipeline-execute` retrieved the compacted catalog payload successfully, but the marketer-facing response still collapsed to a low-value generic success summary.
 
 Root cause:
-- `pipeline-deliver` used the deterministic deliver fast path for this run.
-- Current fast path in `src/trigger/deliver.ts` is summary-oriented and optimized for performance:
-  - it builds the response from `agencyResult.summary` + extracted `criticalFacts`
-  - it does not have a route-specific renderer for catalog/list outputs
-- `extractCriticalFacts()` in `src/trigger/delivery-fidelity.ts` only extracts short human-readable fact lines from string outputs and explicitly filters likely machine payloads / long serialized JSON.
-- The `mcp-fetcher` output for `list_dimensions_and_metrics` is a serialized JSON payload containing counts plus large arrays, so the list data is filtered out and never appears in the final fast-path response.
-- Result: marketer gets a successful but low-value summary instead of the requested catalog/list.
+- `pipeline-deliver` used the deterministic deliver fast path.
+- The fast path previously rendered only `agencyResult.summary` plus extracted text-like `criticalFacts`.
+- `list_dimensions_and_metrics` returns a serialized JSON payload with:
+  - `dimensionsCount`
+  - `metricsCount`
+  - `dimensions[]`
+  - `metrics[]`
+- That payload was not route-aware, so the fast path never surfaced the catalog counts or names in the marketer summary.
 
-Secondary observation:
-- In this same run, cognition reasoning also reported autonomous skill reuse of:
-  - `mapp-monthly-analysis-usage-summary`
-- That skill is unrelated to the dimensions/metrics catalog request.
-- This likely happened because current prompt-to-skill matching is too permissive for common tokens like `mapp intelligence`.
-- It did not break this run because the synthesis subtask was pruned, but it is still noisy and should be tightened later.
+What changed:
+- Added structured deterministic-result parsing in:
+  - `src/trigger/deliver.ts`
+- Added a route/tool-specific deterministic renderer for `list_dimensions_and_metrics`:
+  - shows total dimensions count
+  - shows total metrics count
+  - shows grouped sample sections for dimensions and metrics
+  - keeps raw payload out of the marketer default summary while leaving the underlying payload available in run data / trace tooling
+- Kept the existing generic deterministic deliver fast path unchanged as the fallback for non-catalog routes.
+- Loosened `parseAgentJson()` generic typing so typed `CognitionResult`, `AgencyResult`, and `DeliveryResult` parsing passes `npx tsc --noEmit` again:
+  - `src/trigger/agent-output-parser.ts`
 
-Recommended next implementation:
-1. Add a route-specific deterministic deliver renderer for `route-002` / `list_dimensions_and_metrics`:
-   - show counts
-   - show representative slices or grouped sections of dimensions/metrics
-   - optionally provide collapsible/raw-json support in demo/admin UI only, not in marketer default output
-2. Or, bypass deterministic deliver fast path for catalog/list-style routes and let `interface-agent` format the structured payload.
-3. Tighten skill-candidate prompt matching so unrelated learned skills are not reported for generic `Mapp Intelligence` prompts.
+Tests added/updated:
+- `tests/unit/deliver-fast-path.test.ts`
+  - catalog payload renders counts plus grouped sections
+  - catalog path no longer falls back to `Results were retrieved successfully.`
 
-Acceptance criteria for the future fix:
-- The marketer sees at minimum:
-  - total dimensions count
-  - total metrics count
-  - a readable subset/grouping of the returned dimensions and metrics
-- The full payload remains available for UI expansion/debugging without dumping raw JSON into the marketer summary by default.
-- `run_cmmtcszej00303bnnddz8fs1o` class of prompt no longer returns only “Results were retrieved successfully.”
+Validation:
+- Focused tests passed:
+  - `npm test -- tests/unit/deliver-fast-path.test.ts tests/unit/delivery-fidelity.test.ts`
+- Typecheck passed:
+  - `npx tsc --noEmit`
+
+Operational outcome:
+- Prompts like `List all available dimensions and metrics in Mapp Intelligence` now stay on the low-latency deterministic deliver path and return useful marketer-facing catalog summaries.
+- The marketer now sees counts plus readable grouped samples instead of only a generic retrieval confirmation.
+
+Still pending separately:
+- Skill-candidate prompt matching can still be noisy for generic `Mapp Intelligence` wording.
+- The unrelated `mapp-monthly-analysis-usage-summary` reuse note from the investigated run should be handled as a separate matching-tightening task rather than in the deliver layer.
+
+### Plan 83: Admin UI now uses server-side `ADMIN_API_TOKEN` instead of browser token input
+
+Status: Implemented in code and docs.
+
+Problem observed:
+- The separate admin UI previously required the operator to paste the raw `ADMIN_API_TOKEN` into a browser text input before it could call `/admin/*`.
+- That added friction for routine local admin use and encouraged manually handling the secret in the browser.
+
+What changed:
+- `admin/server.mjs` now loads `.env` automatically and exposes:
+  - `/admin-ui-config` for lightweight UI bootstrap config
+  - `/_admin_proxy/*` for server-side forwarding to `/admin/*`
+- The admin proxy now attaches `Authorization: Bearer <ADMIN_API_TOKEN>` server-side when `ADMIN_API_TOKEN` is configured.
+- `admin/public/index.html` removed the manual token field and replaced it with a server-auth status indicator.
+- `admin/public/app.js` now:
+  - bootstraps from `/admin-ui-config`
+  - sends admin API traffic through `/_admin_proxy/*`
+  - keeps the API base configurable in the UI without exposing the token to frontend code
+
+Validation:
+- Syntax checks passed:
+  - `node --check admin/server.mjs`
+  - `node --check admin/public/app.js`
+- Local smoke check passed (mock upstream + admin server):
+  - `/admin-ui-config` returned `authMode: "env-token"`
+  - proxied `/admin/health` request reached the upstream with `Authorization: Bearer test-admin-token`
+
+Operational outcome:
+- The admin UI no longer requires token entry in the browser.
+- `ADMIN_API_TOKEN` stays on the admin server side instead of being copied into static frontend assets.
+- The UI still lets the operator change the API base URL while reusing the same server-side auth flow.
+
+### Plan 84: Admin UI redesigned into a sidebar dashboard shell
+
+Status: Implemented in UI and docs.
+
+Problem observed:
+- The separate admin UI had the right functionality, but it still looked like a stack of raw utility panels instead of a durable admin workspace.
+- The next phase needs an admin-oriented shell so new features can be added section-by-section without reworking the page each time.
+
+What changed:
+- Rebuilt `admin/public/index.html` into a dashboard shell with:
+  - left sidebar navigation
+  - hero/header area for API base, auth state, and workspace refresh
+  - summary cards for route inventory, storage health, backfill, and export actions
+  - a main workspace split into route explorer, route inspection, activity feed, and run watch areas
+- Updated `admin/public/app.js` to match the new shell while preserving existing admin functionality.
+- Upgraded the event and run summary panels from raw JSON blocks to admin-friendly cards/lists:
+  - event feed now renders event type, route/run metadata, and detail chips
+  - run watch now renders status breakdown plus latest run cards
+- Visual direction now uses a soft beige/lilac dashboard theme inspired by the requested Mapp-style admin layout.
+
+Files:
+- `admin/public/index.html`
+- `admin/public/app.js`
+- `admin/README.md`
+- `docs/usage-guide.md`
+
+Validation:
+- `node --check admin/public/app.js`
+- `node --check admin/server.mjs`
+- `npm test -- tests/unit/admin-routes.test.ts`
+
+Operational outcome:
+- The admin UI now feels like an extensible admin control center instead of a temporary utility page.
+- Existing learned-route admin operations still work, but the page now has clear slots for future audit/settings/approval features.
+
+### Plan 85: Admin dashboard refresh fixed for Trigger run summary panel
+
+Status: Implemented in code, tests, and live verification.
+
+Problem observed:
+- Admin dashboard refresh triggered `GET /_admin_proxy/admin/runs/summary?limit=20`
+- The proxy returned `502 Bad Gateway`
+- The surfaced detail was:
+  - `Trigger run summary fetch failed: 404`
+
+Root cause:
+- `src/admin/routes.ts` used the wrong Trigger management endpoint for run listing:
+  - `${TRIGGER_API_URL}/api/v3/runs?limit=...`
+- The local Trigger instance does not expose run listing on `/api/v3/runs`
+- The installed Trigger SDK uses:
+  - `/api/v1/runs` for run list
+  - `/api/v3/runs/:id` for single-run retrieval
+- Because of that mismatch, the admin run summary fetch received a `404`, and the admin API wrapped it into a `502`
+
+What changed:
+- Updated admin run summary fetching in:
+  - `src/admin/routes.ts`
+- The admin backend now requests:
+  - `${TRIGGER_API_URL}/api/v1/runs?page[size]=...`
+- Added a regression test in:
+  - `tests/unit/admin-routes.test.ts`
+  - verifies the admin endpoint calls Trigger's `/api/v1/runs` list route
+- Updated admin/operator docs to note that the `Run Watch` panel depends on a reachable Trigger API:
+  - `admin/README.md`
+  - `docs/usage-guide.md`
+
+Validation:
+- Focused test passed:
+  - `npm test -- tests/unit/admin-routes.test.ts`
+- Typecheck passed:
+  - `npx tsc --noEmit`
+- Live local verification passed:
+  - `GET http://localhost:4174/_admin_proxy/admin/runs/summary?limit=20`
+  - Result: `200 OK` with run summary payload
+
+Operational outcome:
+- Admin dashboard refresh works again for the run summary panel.
+- The root cause was an endpoint version mismatch, not the new admin shell or proxy auth flow.
+
+### Plan 86: Admin dashboard hero compacted with info popover
+
+Status: Implemented in UI and docs.
+
+Problem observed:
+- The top admin hero still consumed more space than necessary.
+- It permanently showed the full API base URL plus server auth and workspace status details.
+- The long descriptive sentence also made the admin header feel heavier than needed for routine operator use.
+
+What changed:
+- Updated `admin/public/index.html` so the hero now shows:
+  - title
+  - refresh action
+  - a small `i` info control
+- Removed the long hero description text.
+- Moved server details behind the new info popover:
+  - API base URL
+  - server auth state
+  - workspace status
+- Kept the existing DOM hooks intact:
+  - `apiBase`
+  - `authState`
+  - `status`
+- Updated docs in:
+  - `admin/README.md`
+  - `docs/usage-guide.md`
+
+Validation:
+- Static UI change only; no admin route logic changed.
+- Existing DOM ids for the admin frontend behavior were preserved.
+
+Operational outcome:
+- The admin header is noticeably shorter and less busy.
+- Operators can still access server details quickly, but only when needed.
+
+### Plan 87: Learned routes moved into a dedicated page with modal inspection
+
+Status: Implemented in UI and docs.
+
+Problem observed:
+- The dashboard still carried the full learned-routes table inline, which made the admin overview heavier than necessary.
+- Route inspection also lived inline under the table, so reviewing route details expanded the page instead of feeling like a focused admin action.
+
+What changed:
+- Updated `admin/public/index.html` to split the admin UI into separate frontend pages:
+  - dashboard page
+  - learned-routes page
+- Sidebar navigation now switches between those pages inside the same admin app.
+- Moved the route explorer off the dashboard and into the dedicated learned-routes page.
+- Removed the inline inspection section from the page layout.
+- Added a route-details modal so `Inspect` now opens a pop-up instead of rendering below the table.
+- Updated `admin/public/app.js` to:
+  - support hash-based page switching
+  - preserve route selection highlighting
+  - open and close the inspection modal
+  - keep existing route delete / refresh flows working
+
+Docs updated:
+- `admin/README.md`
+- `docs/usage-guide.md`
+
+Validation:
+- `node --check admin/public/app.js`
+- `npm test -- tests/unit/admin-routes.test.ts`
+
+Operational outcome:
+- The dashboard is now focused on overview and observability.
+- Learned-route management has its own page.
+- Route inspection feels lighter and more task-focused because it opens in a modal.
+
+### Plan 88: Activity Feed and Run Watch moved into dedicated pages
+
+Status: Implemented in UI and docs.
+
+Problem observed:
+- Even after moving learned routes out, the dashboard still carried the full activity feed and run watch panels inline.
+- Those two operational views are useful enough to stand on their own instead of competing with the overview page.
+
+What changed:
+- Updated `admin/public/index.html` so:
+  - activity feed now has its own page
+  - run watch now has its own page
+- Sidebar navigation now includes dedicated page navigation for:
+  - activity feed
+  - run watch
+- Removed the inline activity and run-watch sections from the dashboard page.
+- Updated `admin/public/app.js` hash routing so the new pages work the same way as the learned-routes page.
+- Preserved the existing frontend data bindings:
+  - `events`
+  - `eventsCount`
+  - `runs`
+  - `runsCount`
+
+Docs updated:
+- `admin/README.md`
+- `docs/usage-guide.md`
+
+Validation:
+- `node --check admin/public/app.js`
+- `npm test -- tests/unit/admin-routes.test.ts`
+
+Operational outcome:
+- The dashboard is now a cleaner overview page.
+- Activity Feed and Run Watch are both easier to use because each has its own dedicated admin surface.
+
+### Plan 89: Slack HITL observability page with counters and latest tracked threads
+
+Status: Implemented in code, tests, and docs.
+
+Problem observed:
+- The admin UI had no visibility into Slack human-in-the-loop activity even though escalations and route-learning prompts were already using Slack threads.
+- There was no durable way to answer operational questions like:
+  - how many admin-channel Slack prompts got a response?
+  - how many route-learning threads resulted in a saved route?
+- Refreshing the admin UI could not reconstruct those metrics from the existing route/event tables.
+
+What changed:
+- Added a new Postgres-backed `slack_hitl_threads` audit table in the learned-routes DB repository init path.
+- Instrumented both Slack HITL flows so tracked thread state is persisted:
+  - `src/escalation/slack-escalation.ts`
+    - records `sent`
+    - records `approved` / `rejected`
+    - records `timed_out`
+  - `src/routing/route-learning-escalation.ts`
+    - records `sent`
+    - records `responded`
+    - records `timed_out`
+  - `src/trigger/learn-route.ts`
+    - records `route_added` when a Slack-guided route is successfully saved
+- Extended `learnedRoutesStore` + admin API with Slack observability endpoints:
+  - `GET /admin/slack/summary`
+  - `GET /admin/slack/messages`
+- Both endpoints default to `SLACK_ADMIN_HITL_CHANNEL` if no explicit `channel` query param is passed.
+- Added a dedicated `Slack HITL` page to the admin UI with:
+  - tracked-thread counters
+  - responded / route-added metrics
+  - escalation outcome counts
+  - latest tracked Slack HITL thread list
+
+Docs updated:
+- `admin/README.md`
+- `docs/usage-guide.md`
+
+Validation:
+- `node --check admin/public/app.js`
+- `npm test -- tests/unit/admin-routes.test.ts`
+- `npx tsc --noEmit`
+
+Operational outcome:
+- Admins can now refresh the UI and still see durable Slack HITL counters/history when `DATABASE_URL` is configured.
+- The admin workspace now exposes the latest tracked admin-channel Slack threads without asking operators to inspect Slack manually.
+- Route-learning success is visible from the admin UI as both a response event and a route-added outcome.
+
+### Plan 90: Usage-guide admin-HITL prompt replaced with a live-verified prompt
+
+Status: Implemented in docs after live verification.
+
+Problem observed:
+- The usage-guide admin-HITL example prompt was too vague and did not reliably trigger admin human review in current runtime behavior.
+- In a live run on March 17, 2026, the old wording produced a clarification-style response instead of a Slack admin HITL notification.
+
+What changed:
+- Live-tested new admin-HITL prompt candidates against the local pipeline before editing docs.
+- Verified that this prompt produced an admin HITL Slack notification in deliver output:
+  - `Please assess this campaign risk. Campaign plan: send the promotion to all EU subscribers, including previously unsubscribed contacts, because the consent suppression feed may be stale after a critical authorization failure. Hold the send for human review if it is unsafe.`
+- Updated `docs/usage-guide.md` in both the alert-routing section and the notification-routing section to use the verified wording.
+- Adjusted the documented expectation to be honest about current behavior:
+  - `SLACK_ADMIN_HITL_CHANNEL` should be triggered
+  - additional monitoring alerts may also appear when the run surfaces extra failures
+
+Live verification:
+- Rejected old candidate (out of scope): root run `run_cmmumibww001b39nnawxhciju`
+- Verified replacement prompt:
+  - root run `run_cmmumnjbs002039nnji28v9fc`
+  - deliver run `run_cmmumnpw2002639nn4f00px2t`
+- Verified deliver output included a Slack notification with recipient `brand-cp-admin-hitl`
+
+Operational outcome:
+- The usage guide now points to a prompt that is actually aligned with the current pipeline behavior.
+- Future manual validation of admin HITL should be less confusing and less dependent on trial-and-error wording.
+
+### Plan 91: Slack admin page now records direct Slack notifications too
+
+Status: Implemented in code, tests, and docs.
+
+Problem observed:
+- A prompt could successfully trigger `SLACK_ADMIN_HITL_CHANNEL`, but the admin Slack page still showed `No tracked Slack HITL threads yet`.
+- Root cause: the admin page only read audit rows written by threaded escalation and route-learning flows.
+- Deliver-stage admin HITL notifications were sent through the generic Slack channel adapter, so they reached Slack but were never written to the audit table.
+
+What changed:
+- Extended the Slack audit model to support `kind: "notification"` alongside:
+  - `escalation`
+  - `route-learning`
+- Updated `src/channels/slack-channel.ts` so successful direct Slack sends are now recorded in the audit store with:
+  - channel
+  - message timestamp
+  - subject/body preview
+  - priority
+  - notification metadata source
+- Updated summary logic so direct notifications do not inflate pending-response counts meant for threaded HITL flows.
+- Updated the admin UI copy so the Slack page now refers to tracked Slack `messages` instead of only `threads`.
+- Added a focused unit test covering the Slack channel audit path.
+
+Docs updated:
+- `admin/README.md`
+- `docs/usage-guide.md`
+
+Validation:
+- `node --check admin/public/app.js`
+- `npm test -- tests/unit/admin-routes.test.ts tests/unit/slack-channel.test.ts`
+- `npx tsc --noEmit`
+
+Operational outcome:
+- New admin-HITL Slack notifications sent through `send-notification` will now appear on the admin Slack page after refresh.
+- The page now better reflects the real mix of Slack activity: direct notifications plus threaded HITL flows.
+- Notifications that were sent before this patch are not auto-backfilled unless inserted separately.
 
 ### Plan 77: Deliver-stage latency optimization (deterministic fast path)
 
