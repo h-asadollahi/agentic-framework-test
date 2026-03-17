@@ -1,6 +1,6 @@
 # Codex Memory (Project Snapshot)
 
-Last updated: 2026-03-06
+Last updated: 2026-03-17
 
 ## Collaboration Rules to Follow
 
@@ -8,8 +8,9 @@ Last updated: 2026-03-06
 - `docs/ai-coding-plans/codex-plan-01.md`, `docs/ai-coding-plans/codex-plan-02.md`, ...
 
 2. After each implementation batch:
-- Commit changes.
-- Push to `main`.
+- Commit changes immediately after the batch is complete.
+- Push to `main` immediately after the commit.
+- Treat this as a strict standing rule from the user, not an optional follow-up step.
 
 3. Keep `docs/HANDOVER.md` updated continuously:
 - Latest status must always be saved there (including when context might reset).
