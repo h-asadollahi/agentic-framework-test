@@ -6,6 +6,7 @@ import { deliverTask } from "./deliver.js";
 import { skillLearnerTask } from "./skill-learner.js";
 import { notifyTask } from "./notify.js";
 import { escalateTask } from "./escalate.js";
+import { shortTermMemory } from "../memory/short-term.js";
 import { learnedRoutesStore } from "../routing/learned-routes-store.js";
 import { skillCandidatesStore } from "../routing/skill-candidates-store.js";
 import type {
@@ -67,6 +68,19 @@ export const orchestrateTask = task({
       message: payload.userMessage.slice(0, 100),
     });
 
+    const rememberAssistantReply = (content: string): void => {
+      shortTermMemory.addMessage(payload.sessionId, {
+        role: "assistant",
+        content,
+        metadata: {
+          audience: payload.requestContext.audience,
+          brandId: payload.requestContext.brandId,
+          scope: payload.requestContext.scope,
+          source: payload.requestContext.source,
+        },
+      });
+    };
+
     const escalateStageFailure = async (stage: string, reason: string, details: unknown) => {
       try {
         await escalateTask.trigger({
@@ -103,6 +117,7 @@ export const orchestrateTask = task({
     const groundingRun = await groundTask.triggerAndWait({
       userMessage: payload.userMessage,
       sessionId: payload.sessionId,
+      requestContext: payload.requestContext,
     });
 
     if (!groundingRun.ok) {
@@ -149,6 +164,8 @@ export const orchestrateTask = task({
       logger.info("Pipeline stopped at cognition due to guardrail rejection", {
         sessionId: payload.sessionId,
       });
+
+      rememberAssistantReply(rejectionMessage);
 
       return {
         formattedResponse: rejectionMessage,
@@ -231,7 +248,16 @@ export const orchestrateTask = task({
       logger.info(`Sending ${notifications.length} notification(s)`);
       for (const notification of notifications) {
         // Fire-and-forget — don't block the pipeline response
-        await notifyTask.trigger({ notification });
+        await notifyTask.trigger({
+          notification: {
+            ...notification,
+            metadata: {
+              ...(notification.metadata ?? {}),
+              requestContext: payload.requestContext,
+              sessionId: payload.sessionId,
+            },
+          },
+        });
       }
     }
 
@@ -242,6 +268,8 @@ export const orchestrateTask = task({
       stages: trace.length,
       notifications: notifications.length,
     });
+
+    rememberAssistantReply(deliverRun.output.formattedResponse);
 
     return {
       formattedResponse: deliverRun.output.formattedResponse,

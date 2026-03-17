@@ -2,6 +2,7 @@ import { WebClient } from "@slack/web-api";
 import { wait } from "@trigger.dev/sdk/v3";
 import { logger } from "../core/logger.js";
 import { learnedRoutesStore } from "./learned-routes-store.js";
+import type { RequestContext } from "../core/types.js";
 
 // ── Types ───────────────────────────────────────────────────
 
@@ -9,7 +10,9 @@ export interface RouteLearningRequest {
   subtaskDescription: string;
   subtaskInput: Record<string, unknown>;
   agentId: string;
+  sessionId: string;
   runId: string;
+  requestContext: RequestContext;
 }
 
 export interface ParsedRouteInfo {
@@ -155,8 +158,12 @@ export async function sendRouteLearningMessage(
         messageTs: result.ts,
         threadTs: result.ts,
         status: "sent",
+        audience: request.requestContext.audience,
+        scope: request.requestContext.scope,
+        brandId: request.requestContext.brandId,
         taskDescription: request.subtaskDescription,
         runId: request.runId,
+        sessionId: request.sessionId,
         agentId: request.agentId,
         metadata: {
           timeoutMinutes,

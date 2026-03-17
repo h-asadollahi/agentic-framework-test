@@ -2,6 +2,7 @@ const chatLog = document.getElementById("chatLog");
 const promptInput = document.getElementById("promptInput");
 const sendBtn = document.getElementById("sendBtn");
 const apiBaseInput = document.getElementById("apiBase");
+const brandIdInput = document.getElementById("brandId");
 const sessionInfo = document.getElementById("sessionInfo");
 const messageTemplate = document.getElementById("messageTemplate");
 
@@ -467,7 +468,10 @@ function buildRawJsonBlock(output) {
 
 async function triggerPipeline(userMessage) {
   const base = apiBaseInput.value.trim().replace(/\/$/, "");
-  const payload = { userMessage };
+  const payload = {
+    userMessage,
+    brandId: brandIdInput?.value.trim() || "acme-marketing",
+  };
   if (sessionId) payload.sessionId = sessionId;
 
   const res = await fetch(`${base}/message`, {

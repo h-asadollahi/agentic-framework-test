@@ -2,6 +2,7 @@ import { task, logger } from "@trigger.dev/sdk/v3";
 import { groundingAgent } from "../agents/grounding-agent.js";
 import { buildExecutionContext } from "../core/context.js";
 import type { ExecutionContext, GroundingResult } from "../core/types.js";
+import { withRunId } from "../core/request-context.js";
 import { parseAgentJson } from "./agent-output-parser.js";
 
 type GroundingOutputPayload = Partial<
@@ -51,10 +52,16 @@ export function buildGroundingResultFromOutput(
 export const groundTask = task({
   id: "pipeline-ground",
   retry: { maxAttempts: 3 },
-  run: async (payload: { userMessage: string; sessionId: string }) => {
+  run: async (
+    payload: { userMessage: string; sessionId: string; requestContext: ExecutionContext["requestContext"] },
+    taskContext
+  ) => {
     logger.info("Starting grounding phase", { sessionId: payload.sessionId });
 
-    const context = buildExecutionContext(payload.sessionId);
+    const context = await buildExecutionContext(
+      payload.sessionId,
+      withRunId(payload.requestContext, taskContext.ctx.run.id)
+    );
     const result = await groundingAgent.execute(payload.userMessage, context);
 
     logger.info("Grounding phase complete", {

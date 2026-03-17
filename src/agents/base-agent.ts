@@ -4,9 +4,11 @@ import { AllModelsFailedError } from "../core/errors.js";
 import {
   ModelRouter,
   modelRouter,
+  resolveModelId,
   modelSupportsTemperature,
 } from "../providers/model-router.js";
 import { logger } from "../core/logger.js";
+import { llmUsageStore } from "../observability/llm-usage-store.js";
 
 /**
  * Abstract base class for all agents in the system.
@@ -77,11 +79,41 @@ export abstract class BaseAgent {
           steps: result.steps?.length,
         });
 
+        const promptTokens =
+          typeof (result.usage as { inputTokens?: number } | undefined)?.inputTokens ===
+          "number"
+            ? (result.usage as { inputTokens?: number }).inputTokens
+            : undefined;
+        const completionTokens =
+          typeof (result.usage as { outputTokens?: number } | undefined)?.outputTokens ===
+          "number"
+            ? (result.usage as { outputTokens?: number }).outputTokens
+            : undefined;
+
+        await llmUsageStore.record({
+          audience: context.requestContext.audience,
+          scope: context.requestContext.scope,
+          brandId: context.requestContext.brandId,
+          source: context.requestContext.source,
+          sessionId: context.sessionId,
+          runId: context.requestContext.runId ?? context.sessionId,
+          componentKind: "agent",
+          componentId: this.config.id,
+          modelAlias: modelId,
+          resolvedModelId: resolveModelId(modelId),
+          provider: resolveProvider(resolveModelId(modelId)),
+          tokensUsed: result.usage?.totalTokens ?? 0,
+          promptTokens,
+          completionTokens,
+        });
+
         return {
           success: true,
           output: result.text,
           modelUsed: modelId,
           tokensUsed: result.usage?.totalTokens,
+          promptTokens,
+          completionTokens,
           steps: result.steps?.length ?? 1,
         };
       } catch (error) {
@@ -101,4 +133,9 @@ export abstract class BaseAgent {
 
     throw new AllModelsFailedError(this.config.id, modelIds);
   }
+}
+
+function resolveProvider(resolvedModelId: string): string {
+  const [provider] = resolvedModelId.split(":");
+  return provider || "unknown";
 }

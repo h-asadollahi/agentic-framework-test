@@ -5,11 +5,14 @@ import { serve } from "@hono/node-server";
 import { tasks } from "@trigger.dev/sdk/v3";
 import { z } from "zod";
 import { logger } from "./core/logger.js";
+import { createMarketerRequestContext } from "./core/request-context.js";
 import { shortTermMemory } from "./memory/short-term.js";
 import { longTermMemory } from "./memory/long-term.js";
+import { retrieveTriggerRun } from "./platform/trigger-runs.js";
 import { learnedRoutesStore } from "./routing/learned-routes-store.js";
 import { subAgentRegistry } from "./trigger/sub-agents/registry.js";
 import { registerAdminRoutes } from "./admin/routes.js";
+import { brandStore } from "./tenancy/brand-store.js";
 // Register all sub-agent plugins
 import "./trigger/sub-agents/plugins/index.js";
 
@@ -33,6 +36,7 @@ app.get("/health", (c) => {
 const MessageSchema = z.object({
   userMessage: z.string().min(1, "Message is required"),
   sessionId: z.string().optional(),
+  brandId: z.string().min(1, "brandId is required"),
 });
 
 app.post("/message", async (c) => {
@@ -43,7 +47,19 @@ app.post("/message", async (c) => {
     return c.json({ error: parsed.error.flatten() }, 400);
   }
 
-  const { userMessage, sessionId = crypto.randomUUID() } = parsed.data;
+  const { userMessage, sessionId = crypto.randomUUID(), brandId } = parsed.data;
+
+  try {
+    await brandStore.assertBrandExists(brandId);
+  } catch (error) {
+    return c.json(
+      {
+        error: "Unknown brand",
+        details: error instanceof Error ? error.message : String(error),
+      },
+      400
+    );
+  }
 
   // Store the user message in short-term memory
   shortTermMemory.addMessage(sessionId, {
@@ -53,6 +69,7 @@ app.post("/message", async (c) => {
 
   logger.info("Message received", {
     sessionId,
+    brandId,
     messageLength: userMessage.length,
   });
 
@@ -61,11 +78,13 @@ app.post("/message", async (c) => {
     const handle = await tasks.trigger("orchestrate-pipeline", {
       userMessage,
       sessionId,
+      requestContext: createMarketerRequestContext(brandId, "api"),
     });
 
     return c.json({
       runId: handle.id,
       sessionId,
+      brandId,
       status: "triggered",
       message: "Pipeline started. Use GET /status/:runId to track progress.",
     });
@@ -81,30 +100,11 @@ app.post("/message", async (c) => {
   }
 });
 
-// ── Get Run Status ───────────────────────────────────────────
-// Direct API call to Trigger.dev platform — avoids SDK v4/v3 validation mismatch
-async function retrieveRun(runId: string) {
-  const apiUrl = process.env.TRIGGER_API_URL ?? "http://localhost:3040";
-  const secretKey = process.env.TRIGGER_SECRET_KEY;
-
-  if (!secretKey) throw new Error("TRIGGER_SECRET_KEY not set");
-
-  const res = await fetch(`${apiUrl}/api/v3/runs/${runId}`, {
-    headers: { Authorization: `Bearer ${secretKey}` },
-  });
-
-  if (!res.ok) {
-    throw new Error(`Trigger API returned ${res.status}: ${res.statusText}`);
-  }
-
-  return res.json();
-}
-
 app.get("/status/:runId", async (c) => {
   const runId = c.req.param("runId");
 
   try {
-    const run = await retrieveRun(runId);
+    const run = await retrieveTriggerRun(runId);
 
     return c.json({
       runId: run.id,

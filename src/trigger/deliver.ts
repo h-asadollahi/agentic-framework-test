@@ -25,6 +25,7 @@ const DETERMINISTIC_ROUTE_AGENT_IDS = new Set([
   "mcp-fetcher",
   "api-fetcher",
   "cohort-monitor",
+  "token-usage-monitor",
 ]);
 
 const MAX_INTERFACE_OUTPUT_PREVIEW_CHARS = 700;
@@ -144,6 +145,19 @@ interface DimensionMetricCatalogPayload {
   executedAt?: string;
 }
 
+interface TokenUsageMonitorPayload {
+  audience: "admin" | "marketer";
+  brandId: string | null;
+  days: number;
+  bucket: "day";
+  totalTokens: number;
+  totalCalls: number;
+  byProvider: Array<{ provider: string; tokens: number; calls: number }>;
+  byModel: Array<{ model: string; tokens: number; calls: number }>;
+  daily: Array<{ bucket: string; tokens: number; calls: number }>;
+  note?: string;
+}
+
 export function shouldUseDeterministicDeliverFastPath(
   agencyResult: AgencyResult
 ): boolean {
@@ -187,6 +201,13 @@ export function buildDeterministicDeliveryFastPath(
     : null;
   if (catalogRender) {
     return catalogRender;
+  }
+
+  const tokenUsageRender = deterministicResult
+    ? buildTokenUsageMonitorFastPath(agencyResult, deterministicResult)
+    : null;
+  if (tokenUsageRender) {
+    return tokenUsageRender;
   }
 
   const sourceLabel = deterministicResult
@@ -286,10 +307,73 @@ function buildDimensionMetricCatalogFastPath(
   };
 }
 
+function buildTokenUsageMonitorFastPath(
+  agencyResult: AgencyResult,
+  deterministicResult: ExecutedSubtaskResult
+): DeliveryResult | null {
+  const usage = extractTokenUsageMonitorPayload(deterministicResult.result.output);
+  if (!usage) return null;
+
+  const audienceLabel =
+    usage.audience === "admin" ? "admins" : "marketers";
+  const scopeLabel = usage.brandId
+    ? `for brand \`${usage.brandId}\``
+    : "across all tracked brands";
+  const providerLines =
+    usage.byProvider.length > 0
+      ? usage.byProvider.slice(0, 5).map(
+          (entry) =>
+            `- \`${entry.provider}\`: ${formatCount(entry.tokens)} tokens across ${formatCount(entry.calls)} calls`
+        )
+      : ["- No provider usage has been tracked for this window yet."];
+  const modelLines =
+    usage.byModel.length > 0
+      ? usage.byModel.slice(0, 6).map(
+          (entry) =>
+            `- \`${entry.model}\`: ${formatCount(entry.tokens)} tokens across ${formatCount(entry.calls)} calls`
+        )
+      : ["- No model usage has been tracked for this window yet."];
+  const dailyLines =
+    usage.daily.length > 0
+      ? usage.daily.map(
+          (entry) =>
+            `- ${entry.bucket}: ${formatCount(entry.tokens)} tokens across ${formatCount(entry.calls)} calls`
+        )
+      : ["- No daily usage has been tracked for this window yet."];
+
+  return {
+    formattedResponse: [
+      "## Executive Summary",
+      `Tracked ${formatCount(usage.totalTokens)} total tokens across ${formatCount(usage.totalCalls)} LLM calls for ${audienceLabel} ${scopeLabel} over the last ${formatCount(usage.days)} days.`,
+      "",
+      "## Key Findings",
+      `- Audience filter: ${usage.audience}`,
+      `- Brand filter: ${usage.brandId ?? "all brands"}`,
+      `- Total tokens: ${formatCount(usage.totalTokens)}`,
+      `- Total calls: ${formatCount(usage.totalCalls)}`,
+      "",
+      "## Daily Breakdown",
+      ...dailyLines,
+      "",
+      "## Provider Totals",
+      ...providerLines,
+      "",
+      "## Model Totals",
+      ...modelLines,
+      "",
+      "## Recommended Next Step",
+      usage.note ??
+        "Compare the top providers and models against your expected traffic mix, then drill into the admin trace or telemetry endpoints if you need more detail.",
+    ].join("\n"),
+    notifications: [],
+  };
+}
+
 function mapDeterministicSourceLabel(agentId: string): string {
   if (agentId === "mcp-fetcher") return "Mapp Intelligence MCP server";
   if (agentId === "api-fetcher") return "Analytics API route";
   if (agentId === "cohort-monitor") return "Cohort monitor service";
+  if (agentId === "token-usage-monitor") return "LLM telemetry store";
   return "Pipeline data source";
 }
 
@@ -364,6 +448,37 @@ function extractDimensionMetricCatalogPayload(
   };
 }
 
+function extractTokenUsageMonitorPayload(
+  output: unknown
+): TokenUsageMonitorPayload | null {
+  const parsed = parseStructuredOutput(output);
+  if (!parsed) return null;
+
+  const audience =
+    parsed.audience === "admin" || parsed.audience === "marketer"
+      ? parsed.audience
+      : null;
+  const days = asNumber(parsed.days);
+  const totalTokens = asNumber(parsed.totalTokens);
+  const totalCalls = asNumber(parsed.totalCalls);
+  if (!audience || days === null || totalTokens === null || totalCalls === null) {
+    return null;
+  }
+
+  return {
+    audience,
+    brandId: typeof parsed.brandId === "string" ? parsed.brandId : null,
+    days,
+    bucket: parsed.bucket === "day" ? "day" : "day",
+    totalTokens,
+    totalCalls,
+    byProvider: asProviderUsageBreakdownArray(parsed.byProvider),
+    byModel: asModelUsageBreakdownArray(parsed.byModel),
+    daily: asDailyUsageArray(parsed.daily),
+    note: typeof parsed.note === "string" ? parsed.note : undefined,
+  };
+}
+
 function parseStructuredOutput(output: unknown): JsonRecord | null {
   if (typeof output === "string") {
     try {
@@ -402,6 +517,66 @@ function asNumber(value: unknown): number | null {
   }
 
   return null;
+}
+
+function asProviderUsageBreakdownArray(
+  value: unknown
+): Array<{ provider: string; tokens: number; calls: number }> {
+  if (!Array.isArray(value)) return [];
+
+  return value
+    .map((item) => {
+      const record = asRecord(item);
+      if (!record) return null;
+      const label = typeof record.provider === "string" ? record.provider : null;
+      const tokens = asNumber(record.tokens);
+      const calls = asNumber(record.calls);
+      if (!label || tokens === null || calls === null) {
+        return null;
+      }
+      return { provider: label, tokens, calls };
+    })
+    .filter((item): item is { provider: string; tokens: number; calls: number } => Boolean(item));
+}
+
+function asModelUsageBreakdownArray(
+  value: unknown
+): Array<{ model: string; tokens: number; calls: number }> {
+  if (!Array.isArray(value)) return [];
+
+  return value
+    .map((item) => {
+      const record = asRecord(item);
+      if (!record) return null;
+      const label = typeof record.model === "string" ? record.model : null;
+      const tokens = asNumber(record.tokens);
+      const calls = asNumber(record.calls);
+      if (!label || tokens === null || calls === null) {
+        return null;
+      }
+      return { model: label, tokens, calls };
+    })
+    .filter((item): item is { model: string; tokens: number; calls: number } => Boolean(item));
+}
+
+function asDailyUsageArray(
+  value: unknown
+): Array<{ bucket: string; tokens: number; calls: number }> {
+  if (!Array.isArray(value)) return [];
+
+  return value
+    .map((item) => {
+      const record = asRecord(item);
+      if (!record) return null;
+      const bucket = typeof record.bucket === "string" ? record.bucket : null;
+      const tokens = asNumber(record.tokens);
+      const calls = asNumber(record.calls);
+      if (!bucket || tokens === null || calls === null) {
+        return null;
+      }
+      return { bucket, tokens, calls };
+    })
+    .filter((item): item is { bucket: string; tokens: number; calls: number } => Boolean(item));
 }
 
 function buildCatalogPreviewLines(

@@ -1,5 +1,10 @@
 import { z } from "zod";
 
+export const RouteAudienceSchema = z
+  .enum(["admin", "marketer", "all"])
+  .default("marketer");
+export const RouteScopeSchema = z.enum(["global", "brand"]).default("global");
+
 // ── Endpoint Schema ─────────────────────────────────────────
 
 export const EndpointSchema = z.object({
@@ -32,6 +37,9 @@ export const LearnedRouteSchema = z.object({
   id: z.string(),
   capability: z.string(),
   description: z.string(),
+  audience: RouteAudienceSchema,
+  scope: RouteScopeSchema,
+  brandId: z.string().nullable().default(null),
   matchPatterns: z.array(z.string()).min(1),
   routeType: z.enum(["api", "sub-agent"]).default("api"),
   endpoint: EndpointSchema.optional(),
@@ -45,6 +53,22 @@ export const LearnedRouteSchema = z.object({
   usageCount: z.number().default(0),
   lastUsedAt: z.string().nullable().default(null),
 }).superRefine((route, ctx) => {
+  if (route.scope === "brand" && !route.brandId) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["brandId"],
+      message: "brandId is required when scope is 'brand'",
+    });
+  }
+
+  if (route.scope === "global" && route.brandId) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["brandId"],
+      message: "brandId must be null when scope is 'global'",
+    });
+  }
+
   if (route.routeType === "api" && !route.endpoint) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
@@ -74,5 +98,7 @@ export const LearnedRoutesFileSchema = z.object({
 
 export type Endpoint = z.infer<typeof EndpointSchema>;
 export type ApiWorkflow = z.infer<typeof ApiWorkflowSchema>;
+export type RouteAudience = z.infer<typeof RouteAudienceSchema>;
+export type RouteScope = z.infer<typeof RouteScopeSchema>;
 export type LearnedRoute = z.infer<typeof LearnedRouteSchema>;
 export type LearnedRoutesFile = z.infer<typeof LearnedRoutesFileSchema>;

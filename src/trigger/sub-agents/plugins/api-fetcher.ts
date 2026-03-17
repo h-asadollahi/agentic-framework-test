@@ -769,7 +769,7 @@ export class ApiFetcherAgent extends BaseSubAgent {
 
   async execute(
     input: unknown,
-    _context: ExecutionContext
+    context: ExecutionContext
   ): Promise<AgentResult> {
     const parsed = ApiFetcherInput.safeParse(input);
 
@@ -874,7 +874,10 @@ export class ApiFetcherAgent extends BaseSubAgent {
       };
 
       await learnedRoutesStore.incrementUsage(routeId, {
+        runId: context.requestContext.runId ?? context.sessionId,
+        sessionId: context.sessionId,
         agentId: this.id,
+        requestContext: context.requestContext,
       });
 
       logger.info(`api-fetcher: route "${routeId}" completed`, {

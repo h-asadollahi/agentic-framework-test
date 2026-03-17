@@ -1,0 +1,103 @@
+import { z } from "zod";
+import type { Tool } from "ai";
+import type { AgentResult, ExecutionContext } from "../../../core/types.js";
+import { llmUsageStore } from "../../../observability/llm-usage-store.js";
+import { BaseSubAgent } from "../base-sub-agent.js";
+import { subAgentRegistry } from "../registry.js";
+
+const TokenUsageMonitorInput = z
+  .object({
+    audience: z.enum(["admin", "marketer"]).optional().default("marketer"),
+    brandId: z.string().trim().min(1).optional().nullable(),
+    days: z.number().int().min(1).max(365).optional().default(7),
+    bucket: z.enum(["day"]).optional().default("day"),
+  })
+  .passthrough();
+
+const TokenUsageMonitorOutput = z.object({
+  audience: z.enum(["admin", "marketer"]),
+  brandId: z.string().nullable(),
+  days: z.number().int().min(1).max(365),
+  bucket: z.enum(["day"]),
+  totalTokens: z.number().int().nonnegative(),
+  totalCalls: z.number().int().nonnegative(),
+  byProvider: z.array(
+    z.object({
+      provider: z.string(),
+      tokens: z.number().int().nonnegative(),
+      calls: z.number().int().nonnegative(),
+    })
+  ),
+  byModel: z.array(
+    z.object({
+      model: z.string(),
+      tokens: z.number().int().nonnegative(),
+      calls: z.number().int().nonnegative(),
+    })
+  ),
+  daily: z.array(
+    z.object({
+      bucket: z.string(),
+      tokens: z.number().int().nonnegative(),
+      calls: z.number().int().nonnegative(),
+    })
+  ),
+  note: z.string(),
+});
+
+export class TokenUsageMonitorAgent extends BaseSubAgent {
+  id = "token-usage-monitor";
+  name = "Token Usage Monitor";
+  description =
+    "Aggregates forward-only LLM token telemetry across providers, models, and daily buckets for admin observability.";
+  version = "1.0.0";
+  capabilities = [
+    "llm-token-usage",
+    "admin-observability",
+    "telemetry-reporting",
+  ];
+
+  inputSchema = TokenUsageMonitorInput;
+  outputSchema = TokenUsageMonitorOutput;
+
+  constructor() {
+    super("openai:fast", ["anthropic:fast", "google:fast"], 1, 0);
+  }
+
+  async execute(input: unknown, _context: ExecutionContext): Promise<AgentResult> {
+    const parsed = TokenUsageMonitorInput.safeParse(input);
+    const request = parsed.success ? parsed.data : TokenUsageMonitorInput.parse({});
+    const summary = await llmUsageStore.getSummary({
+      audience: request.audience,
+      brandId: request.brandId ?? null,
+      days: request.days,
+    });
+
+    return {
+      success: true,
+      output: JSON.stringify({
+        audience: request.audience,
+        brandId: request.brandId ?? null,
+        days: request.days,
+        bucket: request.bucket,
+        totalTokens: summary.totalTokens,
+        totalCalls: summary.totalCalls,
+        byProvider: summary.byProvider,
+        byModel: summary.byModel,
+        daily: summary.daily,
+        note: "Telemetry is forward-only from the time LLM usage tracking was enabled.",
+      }),
+      modelUsed: "telemetry-db",
+    };
+  }
+
+  getSystemPrompt(_context: ExecutionContext): string {
+    return "You aggregate LLM usage telemetry deterministically.";
+  }
+
+  getTools(_context: ExecutionContext): Record<string, Tool> {
+    return {};
+  }
+}
+
+subAgentRegistry.register(new TokenUsageMonitorAgent());

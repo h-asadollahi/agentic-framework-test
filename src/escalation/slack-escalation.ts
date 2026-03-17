@@ -1,6 +1,10 @@
 import { WebClient } from "@slack/web-api";
 import { wait } from "@trigger.dev/sdk/v3";
-import type { HumanEscalation, EscalationResult } from "../core/types.js";
+import type {
+  EscalationResult,
+  HumanEscalation,
+  RequestContext,
+} from "../core/types.js";
 import { logger } from "../core/logger.js";
 import { learnedRoutesStore } from "../routing/learned-routes-store.js";
 
@@ -151,10 +155,14 @@ export async function sendEscalationMessage(
         messageTs: result.ts,
         threadTs: result.ts,
         status: "sent",
+        audience: extractRequestContext(escalation.context)?.audience,
+        scope: extractRequestContext(escalation.context)?.scope,
+        brandId: extractRequestContext(escalation.context)?.brandId,
         taskDescription: escalation.taskDescription,
         reason: escalation.reason,
         severity: escalation.severity,
         runId: escalation.runId,
+        sessionId: extractSessionId(escalation.context),
         metadata: {
           notifyAdmin: escalation.notifyAdmin,
           notifyMarketer: escalation.notifyMarketer,
@@ -183,6 +191,38 @@ export async function sendEscalationMessage(
   throw lastError instanceof Error
     ? lastError
     : new Error(`Failed to send escalation message to all channel candidates (fallback: ${fallbackChannel})`);
+}
+
+function extractRequestContext(
+  context: Record<string, unknown> | undefined
+): RequestContext | null {
+  const requestContext = context?.requestContext;
+  if (!requestContext || typeof requestContext !== "object" || Array.isArray(requestContext)) {
+    return null;
+  }
+
+  const value = requestContext as Partial<RequestContext>;
+  if (
+    (value.audience !== "admin" && value.audience !== "marketer") ||
+    (value.scope !== "global" && value.scope !== "brand") ||
+    (value.source !== "admin-ui" &&
+      value.source !== "marketer-ui" &&
+      value.source !== "api")
+  ) {
+    return null;
+  }
+
+  return {
+    audience: value.audience,
+    brandId: typeof value.brandId === "string" ? value.brandId : null,
+    scope: value.scope,
+    source: value.source,
+    runId: typeof value.runId === "string" ? value.runId : null,
+  };
+}
+
+function extractSessionId(context: Record<string, unknown> | undefined): string | null {
+  return typeof context?.sessionId === "string" ? context.sessionId : null;
 }
 
 // ── Poll for thread replies ─────────────────────────────────

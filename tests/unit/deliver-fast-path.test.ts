@@ -70,6 +70,48 @@ function makeCatalogAgency(): AgencyResult {
   });
 }
 
+function makeTokenUsageAgency(): AgencyResult {
+  return {
+    results: [
+      {
+        subtaskId: "task-1",
+        agentId: "token-usage-monitor",
+        result: {
+          success: true,
+          output: JSON.stringify({
+            audience: "marketer",
+            brandId: "acme-marketing",
+            days: 7,
+            bucket: "day",
+            totalTokens: 54321,
+            totalCalls: 123,
+            byProvider: [
+              { provider: "openai", tokens: 32000, calls: 70 },
+              { provider: "anthropic", tokens: 22321, calls: 53 },
+            ],
+            byModel: [
+              { model: "openai:gpt-5.4-mini", tokens: 25000, calls: 60 },
+              { model: "anthropic:claude-sonnet-4", tokens: 22321, calls: 53 },
+            ],
+            daily: [
+              { bucket: "2026-03-15", tokens: 21000, calls: 41 },
+              { bucket: "2026-03-16", tokens: 17000, calls: 39 },
+              { bucket: "2026-03-17", tokens: 16321, calls: 43 },
+            ],
+            note: "Telemetry is forward-only from the time LLM usage tracking was enabled.",
+          }),
+          modelUsed: "telemetry-db",
+          durationMs: 45,
+        },
+      },
+    ],
+    summary:
+      "Deterministic fast path: Aggregate daily LLM token usage for operational reporting completed via token-usage-monitor in 45ms (subtask time).",
+    issues: [],
+    needsHumanReview: false,
+  };
+}
+
 describe("deliver deterministic fast path", () => {
   it("activates for safe single deterministic-route outputs", () => {
     expect(shouldUseDeterministicDeliverFastPath(makeAgency())).toBe(true);
@@ -118,5 +160,16 @@ describe("deliver deterministic fast path", () => {
     ]);
 
     expect(result.formattedResponse).not.toContain("Deterministic fast path:");
+  });
+
+  it("renders admin token-usage summaries from the token monitor capability", () => {
+    const result = buildDeterministicDeliveryFastPath(makeTokenUsageAgency(), []);
+
+    expect(result.formattedResponse).toContain("Tracked 54,321 total tokens");
+    expect(result.formattedResponse).toContain("Brand filter: acme-marketing");
+    expect(result.formattedResponse).toContain("## Daily Breakdown");
+    expect(result.formattedResponse).toContain("2026-03-17: 16,321 tokens across 43 calls");
+    expect(result.formattedResponse).toContain("`openai`: 32,000 tokens across 70 calls");
+    expect(result.formattedResponse).toContain("`openai:gpt-5.4-mini`: 25,000 tokens across 60 calls");
   });
 });

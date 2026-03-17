@@ -8,6 +8,8 @@ import {
   type LearnedRoutesFile,
   type ApiWorkflow,
   type Endpoint,
+  type RouteAudience,
+  type RouteScope,
 } from "./learned-routes-schema.js";
 import {
   LearnedRoutesDbRepository,
@@ -17,6 +19,9 @@ import {
   type SlackHitlThreadRecord,
 } from "./learned-routes-db-repository.js";
 import { logger } from "../core/logger.js";
+import { getPlatformDbRepository } from "../platform/db-repository.js";
+import type { RequestContext } from "../core/types.js";
+import { allowsAudience } from "../core/request-context.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -56,6 +61,9 @@ type RouteSummary = {
   id: string;
   capability: string;
   description: string;
+  audience: RouteAudience;
+  scope: RouteScope;
+  brandId: string | null;
   matchPatterns: string[];
   routeType: "api" | "sub-agent";
   agentId?: string;
@@ -69,22 +77,13 @@ class LearnedRoutesStoreImpl {
   private dbRepository: LearnedRoutesDbRepository | null = null;
   private dbEnabled = false;
 
-  private getDatabaseUrl(): string | null {
-    const value = process.env.DATABASE_URL?.trim();
-    return value && value.length > 0 ? value : null;
-  }
-
   private dualWriteJsonEnabled(): boolean {
     return isTrue(process.env.LEARNED_ROUTES_DUAL_WRITE_JSON);
   }
 
   private resolveDbRepository(): LearnedRoutesDbRepository | null {
     if (this.dbRepository) return this.dbRepository;
-
-    const databaseUrl = this.getDatabaseUrl();
-    if (!databaseUrl) return null;
-
-    this.dbRepository = new LearnedRoutesDbRepository(databaseUrl);
+    this.dbRepository = getPlatformDbRepository();
     return this.dbRepository;
   }
 
@@ -162,7 +161,7 @@ class LearnedRoutesStoreImpl {
   private ensureLoaded(): void {
     if (this.loaded) return;
 
-    if (this.getDatabaseUrl()) {
+    if (process.env.DATABASE_URL?.trim()) {
       throw new Error(
         "learnedRoutesStore.load() must be awaited before using DB-backed routes"
       );
@@ -204,14 +203,19 @@ class LearnedRoutesStoreImpl {
     }
   }
 
-  findByCapability(description: string): LearnedRoute | null {
+  findByCapability(
+    description: string,
+    requestContext?: RequestContext
+  ): LearnedRoute | null {
     this.ensureLoaded();
 
     const lower = description.toLowerCase();
     let bestMatch: LearnedRoute | null = null;
     let bestScore = 0;
 
-    for (const route of this.routes) {
+    for (const route of this.routes.filter((item) =>
+      routeMatchesRequestContext(item, requestContext)
+    )) {
       let score = 0;
       for (const pattern of route.matchPatterns) {
         if (lower.includes(pattern.toLowerCase())) {
@@ -262,6 +266,9 @@ class LearnedRoutesStoreImpl {
     capability: string;
     description: string;
     matchPatterns: string[];
+    audience?: RouteAudience;
+    scope?: RouteScope;
+    brandId?: string | null;
     routeType?: "api" | "sub-agent";
     endpoint?: Endpoint;
     apiWorkflow?: ApiWorkflow;
@@ -279,6 +286,9 @@ class LearnedRoutesStoreImpl {
       id,
       capability: data.capability,
       description: data.description,
+      audience: data.audience ?? "marketer",
+      scope: data.scope ?? "global",
+      brandId: data.brandId ?? null,
       matchPatterns: data.matchPatterns,
       routeType: data.routeType ?? "api",
       endpoint: data.endpoint,
@@ -348,7 +358,12 @@ class LearnedRoutesStoreImpl {
 
   async incrementUsage(
     routeId: string,
-    metadata?: { runId?: string; agentId?: string }
+    metadata?: {
+      runId?: string;
+      sessionId?: string;
+      agentId?: string;
+      requestContext?: RequestContext;
+    }
   ): Promise<void> {
     this.ensureLoaded();
 
@@ -370,6 +385,10 @@ class LearnedRoutesStoreImpl {
         routeId,
         eventType: "route_used",
         runId: metadata?.runId,
+        sessionId: metadata?.sessionId,
+        audience: metadata?.requestContext?.audience,
+        scope: metadata?.requestContext?.scope,
+        brandId: metadata?.requestContext?.brandId,
         agentId: metadata?.agentId,
         details: { usageCount: route.usageCount },
       });
@@ -393,10 +412,16 @@ class LearnedRoutesStoreImpl {
       messageTs: thread.messageTs ?? existing?.messageTs ?? thread.threadTs,
       threadTs: thread.threadTs,
       status: thread.status ?? existing?.status ?? "sent",
+      audience:
+        thread.audience ?? (existing?.audience as "admin" | "marketer" | undefined) ?? "admin",
+      scope:
+        thread.scope ?? (existing?.scope as "global" | "brand" | undefined) ?? "global",
+      brandId: thread.brandId ?? existing?.brandId ?? null,
       taskDescription: thread.taskDescription ?? existing?.taskDescription ?? null,
       reason: thread.reason ?? existing?.reason ?? null,
       severity: thread.severity ?? existing?.severity ?? null,
       runId: thread.runId ?? existing?.runId ?? null,
+      sessionId: thread.sessionId ?? existing?.sessionId ?? null,
       agentId: thread.agentId ?? existing?.agentId ?? null,
       routeId: thread.routeId ?? existing?.routeId ?? null,
       respondedBy: thread.respondedBy ?? existing?.respondedBy ?? null,
@@ -415,6 +440,8 @@ class LearnedRoutesStoreImpl {
     channel?: string;
     kind?: "escalation" | "route-learning" | "notification";
     status?: string;
+    audience?: "admin" | "marketer";
+    brandId?: string | null;
     limit?: number;
     offset?: number;
   } = {}): Promise<SlackHitlThreadRecord[]> {
@@ -429,6 +456,8 @@ class LearnedRoutesStoreImpl {
   async getSlackHitlSummaryForAdmin(options: {
     channel?: string;
     kind?: "escalation" | "route-learning" | "notification";
+    audience?: "admin" | "marketer";
+    brandId?: string | null;
   } = {}): Promise<SlackHitlSummaryRecord> {
     this.ensureLoaded();
 
@@ -454,6 +483,8 @@ class LearnedRoutesStoreImpl {
   async listEventsForAdmin(options: {
     routeId?: string;
     eventType?: string;
+    audience?: "admin" | "marketer";
+    brandId?: string | null;
     limit?: number;
     offset?: number;
   } = {}): Promise<LearnedRouteEventRecord[]> {
@@ -467,6 +498,9 @@ class LearnedRoutesStoreImpl {
 
   async listRoutesForAdmin(options: {
     q?: string;
+    audience?: RouteAudience;
+    scope?: RouteScope;
+    brandId?: string | null;
     routeType?: "api" | "sub-agent";
     limit?: number;
     offset?: number;
@@ -476,6 +510,9 @@ class LearnedRoutesStoreImpl {
     const repo = this.dbEnabled ? this.resolveDbRepository() : null;
     if (!repo) {
       const q = options.q?.trim().toLowerCase();
+      const audience = options.audience;
+      const scope = options.scope;
+      const brandId = options.brandId ?? null;
       const routeType = options.routeType;
       const limit = Math.min(Math.max(options.limit ?? 100, 1), 500);
       const offset = Math.max(options.offset ?? 0, 0);
@@ -483,6 +520,9 @@ class LearnedRoutesStoreImpl {
       return this.routes
         .filter((route) => {
           if (routeType && route.routeType !== routeType) return false;
+          if (audience && route.audience !== audience) return false;
+          if (scope && route.scope !== scope) return false;
+          if (brandId && route.brandId !== brandId) return false;
           if (!q) return true;
           return (
             route.capability.toLowerCase().includes(q) ||
@@ -544,16 +584,20 @@ class LearnedRoutesStoreImpl {
     return [...this.routes];
   }
 
-  getSummary(): RouteSummary[] {
+  getSummary(requestContext?: RequestContext): RouteSummary[] {
     this.ensureLoaded();
 
     return [...this.routes]
+      .filter((route) => routeMatchesRequestContext(route, requestContext))
       .sort((a, b) => b.usageCount - a.usageCount)
       .slice(0, 20)
       .map((r) => ({
         id: r.id,
         capability: r.capability,
         description: r.description,
+        audience: r.audience,
+        scope: r.scope,
+        brandId: r.brandId,
         matchPatterns: r.matchPatterns,
         routeType: r.routeType,
         agentId: r.agentId,
@@ -573,6 +617,16 @@ class LearnedRoutesStoreImpl {
 }
 
 export const learnedRoutesStore = new LearnedRoutesStoreImpl();
+
+function routeMatchesRequestContext(
+  route: LearnedRoute,
+  requestContext?: RequestContext
+): boolean {
+  if (!requestContext) return true;
+  if (!allowsAudience(route.audience, requestContext.audience)) return false;
+  if (route.scope === "global") return true;
+  return route.brandId === requestContext.brandId;
+}
 
 function compareRoutePriority(a: LearnedRoute, b: LearnedRoute): number {
   const aRank = routePriorityRank(a);

@@ -8,6 +8,7 @@
 import "./cohort-monitor.js";
 import "./api-fetcher.js";
 import "./mcp-fetcher.js";
+import "./token-usage-monitor.js";
 
 // Future plugins:
 // import "./journey-agent.js";

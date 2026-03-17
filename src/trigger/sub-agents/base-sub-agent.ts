@@ -1,8 +1,13 @@
 import { generateText, type Tool } from "ai";
 import { z } from "zod";
 import type { SubAgentPlugin, ExecutionContext, AgentResult } from "../../core/types.js";
-import { modelRouter, modelSupportsTemperature } from "../../providers/model-router.js";
+import {
+  modelRouter,
+  modelSupportsTemperature,
+  resolveModelId,
+} from "../../providers/model-router.js";
 import { logger } from "../../core/logger.js";
+import { llmUsageStore } from "../../observability/llm-usage-store.js";
 
 /**
  * Base class for domain-specific sub-agents.
@@ -84,11 +89,42 @@ export abstract class BaseSubAgent implements SubAgentPlugin {
           ...(supportsTemperature ? { temperature: this.temperature } : {}),
         });
 
+        const promptTokens =
+          typeof (result.usage as { inputTokens?: number } | undefined)?.inputTokens ===
+          "number"
+            ? (result.usage as { inputTokens?: number }).inputTokens
+            : undefined;
+        const completionTokens =
+          typeof (result.usage as { outputTokens?: number } | undefined)?.outputTokens ===
+          "number"
+            ? (result.usage as { outputTokens?: number }).outputTokens
+            : undefined;
+        const resolvedModelId = resolveModelId(modelId);
+
+        await llmUsageStore.record({
+          audience: context.requestContext.audience,
+          scope: context.requestContext.scope,
+          brandId: context.requestContext.brandId,
+          source: context.requestContext.source,
+          sessionId: context.sessionId,
+          runId: context.requestContext.runId ?? context.sessionId,
+          componentKind: "sub-agent",
+          componentId: this.id,
+          modelAlias: modelId,
+          resolvedModelId,
+          provider: resolveProvider(resolvedModelId),
+          tokensUsed: result.usage?.totalTokens ?? 0,
+          promptTokens,
+          completionTokens,
+        });
+
         return {
           success: true,
           output: result.text,
           modelUsed: modelId,
           tokensUsed: result.usage?.totalTokens,
+          promptTokens,
+          completionTokens,
           steps: result.steps?.length ?? 1,
         };
       } catch (error) {
@@ -103,4 +139,9 @@ export abstract class BaseSubAgent implements SubAgentPlugin {
       modelUsed: "none",
     };
   }
+}
+
+function resolveProvider(resolvedModelId: string): string {
+  const [provider] = resolvedModelId.split(":");
+  return provider || "unknown";
 }

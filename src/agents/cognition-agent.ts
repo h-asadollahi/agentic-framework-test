@@ -5,6 +5,7 @@ import { getModelAssignment } from "../config/models.js";
 import { learnedRoutesStore } from "../routing/learned-routes-store.js";
 import { skillCandidatesStore } from "../routing/skill-candidates-store.js";
 import { loadAgentPromptSpec } from "../tools/agent-spec-loader.js";
+import { subAgentRegistry } from "../trigger/sub-agents/registry.js";
 
 const DEFAULT_CONFIG: AgentConfig = {
   id: "cognition",
@@ -53,21 +54,7 @@ Your role is to decompose the user's request into an executable plan of subtasks
 ## Available Sub-Agents
 You can assign subtasks to these agents (by their ID).
 Always pass the "input" field as a JSON object matching the agent's schema.
-
-### cohort-monitor
-Analyzes audience cohort metrics — engagement, retention, conversion, churn, and LTV.
-Detects trends, compares against baselines, and surfaces actionable insights.
-Input schema:
-{
-  "metric": "engagement" | "retention" | "conversion" | "churn" | "ltv",
-  "cohortId": "optional string — e.g. 'vip-2024-q4', 'at-risk-segment'",
-  "timeRange": "7d" | "30d" | "90d" | "ytd"  (default: "30d"),
-  "compareBaseline": true | false              (default: true)
-}
-Example:
-{ "metric": "retention", "cohortId": "vip-2024-q4", "timeRange": "90d" }
-
-(more sub-agents will be added in the future)
+{{AVAILABLE_SUB_AGENTS_SECTION}}
 {{LEARNED_ROUTES_SECTION}}
 {{SKILL_CANDIDATES_SECTION}}
 If no specific sub-agent fits, use "general" as the agentId.
@@ -78,8 +65,8 @@ The system will check learned routes and may ask the marketer for the data sourc
 1. Analyze the user's request.
 2. If the request is out of scope for this assistant, reject it.
    Reject when:
-   - the user asks about competitors/rivals
-   - the user asks for non-marketing topics unrelated to brand/campaign performance
+   - the user asks about competitors/rivals and the request is marketer-facing
+   - the user asks for topics outside the current audience's supported scope
 3. Break it down into concrete subtasks.
 4. Identify dependencies between subtasks (which must complete before others).
 5. Assign each subtask to the most appropriate sub-agent.
@@ -159,8 +146,9 @@ export class CognitionAgent extends BaseAgent {
       BRAND_VOICE: `${brand.voice.tone}, ${brand.voice.style}`,
       GUARDRAILS_NEVER_DO: guardrails.neverDo.join("; "),
       GUARDRAILS_ALWAYS_DO: guardrails.alwaysDo.join("; "),
-      LEARNED_ROUTES_SECTION: this.buildLearnedRoutesSection(),
-      SKILL_CANDIDATES_SECTION: this.buildSkillCandidatesSection(),
+      AVAILABLE_SUB_AGENTS_SECTION: this.buildAvailableSubAgentsSection(context),
+      LEARNED_ROUTES_SECTION: this.buildLearnedRoutesSection(context),
+      SKILL_CANDIDATES_SECTION: this.buildSkillCandidatesSection(context),
     };
 
     return this.promptLoader(
@@ -175,8 +163,8 @@ export class CognitionAgent extends BaseAgent {
    * Build a prompt section listing learned routes so the cognition agent
    * can assign subtasks to the exact target agent for known capabilities.
    */
-  private buildLearnedRoutesSection(): string {
-    const routes = learnedRoutesStore.getSummary();
+  private buildLearnedRoutesSection(context: ExecutionContext): string {
+    const routes = learnedRoutesStore.getSummary(context.requestContext);
     if (routes.length === 0) return "";
 
     const routeLines = routes
@@ -215,8 +203,8 @@ ${routeLines}
 `;
   }
 
-  private buildSkillCandidatesSection(): string {
-    const candidates = skillCandidatesStore.getSummary();
+  private buildSkillCandidatesSection(context: ExecutionContext): string {
+    const candidates = skillCandidatesStore.getSummary(context.requestContext);
     if (candidates.length === 0) return "";
 
     const lines = candidates
@@ -238,6 +226,27 @@ Use this section for autonomous self-learning and deterministic skill reuse.
 
 ${lines}
 `;
+  }
+
+  private buildAvailableSubAgentsSection(context: ExecutionContext): string {
+    const summaries = subAgentRegistry.getSummary();
+    if (summaries.length === 0) {
+      return "(No registered sub-agents available.)";
+    }
+
+    const lines = summaries
+      .map(
+        (agent) =>
+          `### ${agent.id}\n${agent.description}\nCapabilities: ${agent.capabilities.join(", ")}`
+      )
+      .join("\n\n");
+
+    const audienceLine =
+      context.requestContext.audience === "admin"
+        ? "Admin requests should prioritize operational and observability capabilities."
+        : "Marketer requests should prioritize brand-safe marketing capabilities.";
+
+    return `${audienceLine}\n\n${lines}`;
   }
 }
 

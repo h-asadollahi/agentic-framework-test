@@ -6,7 +6,7 @@ import {
 } from "../routing/route-learning-escalation.js";
 import { learnedRoutesStore } from "../routing/learned-routes-store.js";
 import type { LearnedRoute } from "../routing/learned-routes-schema.js";
-import type { AgentResult } from "../core/types.js";
+import type { AgentResult, RequestContext } from "../core/types.js";
 
 // ── Types ───────────────────────────────────────────────────
 
@@ -14,7 +14,9 @@ export interface LearnRoutePayload {
   subtaskDescription: string;
   subtaskInput: Record<string, unknown>;
   agentId: string;
+  sessionId: string;
   runId: string;
+  requestContext: RequestContext;
   timeoutMinutes?: number;
 }
 
@@ -96,7 +98,9 @@ export const learnRouteTask = task({
       subtaskDescription,
       subtaskInput,
       agentId,
+      sessionId,
       runId,
+      requestContext,
       timeoutMinutes = 30,
     } = payload;
 
@@ -111,7 +115,14 @@ export const learnRouteTask = task({
 
     try {
       slackRef = await sendRouteLearningMessage(
-        { subtaskDescription, subtaskInput, agentId, runId },
+        {
+          subtaskDescription,
+          subtaskInput,
+          agentId,
+          sessionId,
+          runId,
+          requestContext,
+        },
         timeoutMinutes
       );
     } catch (error) {
@@ -143,6 +154,9 @@ export const learnRouteTask = task({
       capability: agentId !== "general" ? agentId : extractKeywords(subtaskDescription).slice(0, 3).join("-"),
       description: subtaskDescription,
       matchPatterns: extractKeywords(subtaskDescription),
+      audience: requestContext.audience,
+      scope: requestContext.scope,
+      brandId: requestContext.brandId,
       routeType: "api",
       endpoint: {
         url: result.route.url,
@@ -165,8 +179,12 @@ export const learnRouteTask = task({
       messageTs: slackRef.ts,
       threadTs: slackRef.ts,
       status: "route_added",
+      audience: requestContext.audience,
+      scope: requestContext.scope,
+      brandId: requestContext.brandId,
       routeId: newRoute.id,
       addedRouteId: newRoute.id,
+      sessionId,
       respondedBy: result.respondedBy ?? null,
       responseText: result.rawReply ?? null,
       resolvedAt: new Date().toISOString(),
@@ -219,7 +237,9 @@ export const learnRouteTask = task({
 
       await learnedRoutesStore.incrementUsage(newRoute.id, {
         runId,
+        sessionId,
         agentId,
+        requestContext,
       });
 
       fetchResult = {

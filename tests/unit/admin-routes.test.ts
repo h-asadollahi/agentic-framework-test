@@ -2,7 +2,9 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 import { Hono } from "hono";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { tasks } from "@trigger.dev/sdk/v3";
 import { registerAdminRoutes } from "../../src/admin/routes.js";
+import { llmUsageStore } from "../../src/observability/llm-usage-store.js";
 import { learnedRoutesStore } from "../../src/routing/learned-routes-store.js";
 
 const routesFile = resolve(process.cwd(), "knowledge/learned-routes.json");
@@ -275,5 +277,111 @@ describe.sequential("admin routes", () => {
       status: "route_added",
       addedRouteId: "route-010",
     });
+  });
+
+  it("lists brands and returns scoped LLM usage summaries", async () => {
+    const usageSpy = vi.spyOn(llmUsageStore, "getSummary").mockResolvedValue({
+      totalTokens: 4200,
+      totalCalls: 21,
+      byProvider: [{ provider: "openai", tokens: 4200, calls: 21 }],
+      byModel: [{ model: "openai:gpt-5.4-mini", tokens: 4200, calls: 21 }],
+      daily: [{ bucket: "2026-03-17", tokens: 4200, calls: 21 }],
+    });
+
+    const app = buildApp();
+    const headers = { Authorization: "Bearer admin-token" };
+
+    const brandsResponse = await app.request("http://localhost/admin/brands", {
+      headers,
+    });
+    expect(brandsResponse.status).toBe(200);
+    const brandsBody = await brandsResponse.json();
+    expect(brandsBody.defaultBrandId).toBe("acme-marketing");
+    expect(Array.isArray(brandsBody.brands)).toBe(true);
+    expect(brandsBody.brands[0].id).toBe("acme-marketing");
+
+    const usageResponse = await app.request(
+      "http://localhost/admin/llm-usage/summary?audience=marketer&brandId=acme-marketing&days=14",
+      { headers }
+    );
+    expect(usageResponse.status).toBe(200);
+    expect(usageSpy).toHaveBeenCalledWith({
+      audience: "marketer",
+      brandId: "acme-marketing",
+      days: 14,
+    });
+  });
+
+  it("starts admin chat runs, stores session history, and proxies admin chat status", async () => {
+    const triggerSpy = vi
+      .spyOn(tasks, "trigger")
+      .mockResolvedValue({ id: "run-admin-1" } as Awaited<ReturnType<typeof tasks.trigger>>);
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          id: "run-admin-1",
+          status: "COMPLETED",
+          output: {
+            formattedResponse: "Admin response",
+            notifications: [],
+            trace: [],
+          },
+          createdAt: "2026-03-17T10:00:00.000Z",
+          updatedAt: "2026-03-17T10:00:02.000Z",
+          finishedAt: "2026-03-17T10:00:02.000Z",
+        }),
+        {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        }
+      )
+    );
+
+    process.env.TRIGGER_API_URL = "http://trigger.local";
+    process.env.TRIGGER_SECRET_KEY = "trigger-secret";
+
+    const app = buildApp();
+    const headers = {
+      Authorization: "Bearer admin-token",
+      "Content-Type": "application/json",
+    };
+
+    const chatResponse = await app.request("http://localhost/admin/chat/message", {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        userMessage: "Give me the daily token usage across all the LLMs used for this project by marketers.",
+        brandId: "acme-marketing",
+      }),
+    });
+
+    expect(chatResponse.status).toBe(200);
+    const chatBody = await chatResponse.json();
+    expect(chatBody.runId).toBe("run-admin-1");
+    expect(chatBody.brandId).toBe("acme-marketing");
+    expect(triggerSpy).toHaveBeenCalledTimes(1);
+
+    const historyResponse = await app.request(
+      `http://localhost/admin/chat/session/${chatBody.sessionId}/history`,
+      { headers: { Authorization: "Bearer admin-token" } }
+    );
+    expect(historyResponse.status).toBe(200);
+    const historyBody = await historyResponse.json();
+    expect(historyBody.messages).toHaveLength(1);
+    expect(historyBody.messages[0]).toMatchObject({
+      role: "user",
+    });
+
+    const statusResponse = await app.request(
+      "http://localhost/admin/chat/status/run-admin-1",
+      { headers: { Authorization: "Bearer admin-token" } }
+    );
+    expect(statusResponse.status).toBe(200);
+    expect(fetchMock).toHaveBeenCalledWith(
+      "http://trigger.local/api/v3/runs/run-admin-1",
+      {
+        headers: { Authorization: "Bearer trigger-secret" },
+      }
+    );
   });
 });

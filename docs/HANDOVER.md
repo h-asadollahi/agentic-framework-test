@@ -47,6 +47,75 @@ src/
 
 ## Post-Handover Progress (2026-03-10, Codex)
 
+### Plan 92: Tenant-aware admin + multi-brand marketer runtime, admin chat, and LLM telemetry
+
+Status: Implemented in code and targeted tests on 2026-03-17.
+
+Problem addressed:
+- The runtime still assumed one global marketer brand from `knowledge/soul.md` / `knowledge/guardrails.md`.
+- Admins and marketers shared the same brand-shaped execution context, which made admin prompts inherit marketer-oriented voice and response framing.
+- Learned routes, skill candidates, route events, and Slack HITL audit rows were not tenant-aware, so one brand's reusable capabilities could bleed into another brand's marketer experience.
+- The admin workspace had observability pages, but no native chat surface for operator prompts such as LLM token-usage reporting.
+
+What changed:
+- Added first-class request context primitives in `src/core/types.ts` and `src/core/request-context.ts`:
+  - `audience`
+  - `brandId`
+  - `scope`
+  - `source`
+- `buildExecutionContext()` is now tenant-aware and DB-backed brand-aware:
+  - marketer requests require a `brandId`
+  - admin requests can run global with system/admin identity
+  - brand-scoped requests load DB-backed brand config
+- Added DB-backed brands and forward-only LLM usage telemetry:
+  - `brands`
+  - `llm_usage_events`
+  - schema and repository updates in `src/routing/learned-routes-db-schema.ts` and `src/routing/learned-routes-db-repository.ts`
+- Learned routes, route events, Slack HITL rows, and skill candidates now persist/filter on audience + scope + brand:
+  - `src/routing/learned-routes-store.ts`
+  - `src/routing/skill-candidates-store.ts`
+  - `src/trigger/learn-route.ts`
+  - `src/routing/route-learning-escalation.ts`
+  - `src/channels/slack-channel.ts`
+  - `src/escalation/slack-escalation.ts`
+- Marketer API requests now require `brandId`:
+  - `POST /message` rejects unknown brands and threads a marketer request context into `orchestrate-pipeline`
+- Added admin chat endpoints under `/admin/*`:
+  - `GET /admin/brands`
+  - `GET /admin/llm-usage/summary`
+  - `POST /admin/chat/message`
+  - `GET /admin/chat/status/:runId`
+  - `GET /admin/chat/session/:sessionId/history`
+  - `DELETE /admin/chat/session/:sessionId`
+- Added the first admin-native deterministic capability:
+  - `token-usage-monitor`
+  - deterministic cognition fast-path maps token-usage prompts directly to it
+  - deterministic deliver formatting renders daily/provider/model totals without needing Interface LLM summarization
+- Added an `Admin Chat` page to the admin UI with:
+  - brand scope selector
+  - marketer telemetry summary cards
+  - admin chat session management
+  - markdown response rendering
+  - trace/raw JSON popovers
+- Updated demo marketer chat to send `brandId: "acme-marketing"` by default so the seeded local brand continues to work.
+
+Behavioral outcome:
+- Admins now have a system-oriented chat surface that can ask the orchestrator operational questions.
+- The first shipped admin capability is LLM token-usage reporting across all brands or a selected brand.
+- Marketer flows are explicitly brand-scoped instead of implicitly sharing one global brand identity.
+- Learned routes and skill candidates now have the metadata needed for an Admin / Multi-Brand Marketer environment.
+
+Important current limitation:
+- Token usage telemetry is forward-only from the point this feature was deployed; no historical billing/provider backfill is included in this batch.
+- Admin chat is read-only in v1. It can inspect and report, but it does not mutate brands, routes, or settings through chat yet.
+
+Validation:
+- `npx tsc --noEmit`
+- `npm test -- tests/unit/deliver-fast-path.test.ts tests/unit/admin-routes.test.ts`
+- `node --check admin/public/app.js`
+- `node --check admin/server.mjs`
+- `node --check demo/app.js`
+
 ### Plan 81: Stop deterministic MCP formatting subtasks from entering `learn-route`
 
 Status: Implemented in code and tests.

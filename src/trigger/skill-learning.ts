@@ -168,6 +168,7 @@ export function filterSkillSuggestionsForCognitionContext(
 export function prepareAutonomousSkillSuggestionsForPersistence(
   suggestions: SkillSuggestion[],
   cognitionResult: CognitionResult,
+  requestContext?: ExecutionContext["requestContext"],
   options: { maxSuggestions?: number } = {}
 ): PreparedSkillSuggestionSet {
   if (suggestions.length === 0) {
@@ -176,7 +177,7 @@ export function prepareAutonomousSkillSuggestionsForPersistence(
 
   const promptAnchor = derivePromptAnchorFromCognition(cognitionResult);
   const matchedCandidate = promptAnchor
-    ? skillCandidatesStore.findBestMatchByPrompt(promptAnchor)
+    ? skillCandidatesStore.findBestMatchByPrompt(promptAnchor, requestContext)
     : null;
   const matchedMaterializedCandidate =
     matchedCandidate &&
@@ -225,6 +226,9 @@ export function persistAndMaterializeSkillSuggestions(
     const persisted = skillCandidatesStore.upsertCandidate({
       capability: suggestion.capability,
       description: suggestion.description,
+      audience: context.requestContext.audience,
+      scope: context.requestContext.scope,
+      brandId: context.requestContext.brandId,
       suggestedSkillFile: materialization.skillFile,
       triggerPatterns: suggestion.triggerPatterns,
       confidence: suggestion.confidence,

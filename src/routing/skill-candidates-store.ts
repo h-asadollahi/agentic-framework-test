@@ -2,6 +2,8 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { logger } from "../core/logger.js";
+import { allowsAudience } from "../core/request-context.js";
+import type { CapabilityAudience, RequestContext, RequestScope } from "../core/types.js";
 import {
   SkillCandidatesFileSchema,
   type SkillCandidate,
@@ -190,6 +192,9 @@ class SkillCandidatesStoreImpl {
   upsertCandidate(data: {
     capability: string;
     description: string;
+    audience?: CapabilityAudience;
+    scope?: RequestScope;
+    brandId?: string | null;
     suggestedSkillFile: string;
     triggerPatterns?: string[];
     confidence?: SkillCandidate["confidence"];
@@ -201,6 +206,9 @@ class SkillCandidatesStoreImpl {
     const capability = data.capability.trim();
     const skillFile = normalizeSuggestedSkillFilePath(data.suggestedSkillFile);
     const description = data.description.trim();
+    const audience = data.audience ?? "marketer";
+    const scope = data.scope ?? "global";
+    const brandId = scope === "brand" ? data.brandId?.trim() || null : null;
     const confidence = data.confidence ?? "medium";
     const incomingPatterns = normalizePatterns(data.triggerPatterns ?? []);
 
@@ -212,6 +220,9 @@ class SkillCandidatesStoreImpl {
 
     if (existing) {
       existing.description = description || existing.description;
+      existing.audience = audience;
+      existing.scope = scope;
+      existing.brandId = brandId;
       existing.triggerPatterns = normalizePatterns([
         ...existing.triggerPatterns,
         ...incomingPatterns,
@@ -252,6 +263,9 @@ class SkillCandidatesStoreImpl {
 
     if (fuzzyExisting) {
       fuzzyExisting.description = description || fuzzyExisting.description;
+      fuzzyExisting.audience = audience;
+      fuzzyExisting.scope = scope;
+      fuzzyExisting.brandId = brandId;
       fuzzyExisting.triggerPatterns = normalizePatterns([
         ...fuzzyExisting.triggerPatterns,
         ...incomingPatterns,
@@ -272,6 +286,9 @@ class SkillCandidatesStoreImpl {
       id: nextCandidateId(this.candidates),
       capability,
       description,
+      audience,
+      scope,
+      brandId,
       suggestedSkillFile: skillFile || "skills/learned/new-agent-skill.md",
       triggerPatterns: incomingPatterns,
       confidence,
@@ -296,10 +313,13 @@ class SkillCandidatesStoreImpl {
     this.save();
   }
 
-  getSummary(): Array<{
+  getSummary(requestContext?: RequestContext): Array<{
     id: string;
     capability: string;
     description: string;
+    audience: CapabilityAudience;
+    scope: RequestScope;
+    brandId: string | null;
     suggestedSkillFile: string;
     triggerPatterns: string[];
     confidence: SkillCandidate["confidence"];
@@ -308,12 +328,16 @@ class SkillCandidatesStoreImpl {
   }> {
     this.ensureLoaded();
     return [...this.candidates]
+      .filter((candidate) => candidateMatchesRequestContext(candidate, requestContext))
       .sort((a, b) => b.usageCount - a.usageCount)
       .slice(0, 20)
       .map((candidate) => ({
         id: candidate.id,
         capability: candidate.capability,
         description: candidate.description,
+        audience: candidate.audience,
+        scope: candidate.scope,
+        brandId: candidate.brandId,
         suggestedSkillFile: candidate.suggestedSkillFile,
         triggerPatterns: candidate.triggerPatterns,
         confidence: candidate.confidence,
@@ -322,7 +346,10 @@ class SkillCandidatesStoreImpl {
       }));
   }
 
-  findBestMatchByPrompt(prompt: string): SkillCandidate | null {
+  findBestMatchByPrompt(
+    prompt: string,
+    requestContext?: RequestContext
+  ): SkillCandidate | null {
     this.ensureLoaded();
 
     const lowerPrompt = prompt.trim().toLowerCase();
@@ -331,7 +358,9 @@ class SkillCandidatesStoreImpl {
     let best: SkillCandidate | null = null;
     let bestScore = 0;
 
-    for (const candidate of this.candidates) {
+    for (const candidate of this.candidates.filter((item) =>
+      candidateMatchesRequestContext(item, requestContext)
+    )) {
       let score = 0;
 
       for (const pattern of candidate.triggerPatterns) {
@@ -400,3 +429,13 @@ class SkillCandidatesStoreImpl {
 }
 
 export const skillCandidatesStore = new SkillCandidatesStoreImpl();
+
+function candidateMatchesRequestContext(
+  candidate: SkillCandidate,
+  requestContext?: RequestContext
+): boolean {
+  if (!requestContext) return true;
+  if (!allowsAudience(candidate.audience, requestContext.audience)) return false;
+  if (candidate.scope === "global") return true;
+  return candidate.brandId === requestContext.brandId;
+}

@@ -69,6 +69,9 @@ SLACK_ADMIN_MONITORING_CHANNEL=#brand-cp-admin-monitoring
 SLACK_MARKETERS_HITL_CHANNEL=#brand-cp-marketers-hitl
 SLACK_MARKETERS_MONITORING_CHANNEL=#marketing-team-monitoring
 
+# Optional — tenant-aware admin + telemetry storage
+DATABASE_URL=postgres://user:pass@localhost:5432/framework_agents
+
 # Optional — Email notifications (SendGrid)
 SENDGRID_API_KEY=SG...
 EMAIL_FROM_ADDRESS=agents@company.com
@@ -161,7 +164,7 @@ The API server starts at `http://localhost:3001`. The Trigger.dev dashboard is a
 ```bash
 curl -X POST http://localhost:3001/message \
   -H "Content-Type: application/json" \
-  -d '{"userMessage": "How is our VIP cohort performing this quarter?"}'
+  -d '{"userMessage": "How is our VIP cohort performing this quarter?", "brandId": "acme-marketing"}'
 ```
 
 Response:
@@ -249,12 +252,13 @@ Trigger the full pipeline with a marketer message.
 ```bash
 curl -X POST http://localhost:3001/message \
   -H "Content-Type: application/json" \
-  -d '{"userMessage": "Analyze churn in the free-trial segment", "sessionId": "optional-id"}'
+  -d '{"userMessage": "Analyze churn in the free-trial segment", "brandId": "acme-marketing", "sessionId": "optional-id"}'
 ```
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `userMessage` | string | Yes | The marketer's message (min 1 char) |
+| `brandId` | string | Yes | Brand scope for the marketer request. The seeded local default is `acme-marketing`. |
 | `sessionId` | string | No | Session ID for conversation continuity (auto-generated if omitted) |
 
 ### GET /status/:runId
@@ -1029,8 +1033,9 @@ Example admin UI flow:
 
 Current admin shell sections:
 
-- Sidebar navigation for separate dashboard, learned-routes, activity-feed, run-watch, and slack-hitl pages
+- Sidebar navigation for separate dashboard, admin-chat, learned-routes, activity-feed, run-watch, and slack-hitl pages
 - Route inventory and storage health cards
+- Admin-chat page with a brand scope selector, marketer token-usage summary cards, and an operations chat console
 - Learned-routes page with route explorer filters and table
 - Route inspection modal opened from `Inspect`
 - Activity-feed page for recent route lifecycle events
@@ -1051,6 +1056,7 @@ If both `ADMIN_ALLOWED_IPS` and `ADMIN_API_TOKEN` are empty, `/admin/*` requests
 
 ### Admin API endpoints
 
+- `GET /admin/brands`
 - `GET /admin/health`
 - `GET /admin/routes`
 - `GET /admin/routes/:routeId`
@@ -1061,6 +1067,11 @@ If both `ADMIN_ALLOWED_IPS` and `ADMIN_API_TOKEN` are empty, `/admin/*` requests
 - `GET /admin/runs/summary`
 - `GET /admin/slack/summary`
 - `GET /admin/slack/messages`
+- `GET /admin/llm-usage/summary`
+- `POST /admin/chat/message`
+- `GET /admin/chat/status/:runId`
+- `GET /admin/chat/session/:sessionId/history`
+- `DELETE /admin/chat/session/:sessionId`
 - `POST /admin/backfill/import` (JSON -> DB)
 - `POST /admin/backfill/export` (DB -> JSON)
 
@@ -1076,7 +1087,14 @@ If both `ADMIN_ALLOWED_IPS` and `ADMIN_API_TOKEN` are empty, `/admin/*` requests
 - Open:
   - `http://localhost:4174`
 - Configure only the API base in the UI. Admin auth is handled server-side by `admin/server.mjs`.
-- The current admin UI is a dashboard shell intended for incremental feature growth, not just a utility page.
+- The current admin UI is a workspace shell with a dedicated `Admin Chat` page for operator prompts.
+- The first admin-chat capability is deterministic LLM token-usage reporting, for example:
+
+```text
+Give me the daily token usage across all the LLMs used for this project by marketers.
+```
+
+- Use the brand selector in the Admin Chat page when you want the admin request context to drill into a single brand.
 
 Sub-agent pattern:
 

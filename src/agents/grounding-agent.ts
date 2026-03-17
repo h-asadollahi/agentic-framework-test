@@ -1,7 +1,7 @@
 import type { Tool } from "ai";
 import { BaseAgent } from "./base-agent.js";
 import type { AgentConfig, ExecutionContext } from "../core/types.js";
-import { knowledgeTools } from "../tools/knowledge-tools.js";
+import { buildKnowledgeTools } from "../tools/knowledge-tools.js";
 import { getModelAssignment } from "../config/models.js";
 import { loadAgentPromptSpec } from "../tools/agent-spec-loader.js";
 
@@ -24,7 +24,11 @@ const DEFAULT_CONFIG: AgentConfig = {
     maxDelegationDepth: 0,
   },
   trustBoundary: {
-    allowedTools: ["readSoulFile", "readGuardrails", "readBrandGuidelines"],
+    allowedTools: [
+      "readCurrentBrandIdentity",
+      "readCurrentGuardrails",
+      "readBrandGuidelines",
+    ],
     blockedActions: [],
     requiresApproval: [],
     maxTokenBudget: 10_000,
@@ -42,9 +46,9 @@ Your role is to establish the brand identity and constraints that all other agen
 
 ## Instructions
 
-1. Read the knowledge/soul.md file to understand the brand's personality, values, and voice.
-2. Read the guardrails file to understand the hard constraints (never-do and always-do rules).
-3. Read the brand guidelines for communication channels and key metrics.
+1. Read the current request-aware brand identity using the context tools.
+2. Read the current request-aware guardrails using the context tools.
+3. Read the current brand/admin guidelines using the context tools.
 4. If you identify a repeated pattern that should become reusable agent capability, propose a new skill using the structure in ./skills/universal-agent-skill-creator.md and indicate learned skills should be stored under ./skills/learned.
 
 ## Output Format
@@ -67,7 +71,7 @@ Return a JSON object with this exact structure:
   "summary": "A one-sentence summary of the brand identity and key constraints."
 }
 
-Always use the tools to read the actual files. Do not invent or assume content.`;
+Always use the tools to read the resolved request context. Do not invent or assume content.`;
 
 /**
  * Grounding Agent
@@ -89,8 +93,8 @@ export class GroundingAgent extends BaseAgent {
     this.promptFile = options?.promptFile ?? GROUNDING_SYSTEM_PROMPT_FILE;
   }
 
-  getTools(_context: ExecutionContext): Record<string, Tool> {
-    return knowledgeTools;
+  getTools(context: ExecutionContext): Record<string, Tool> {
+    return buildKnowledgeTools(context);
   }
 
   buildSystemPrompt(_context: ExecutionContext): string {

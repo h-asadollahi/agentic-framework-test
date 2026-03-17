@@ -37,6 +37,7 @@ export const skillLearnerTask = task({
     const prepared = prepareAutonomousSkillSuggestionsForPersistence(
       payload.skillSuggestions,
       payload.cognitionResult,
+      payload.context.requestContext,
       { maxSuggestions: 1 }
     );
 

@@ -2,6 +2,10 @@ import { z } from "zod";
 
 // ── Agent Phase & Status ───────────────────────────────────
 export type GuardrailPhase = "grounding" | "cognition" | "agency" | "interface";
+export type RequestAudience = "admin" | "marketer";
+export type RequestScope = "global" | "brand";
+export type RequestSource = "admin-ui" | "marketer-ui" | "api";
+export type CapabilityAudience = "admin" | "marketer" | "all";
 
 export type SubAgentStatus =
   | "pending"
@@ -70,6 +74,8 @@ export interface AgentResult {
   output: unknown;
   modelUsed: string;
   tokensUsed?: number;
+  promptTokens?: number;
+  completionTokens?: number;
   durationMs?: number;
   steps?: number;
 }
@@ -101,16 +107,26 @@ export interface LongTermMemory {
 // ── Execution Context ──────────────────────────────────────
 export interface ExecutionContext {
   sessionId: string;
+  requestContext: RequestContext;
   brandIdentity: BrandIdentity;
   guardrails: GuardrailConstraints;
   shortTermMemory: ShortTermMemory;
   longTermMemory: LongTermMemory;
 }
 
+export interface RequestContext {
+  audience: RequestAudience;
+  brandId: string | null;
+  scope: RequestScope;
+  source: RequestSource;
+  runId?: string | null;
+}
+
 // ── Pipeline Payload & Result ──────────────────────────────
 export interface PipelinePayload {
   userMessage: string;
   sessionId: string;
+  requestContext: RequestContext;
 }
 
 export interface PipelineResult {
@@ -139,6 +155,7 @@ export interface TraceEntry {
   output?: unknown;
   reasoning?: string;
   modelUsed?: string;
+  tokensUsed?: number;
   durationMs?: number;
 }
 

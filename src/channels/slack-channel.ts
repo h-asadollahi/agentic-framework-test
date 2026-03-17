@@ -1,6 +1,10 @@
 import { WebClient } from "@slack/web-api";
 import type { ChannelAdapter } from "./channel-interface.js";
-import type { NotificationRequest, NotificationResult } from "../core/types.js";
+import type {
+  NotificationRequest,
+  NotificationResult,
+  RequestContext,
+} from "../core/types.js";
 import { logger } from "../core/logger.js";
 import { learnedRoutesStore } from "../routing/learned-routes-store.js";
 
@@ -69,6 +73,7 @@ export class SlackChannel implements ChannelAdapter {
 
       if (result.ts) {
         try {
+          const requestContext = extractRequestContext(request.metadata);
           await learnedRoutesStore.load();
           await learnedRoutesStore.upsertSlackHitlThreadForAdmin({
             kind: "notification",
@@ -76,9 +81,14 @@ export class SlackChannel implements ChannelAdapter {
             messageTs: result.ts,
             threadTs: result.ts,
             status: "sent",
+            audience: requestContext?.audience,
+            scope: requestContext?.scope,
+            brandId: requestContext?.brandId,
             taskDescription: request.subject,
             reason: summarizeNotificationBody(request.body),
             severity: request.priority,
+            sessionId: extractSessionId(request.metadata),
+            runId: extractRunId(request.metadata),
             metadata: {
               source: request.metadata?.source ?? "notify-task",
               priority: request.priority,
@@ -123,6 +133,42 @@ function normalizeNotificationMetadata(
     return {};
   }
   return metadata;
+}
+
+function extractRequestContext(
+  metadata: Record<string, unknown> | undefined
+): RequestContext | null {
+  const requestContext = metadata?.requestContext;
+  if (!requestContext || typeof requestContext !== "object" || Array.isArray(requestContext)) {
+    return null;
+  }
+
+  const value = requestContext as Partial<RequestContext>;
+  if (
+    (value.audience !== "admin" && value.audience !== "marketer") ||
+    (value.scope !== "global" && value.scope !== "brand") ||
+    (value.source !== "admin-ui" &&
+      value.source !== "marketer-ui" &&
+      value.source !== "api")
+  ) {
+    return null;
+  }
+
+  return {
+    audience: value.audience,
+    brandId: typeof value.brandId === "string" ? value.brandId : null,
+    scope: value.scope,
+    source: value.source,
+    runId: typeof value.runId === "string" ? value.runId : null,
+  };
+}
+
+function extractSessionId(metadata: Record<string, unknown> | undefined): string | null {
+  return typeof metadata?.sessionId === "string" ? metadata.sessionId : null;
+}
+
+function extractRunId(metadata: Record<string, unknown> | undefined): string | null {
+  return typeof metadata?.runId === "string" ? metadata.runId : null;
 }
 
 export const slackChannel = new SlackChannel();

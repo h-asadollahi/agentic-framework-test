@@ -1,8 +1,9 @@
 import { task, logger } from "@trigger.dev/sdk/v3";
 import { cognitionAgent } from "../agents/cognition-agent.js";
-import type { CognitionResult, GroundingResult, SubTask } from "../core/types.js";
+import type { CognitionResult, GroundingResult, RequestContext, SubTask } from "../core/types.js";
 import { learnedRoutesStore } from "../routing/learned-routes-store.js";
 import { skillCandidatesStore } from "../routing/skill-candidates-store.js";
+import { withRunId } from "../core/request-context.js";
 import {
   buildRejectedCognitionResult,
   detectCognitionGuardrailRejection,
@@ -22,17 +23,36 @@ export const thinkTask = task({
   run: async (payload: {
     userMessage: string;
     groundingResult: GroundingResult;
-  }) => {
+  }, taskContext) => {
     logger.info("Starting cognition phase");
 
     // pipeline-think runs in its own task process; always preload DB-backed
     // route/skill stores before cognition prompt construction.
     await preloadCognitionStores();
 
-    const context = payload.groundingResult.context;
+    const context = {
+      ...payload.groundingResult.context,
+      requestContext: withRunId(
+        payload.groundingResult.context.requestContext,
+        taskContext.ctx.run.id
+      ),
+    };
+
+    const deterministicAdminPlan = buildDeterministicAdminObservabilityPlan(
+      payload.userMessage,
+      context.requestContext
+    );
+    if (deterministicAdminPlan) {
+      logger.info("Cognition admin observability fast path activated", {
+        sessionId: context.sessionId,
+        subtaskCount: deterministicAdminPlan.subtasks.length,
+      });
+      return deterministicAdminPlan;
+    }
 
     const input = JSON.stringify({
       userMessage: payload.userMessage,
+      requestContext: context.requestContext,
       brandIdentity: payload.groundingResult.brandIdentity,
       guardrails: payload.groundingResult.guardrails,
     });
@@ -70,7 +90,8 @@ export const thinkTask = task({
 
     // Deterministic guardrail fallback in case the model misses rejection policy.
     const guardrailDecision = detectCognitionGuardrailRejection(
-      payload.userMessage
+      payload.userMessage,
+      context.requestContext
     );
     if (guardrailDecision.rejected) {
       cognitionResult = buildRejectedCognitionResult(
@@ -89,7 +110,8 @@ export const thinkTask = task({
     if (cognitionResult.rejected !== true) {
       cognitionResult = applyAutonomousSkillCreation(
         cognitionResult,
-        payload.userMessage
+        payload.userMessage,
+        context.requestContext
       );
       cognitionResult = constrainDeterministicSingleRouteSynthesis(
         cognitionResult
@@ -108,9 +130,13 @@ export async function preloadCognitionStores(): Promise<void> {
 
 export function applyAutonomousSkillCreation(
   cognitionResult: CognitionResult,
-  userMessage: string
+  userMessage: string,
+  requestContext?: RequestContext
 ): CognitionResult {
-  const matchedCandidate = skillCandidatesStore.findBestMatchByPrompt(userMessage);
+  const matchedCandidate = skillCandidatesStore.findBestMatchByPrompt(
+    userMessage,
+    requestContext
+  );
   if (!matchedCandidate) return cognitionResult;
 
   skillCandidatesStore.incrementUsage(matchedCandidate.id);
@@ -343,6 +369,52 @@ function isSkillCreatorAgent(agentId: string): boolean {
     normalized === "skill_creator" ||
     normalized === "universal-skill-creator"
   );
+}
+
+function buildDeterministicAdminObservabilityPlan(
+  userMessage: string,
+  requestContext: RequestContext
+): CognitionResult | null {
+  if (requestContext.audience !== "admin") return null;
+
+  const normalized = userMessage.toLowerCase();
+  const isTokenUsageIntent =
+    /\btoken\b/.test(normalized) &&
+    (/\busage\b/.test(normalized) || /\bused\b/.test(normalized)) &&
+    (/\bllm\b/.test(normalized) ||
+      /\bmodel\b/.test(normalized) ||
+      /\bopenai\b/.test(normalized) ||
+      /\bclaude\b/.test(normalized) ||
+      /\bgemini\b/.test(normalized));
+
+  if (!isTokenUsageIntent) return null;
+
+  const audienceFilter =
+    /\badmins?\b/.test(normalized) && !/\bmarketers?\b/.test(normalized)
+      ? "admin"
+      : "marketer";
+
+  return {
+    subtasks: [
+      {
+        id: "task-1",
+        agentId: "token-usage-monitor",
+        description: "Aggregate daily LLM token usage for operational reporting",
+        input: {
+          audience: audienceFilter,
+          brandId: requestContext.brandId,
+          days: 7,
+          bucket: "day",
+        },
+        dependencies: [],
+        priority: "high",
+      },
+    ],
+    reasoning:
+      "Deterministic admin observability fast path: token-usage prompts map directly to the token-usage-monitor capability.",
+    plan: "Use the token-usage-monitor sub-agent to aggregate forward-only telemetry for the requested audience and brand scope.",
+    rejected: false,
+  };
 }
 
 function nextAutonomousSkillTaskId(subtasks: SubTask[]): string {

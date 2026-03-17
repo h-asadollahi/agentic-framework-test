@@ -276,7 +276,7 @@ export class McpFetcherAgent extends BaseSubAgent {
     this.promptFile = options?.promptFile ?? MCP_FETCHER_SYSTEM_PROMPT_FILE;
   }
 
-  async execute(input: unknown, _context: ExecutionContext): Promise<AgentResult> {
+  async execute(input: unknown, context: ExecutionContext): Promise<AgentResult> {
     const hydratedInput = hydrateMcpInputFromLearnedRoute(input);
     const parsed = McpFetcherInput.safeParse(hydratedInput);
     if (!parsed.success) {
@@ -328,7 +328,10 @@ export class McpFetcherAgent extends BaseSubAgent {
 
       if (routeId) {
         await learnedRoutesStore.incrementUsage(routeId, {
+          runId: context.requestContext.runId ?? context.sessionId,
+          sessionId: context.sessionId,
           agentId: this.id,
+          requestContext: context.requestContext,
         });
       }
 

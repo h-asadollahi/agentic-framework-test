@@ -13,7 +13,7 @@ Open `http://localhost:4174`.
 ## Requirements
 
 - API server running (`npm run dev` or built server)
-- `DATABASE_URL` configured if you want Slack HITL thread metrics/history to persist across refreshes
+- `DATABASE_URL` configured if you want DB-backed brands, LLM usage telemetry, and Slack HITL thread metrics/history to persist across refreshes
 - Trigger.dev API reachable at `TRIGGER_API_URL` if you want the `Run Watch` panel to populate
 - Admin auth configured in API env:
   - `ADMIN_ALLOWED_IPS` and/or
@@ -29,10 +29,11 @@ Open `http://localhost:4174`.
 
 ## UI structure
 
-- Sidebar navigation for separate dashboard, learned-routes, activity-feed, run-watch, and slack-hitl pages inside the admin workspace.
+- Sidebar navigation for separate dashboard, admin-chat, learned-routes, activity-feed, run-watch, and slack-hitl pages inside the admin workspace.
 - Compact hero/header with a refresh action and an `i` info control for API base, auth state, and workspace status.
 - Summary cards for route inventory, storage health, backfill, and export actions.
 - Dashboard page for summary cards and high-level overview only.
+- Admin-chat page for operator prompts, brand-scoped admin sessions, telemetry summary cards, and trace/raw-response inspection.
 - Learned-routes page for route filters and the full route explorer table.
 - Activity-feed page for route lifecycle events.
 - Run-watch page for Trigger run visibility.
@@ -40,3 +41,12 @@ Open `http://localhost:4174`.
 - Route inspection now opens in a modal instead of rendering inline under the table.
 
 The shell is designed so new admin features can be added section by section without replacing the whole page.
+
+## Admin chat
+
+- The admin UI now has an `Admin Chat` page that calls authenticated `/admin/chat/*` endpoints.
+- Admin chat requests run through the same Trigger.dev orchestrator, but with admin request context:
+  - global when no brand is selected
+  - brand-scoped when the brand selector is set
+- The first shipped admin capability is deterministic LLM token-usage reporting backed by forward-only Postgres telemetry.
+- Marketer demo/API traffic now sends `brandId` explicitly, with `acme-marketing` as the seeded local default brand.

@@ -880,7 +880,8 @@
       }
 
       .activity-item,
-      .run-item {
+      .run-item,
+      .chat-message {
         display: grid;
         gap: 8px;
         padding: 16px 18px;
@@ -982,12 +983,184 @@
         gap: 8px;
       }
 
+      .chat-layout {
+        display: grid;
+        grid-template-columns: minmax(0, 1.45fr) minmax(280px, 0.82fr);
+        gap: 18px;
+      }
+
+      .chat-panel,
+      .chat-side-stack {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+      }
+
+      .admin-chat-log {
+        min-height: 520px;
+        max-height: 720px;
+        overflow: auto;
+        padding-right: 6px;
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+      }
+
+      .chat-message.user {
+        background: linear-gradient(135deg, rgba(142, 126, 255, 0.16), rgba(142, 126, 255, 0.07));
+      }
+
+      .chat-message.assistant {
+        background: rgba(255, 255, 255, 0.68);
+      }
+
+      .chat-message.system {
+        background: rgba(255, 255, 255, 0.42);
+      }
+
+      .chat-meta {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        color: var(--soft-muted);
+        font-size: 0.78rem;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      .chat-role {
+        color: var(--accent-deep);
+      }
+
+      .chat-content {
+        color: var(--text);
+        line-height: 1.6;
+      }
+
+      .chat-content p {
+        margin: 0 0 10px;
+      }
+
+      .chat-content p:last-child {
+        margin-bottom: 0;
+      }
+
+      .chat-content ul {
+        margin: 0;
+        padding-left: 20px;
+      }
+
+      .chat-content h2,
+      .chat-content h3,
+      .chat-content h4 {
+        margin: 0 0 10px;
+        letter-spacing: -0.03em;
+      }
+
+      .chat-content code {
+        padding: 2px 6px;
+        border-radius: 8px;
+        background: rgba(142, 126, 255, 0.12);
+        color: var(--accent-deep);
+        font-size: 0.92em;
+      }
+
+      .chat-compose {
+        padding: 18px;
+        border-radius: 24px;
+        border: 1px solid rgba(123, 110, 159, 0.12);
+        background: rgba(255, 255, 255, 0.62);
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+
+      .chat-textarea {
+        min-height: 116px;
+        padding: 16px 18px;
+        border-radius: 18px;
+        border: 1px solid rgba(123, 110, 159, 0.14);
+        background: rgba(255, 255, 255, 0.84);
+        color: var(--text);
+        resize: vertical;
+      }
+
+      .chat-compose-actions {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+
+      .chat-compose-buttons {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+
+      .chat-helper-card {
+        padding: 18px;
+        border-radius: 22px;
+        border: 1px solid rgba(123, 110, 159, 0.12);
+        background: rgba(255, 255, 255, 0.56);
+      }
+
+      .chat-helper-card p,
+      .chat-helper-card ul {
+        margin: 0;
+        color: var(--muted);
+        line-height: 1.6;
+      }
+
+      .chat-helper-card ul {
+        padding-left: 18px;
+        display: grid;
+        gap: 10px;
+      }
+
+      .chat-loader {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        color: var(--accent-deep);
+        font-weight: 700;
+      }
+
+      .chat-loader-dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 999px;
+        background: currentColor;
+        box-shadow: 16px 0 0 rgba(142, 126, 255, 0.55), 32px 0 0 rgba(142, 126, 255, 0.25);
+        animation: pulse-dot 1.2s ease-in-out infinite;
+      }
+
+      @keyframes pulse-dot {
+        0%,
+        100% {
+          transform: translateX(0);
+          opacity: 0.9;
+        }
+        50% {
+          transform: translateX(3px);
+          opacity: 0.55;
+        }
+      }
+
       @media (max-width: 1220px) {
         .summary-grid {
           grid-template-columns: repeat(2, minmax(0, 1fr));
         }
 
         .workspace-grid {
+          grid-template-columns: 1fr;
+        }
+
+        .chat-layout {
           grid-template-columns: 1fr;
         }
       }
@@ -1096,6 +1269,12 @@
               <path d="M6.5 10.5V20h11V10.5"></path>
             </svg>
             <span class="nav-label">Dashboard</span>
+          </a>
+          <a class="nav-link" href="#admin-chat">
+            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M5 6.5A2.5 2.5 0 0 1 7.5 4h9A2.5 2.5 0 0 1 19 6.5v6A2.5 2.5 0 0 1 16.5 15H10l-4 4v-4H7.5A2.5 2.5 0 0 1 5 12.5z"></path>
+            </svg>
+            <span class="nav-label">Admin Chat</span>
           </a>
           <a class="nav-link" href="#learned-routes">
             <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -1229,6 +1408,130 @@
               </p>
               <button id="exportBtn" class="secondary-button">Export DB -> JSON</button>
             </article>
+          </section>
+        </section>
+
+        <section class="page page-stack" id="adminChatPage" hidden>
+          <section class="surface-card page-header-card">
+            <div class="page-head">
+              <div>
+                <p class="eyebrow subtle">Admin Chat</p>
+                <h2>Operations Chat Console</h2>
+                <p>
+                  Ask the admin-side orchestrator to inspect telemetry, routes, runs, brands, and future operational workflows from one chat surface.
+                </p>
+              </div>
+              <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                <label class="field" style="min-width: 220px;">
+                  <span class="field-label">Brand Scope</span>
+                  <select id="adminChatBrand">
+                    <option value="">All brands / global</option>
+                  </select>
+                </label>
+                <div id="adminChatSessionState" class="section-pill">No active session</div>
+              </div>
+            </div>
+          </section>
+
+          <section class="summary-grid">
+            <article class="summary-card">
+              <p class="eyebrow subtle">Today</p>
+              <h3>Marketer Tokens</h3>
+              <p class="summary-copy">
+                Latest daily marketer token usage within the selected admin chat brand scope.
+              </p>
+              <div class="summary-value" id="adminChatTodayTokens">-</div>
+            </article>
+
+            <article class="summary-card">
+              <p class="eyebrow subtle">7 Day Window</p>
+              <h3>Total Tokens</h3>
+              <p class="summary-copy">
+                Forward-only LLM usage totals tracked for marketers over the rolling seven-day window.
+              </p>
+              <div class="summary-value" id="adminChatSevenDayTokens">-</div>
+            </article>
+
+            <article class="summary-card">
+              <p class="eyebrow subtle">7 Day Window</p>
+              <h3>LLM Calls</h3>
+              <p class="summary-copy">
+                Invocation count across the tracked providers and models for the selected scope.
+              </p>
+              <div class="summary-value" id="adminChatSevenDayCalls">-</div>
+            </article>
+
+            <article class="summary-card">
+              <p class="eyebrow subtle">Provider Mix</p>
+              <h3>Top Provider</h3>
+              <p class="summary-copy">
+                Highest-token provider in the current marketer telemetry window.
+              </p>
+              <div class="summary-value" id="adminChatTopProvider">-</div>
+            </article>
+          </section>
+
+          <section class="surface-card">
+            <div class="section-head">
+              <div>
+                <p class="eyebrow subtle">Admin Prompting</p>
+                <h2>Ask the Operations Orchestrator</h2>
+                <p class="section-copy">
+                  Use the admin chat to inspect system behavior, operational telemetry, and brand-scoped admin questions without switching tools.
+                </p>
+              </div>
+              <div class="section-pill">Ctrl/Cmd + Enter to send</div>
+            </div>
+
+            <div class="chat-layout">
+              <div class="chat-panel">
+                <div id="adminChatLog" class="admin-chat-log">
+                  <div class="empty-state">
+                    Start a new admin conversation to inspect telemetry, runs, or brand-scoped operations data.
+                  </div>
+                </div>
+
+                <div class="chat-compose">
+                  <textarea
+                    id="adminChatInput"
+                    class="chat-textarea"
+                    placeholder="Ask an admin question, for example: Give me the daily token usage across all the LLMs used for this project by marketers."
+                  ></textarea>
+                  <div class="chat-compose-actions">
+                    <div id="adminChatComposerState" class="section-pill">Ready for admin prompts</div>
+                    <div class="chat-compose-buttons">
+                      <button id="adminChatClear" class="ghost-button">Clear Session</button>
+                      <button id="adminChatSend" class="primary-button">Send Prompt</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <aside class="chat-side-stack">
+                <div class="chat-helper-card">
+                  <p class="sidebar-note-title">Suggested Prompts</p>
+                  <ul>
+                    <li>Give me the daily token usage across all the LLMs used for this project by marketers.</li>
+                    <li>Show marketer token usage for the selected brand over the last 7 days.</li>
+                    <li>Summarize the LLM provider mix for recent marketer activity.</li>
+                  </ul>
+                </div>
+
+                <div class="chat-helper-card">
+                  <p class="sidebar-note-title">Current Scope</p>
+                  <p id="adminChatScopeNote">
+                    Admin chat is currently using the global scope across all brands.
+                  </p>
+                </div>
+
+                <div class="chat-helper-card">
+                  <p class="sidebar-note-title">Forward-Only Telemetry</p>
+                  <p>
+                    Token usage data is based on the telemetry tracked from the point this feature was deployed onward.
+                  </p>
+                </div>
+              </aside>
+            </div>
           </section>
         </section>
 

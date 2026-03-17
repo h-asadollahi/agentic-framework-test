@@ -1,4 +1,4 @@
-import type { CognitionResult } from "../core/types.js";
+import type { CognitionResult, RequestContext } from "../core/types.js";
 
 const COMPETITOR_PATTERNS = [
   /\bcompetitor\b/i,
@@ -20,10 +20,61 @@ const NON_MARKETING_PATTERNS = [
   /\bcrypto trading\b/i,
 ];
 
+const ADMIN_OPERATIONS_HINTS = [
+  /\btoken\b/i,
+  /\busage\b/i,
+  /\bllm\b/i,
+  /\bopenai\b/i,
+  /\bclaude\b/i,
+  /\bgemini\b/i,
+  /\bmodel\b/i,
+  /\btelemetry\b/i,
+  /\brun\b/i,
+  /\broute\b/i,
+  /\bskill\b/i,
+  /\bagent\b/i,
+  /\bsub-agent\b/i,
+  /\bslack\b/i,
+  /\btrigger\b/i,
+  /\borchestrator\b/i,
+  /\bperformance\b/i,
+  /\bmonitor(ing)?\b/i,
+  /\bbrand\b/i,
+];
+
 export function detectCognitionGuardrailRejection(userMessage: string): {
   rejected: boolean;
   reason?: string;
+};
+export function detectCognitionGuardrailRejection(
+  userMessage: string,
+  requestContext?: RequestContext
+): {
+  rejected: boolean;
+  reason?: string;
+};
+export function detectCognitionGuardrailRejection(
+  userMessage: string,
+  requestContext?: RequestContext
+): {
+  rejected: boolean;
+  reason?: string;
 } {
+  if (requestContext?.audience === "admin") {
+    const looksOperational = ADMIN_OPERATIONS_HINTS.some((pattern) =>
+      pattern.test(userMessage)
+    );
+    if (!looksOperational && NON_MARKETING_PATTERNS.some((pattern) => pattern.test(userMessage))) {
+      return {
+        rejected: true,
+        reason:
+          "This admin chat handles operational questions about the framework, brands, routes, telemetry, runs, and agents.",
+      };
+    }
+
+    return { rejected: false };
+  }
+
   if (COMPETITOR_PATTERNS.some((pattern) => pattern.test(userMessage))) {
     return {
       rejected: true,

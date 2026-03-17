@@ -140,7 +140,10 @@ export const executeTask = task({
                 : null;
             const learnedRoute = routeIdFromInput
               ? learnedRoutesStore.getById(routeIdFromInput)
-              : learnedRoutesStore.findByCapability(subtask.description);
+              : learnedRoutesStore.findByCapability(
+                  subtask.description,
+                  payload.context.requestContext
+                );
             const targetResolution = resolveExecutionAgentId(
               subtask.agentId,
               learnedRoute,
@@ -233,7 +236,8 @@ export const executeTask = task({
 
             // Step 1: Check learned routes for a match
             const learnedRoute = learnedRoutesStore.findByCapability(
-              subtask.description
+              subtask.description,
+              payload.context.requestContext
             );
 
             const strategy = resolveUnknownSubtaskStrategy(
@@ -262,7 +266,12 @@ export const executeTask = task({
                     payload.context
                   );
                   await learnedRoutesStore.incrementUsage(learnedRoute.id, {
+                    runId:
+                      payload.context.requestContext.runId ??
+                      payload.context.sessionId,
+                    sessionId: payload.context.sessionId,
                     agentId: learnedRoute.agentId,
+                    requestContext: payload.context.requestContext,
                   });
                 } else {
                   logger.warn(
@@ -294,7 +303,11 @@ export const executeTask = task({
                 subtaskDescription: subtask.description,
                 subtaskInput: subtask.input,
                 agentId: subtask.agentId,
-                runId: payload.context.sessionId,
+                sessionId: payload.context.sessionId,
+                runId:
+                  payload.context.requestContext.runId ??
+                  payload.context.sessionId,
+                requestContext: payload.context.requestContext,
                 timeoutMinutes: 30,
               });
 
@@ -436,6 +449,7 @@ const DETERMINISTIC_ROUTE_AGENT_IDS = new Set([
   "mcp-fetcher",
   "api-fetcher",
   "cohort-monitor",
+  "token-usage-monitor",
 ]);
 
 const ALLOWED_SYNTHESIS_AGENT_IDS = new Set([

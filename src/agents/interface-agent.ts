@@ -37,7 +37,7 @@ export const INTERFACE_SYSTEM_PROMPT_FILE =
 
 export const INTERFACE_SYSTEM_PROMPT_FALLBACK = `You are the Interface Agent in a multi-agent marketing platform for "{{BRAND_NAME}}".
 
-Your role is to format the final response for the marketer and decide on notifications.
+Your role is to format the final response for the current audience and decide on notifications.
 
 ## Brand Voice
 - Tone: {{BRAND_TONE}}
@@ -46,6 +46,9 @@ Your role is to format the final response for the marketer and decide on notific
 
 ## Brand Voice Rules
 {{BRAND_VOICE_RULES}}
+
+## Current Audience
+{{AUDIENCE_MODE}}
 
 ## Instructions
 
@@ -56,8 +59,8 @@ The input may include:
 - "cognition": reasoning/plan context from the cognition phase
 Your job is to:
 
-1. Format a clear, actionable response for the marketer.
-2. Follow the brand voice guidelines strictly.
+1. Format a clear, actionable response for the current audience.
+2. {{VOICE_INSTRUCTION}}
 3. Determine if any notifications should be sent.
 4. For each notification, specify the channel (email/slack/webhook), recipient, and priority.
 5. For marketer-facing warnings/issues, include a Slack monitoring notification to SLACK_MARKETERS_MONITORING_CHANNEL.
@@ -65,18 +68,19 @@ Your job is to:
 7. If needsHumanReview is true for admin escalation, notify SLACK_ADMIN_HITL_CHANNEL.
 8. For technical/system failures, include a Slack monitoring notification to SLACK_ADMIN_MONITORING_CHANNEL.
 9. Preserve critical facts from "criticalFacts" in the final response; do not drop them.
-10. Use a readable markdown structure with these sections:
+10. {{FORMAT_INSTRUCTION}}
+11. Use a readable markdown structure with these sections:
    - Executive Summary
    - Key Findings
    - Data Source and Time Window
    - Recommended Next Step
-11. If the pipeline suggests creating a reusable capability, mention that a new learned skill should be created from ./skills/universal-agent-skill-creator.md and saved under ./skills/learned.
+12. If the pipeline suggests creating a reusable capability, mention that a new learned skill should be created from ./skills/universal-agent-skill-creator.md and saved under ./skills/learned.
 
 ## Output Format
 
 Return a JSON object with this structure:
 {
-  "formattedResponse": "The response text for the marketer, using brand voice",
+  "formattedResponse": "The response text for the current audience",
   "notifications": [
     {
       "channel": "slack",
@@ -119,6 +123,18 @@ export class InterfaceAgent extends BaseAgent {
   }
 
   buildSystemPrompt(context: ExecutionContext): string {
+    const audienceMode =
+      context.requestContext.audience === "admin"
+        ? "Audience: admin operator. Focus on operational clarity, observability, and direct system-language."
+        : "Audience: marketer. Use the brand voice and provide marketer-facing guidance.";
+    const voiceInstruction =
+      context.requestContext.audience === "admin"
+        ? "Use direct operational language. Do not force marketer brand voice into admin answers."
+        : "Follow the brand voice guidelines strictly.";
+    const formatInstruction =
+      context.requestContext.audience === "admin"
+        ? "Prefer concise operational summaries, metrics, and trace-friendly wording."
+        : "Prefer concise marketer-facing summaries, recommendations, and clear next steps.";
     const vars = {
       BRAND_NAME: context.brandIdentity.name,
       BRAND_TONE: context.brandIdentity.voice.tone,
@@ -127,6 +143,9 @@ export class InterfaceAgent extends BaseAgent {
       BRAND_VOICE_RULES: context.guardrails.brandVoiceRules
         .map((rule) => `- ${rule}`)
         .join("\n"),
+      AUDIENCE_MODE: audienceMode,
+      VOICE_INSTRUCTION: voiceInstruction,
+      FORMAT_INSTRUCTION: formatInstruction,
     };
 
     return this.promptLoader(
