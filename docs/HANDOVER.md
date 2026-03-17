@@ -47,6 +47,61 @@ src/
 
 ## Post-Handover Progress (2026-03-10, Codex)
 
+### Plan 93: Clean up bad admin token-usage learned routes and harden observability matching
+
+Status: Implemented in code, docs, and live cleanup on 2026-03-17.
+
+Problem observed:
+- The admin prompt `Give me the daily token usage across all the LLMs used for this project by marketers.` triggered Slack route-learning instead of the built-in `token-usage-monitor`.
+- The deterministic admin matcher in `src/trigger/think.ts` only matched singular `llm`, so plural `LLMs` fell through to generic cognition.
+- That generic plan created route-learning noise and persisted three bad learned routes:
+  - `route-012`
+  - `route-013`
+  - `route-014`
+- Those routes pointed to an Anthropic usage-report endpoint without valid credential/header handling and should not remain in the store.
+
+What changed:
+- Extracted admin token-usage intent parsing into `src/trigger/admin-observability.ts`.
+- Broadened deterministic admin matching so prompts mentioning:
+  - `LLMs`
+  - `models`
+  - `providers`
+  - `OpenAI`
+  - `Claude`
+  - `Anthropic`
+  - `Gemini`
+  map to `token-usage-monitor`.
+- Added an Agency-stage fallback in `src/trigger/execute.ts` so admin token-usage subtasks are rerouted to `token-usage-monitor` before they can enter `learn-route`.
+- Added regression coverage in `tests/unit/admin-observability-routing.test.ts`.
+- Deleted the bad routes directly from the live admin store through the authenticated admin API:
+  - `route-012`
+  - `route-013`
+  - `route-014`
+
+Provider research notes:
+- Anthropic:
+  - Official external source is the Usage & Cost API.
+  - Live check on 2026-03-17 with the current local credential returned `401`, so this project will need the correct Anthropic admin-level credential before using that endpoint directly.
+- OpenAI:
+  - Official external sources are the organization Usage API and Costs API.
+  - Live check on 2026-03-17 with the current local credential returned `403`, so this project will need an org/admin-capable OpenAI key before using those endpoints directly.
+- Gemini:
+  - Public Gemini API exposes `usageMetadata` on generation responses and supports `countTokens` for preflight estimation.
+  - Live check on 2026-03-17 with the current local Gemini key returned `200` and included `usageMetadata`, so Gemini can be integrated from provider response metadata immediately.
+
+Operational outcome:
+- Admin token-usage prompts using plural/provider phrasing no longer create Slack-learned garbage routes.
+- The three bad Anthropic usage routes are gone from the live admin store.
+- Internal `llm_usage_events` remains the safest cross-provider source until Anthropic/OpenAI admin usage credentials are added.
+
+Validation:
+- `npm test -- tests/unit/admin-observability-routing.test.ts tests/unit/execute-fast-path.test.ts tests/unit/admin-routes.test.ts`
+- `npx tsc --noEmit`
+- Live verification:
+  - admin chat run `run_cmmuqi70x005339nn2zyk4z2v`
+  - prompt: `Give me the daily token usage across all the LLMs used for this project by marketers.`
+  - completed through `token-usage-monitor` and returned marketer-scoped totals for `acme-marketing` without creating new Slack route-learning work
+
 ### Plan 92: Tenant-aware admin + multi-brand marketer runtime, admin chat, and LLM telemetry
 
 Status: Implemented in code and targeted tests on 2026-03-17.

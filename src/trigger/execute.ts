@@ -22,6 +22,7 @@ import {
   isUniversalSkillCreationIntent,
 } from "./universal-skill-creator.js";
 import { skillCandidatesStore } from "../routing/skill-candidates-store.js";
+import { inferAdminTokenUsageMonitorRequest } from "./admin-observability.js";
 // Register all plugins on import
 import "./sub-agents/plugins/index.js";
 import type {
@@ -29,6 +30,7 @@ import type {
   AgentResult,
   CognitionResult,
   ExecutionContext,
+  RequestContext,
   SubTask,
 } from "../core/types.js";
 
@@ -230,6 +232,26 @@ export const executeTask = task({
               return {
                 subtaskId: subtask.id,
                 agentId: subtask.agentId,
+                result: { ...result, durationMs: Date.now() - startTime },
+              };
+            }
+
+            const adminObservabilityFallback = resolveAdminObservabilityFallback(
+              subtask,
+              payload.context.requestContext
+            );
+            if (adminObservabilityFallback) {
+              logger.info(
+                `Using deterministic admin observability fallback for "${subtask.agentId}"`
+              );
+              result = await subAgentRegistry.execute(
+                adminObservabilityFallback.agentId,
+                adminObservabilityFallback.input,
+                payload.context
+              );
+              return {
+                subtaskId: subtask.id,
+                agentId: adminObservabilityFallback.agentId,
                 result: { ...result, durationMs: Date.now() - startTime },
               };
             }
@@ -444,6 +466,26 @@ export async function preloadExecutionStores(): Promise<void> {
 }
 
 // ── Helpers ───────────────────────────────────────────────────
+
+export function resolveAdminObservabilityFallback(
+  subtask: Pick<SubTask, "agentId" | "description" | "input">,
+  requestContext: RequestContext
+): {
+  agentId: "token-usage-monitor";
+  input: NonNullable<ReturnType<typeof inferAdminTokenUsageMonitorRequest>>;
+} | null {
+  const input = inferAdminTokenUsageMonitorRequest(
+    subtask.description,
+    requestContext,
+    subtask.input
+  );
+  if (!input) return null;
+
+  return {
+    agentId: "token-usage-monitor",
+    input,
+  };
+}
 
 const DETERMINISTIC_ROUTE_AGENT_IDS = new Set([
   "mcp-fetcher",

@@ -1095,6 +1095,23 @@ Give me the daily token usage across all the LLMs used for this project by marke
 ```
 
 - Use the brand selector in the Admin Chat page when you want the admin request context to drill into a single brand.
+- That prompt wording is now safe even with plural `LLMs`; admin token-usage prompts are matched before they can fall into Slack `learn-route`.
+
+Provider token-usage notes:
+
+- Internal admin chat token-usage answers come from the project's own forward-only `llm_usage_events` telemetry table.
+- Anthropic external source:
+  - Use the official Usage & Cost API for time-bucketed usage/cost aggregation.
+  - In the live check on 2026-03-17, the current local Anthropic key returned `401`, so this project will need the right Anthropic admin-level credential before wiring that source directly.
+- OpenAI external source:
+  - Use the official organization Usage API / Costs API for aggregated reporting.
+  - In the live check on 2026-03-17, the current local OpenAI key returned `403` against the organization usage endpoint, so this project will need the correct org/admin-capable key before wiring that source directly.
+- Gemini external source:
+  - The public Gemini API exposes `usageMetadata` on generation responses and supports `countTokens` for estimation.
+  - In the live check on 2026-03-17, the current local Gemini key returned `200` and included `usageMetadata`, so Gemini can be integrated through per-call capture immediately.
+- Practical implication:
+  - Gemini can be tracked from provider responses now.
+  - Anthropic and OpenAI should continue to rely on internal telemetry until admin/org usage credentials are added.
 
 Sub-agent pattern:
 

@@ -50,3 +50,9 @@ The shell is designed so new admin features can be added section by section with
   - brand-scoped when the brand selector is set
 - The first shipped admin capability is deterministic LLM token-usage reporting backed by forward-only Postgres telemetry.
 - Marketer demo/API traffic now sends `brandId` explicitly, with `acme-marketing` as the seeded local default brand.
+- Admin token-usage prompts are now matched defensively in both Cognition and Agency, so wording like `LLMs`, `OpenAI`, `Claude`, and `Gemini` no longer falls into Slack `learn-route`.
+- On 2026-03-17, the bad Slack-learned routes `route-012`, `route-013`, and `route-014` were deleted from the live store after they were confirmed to be invalid Anthropic usage-report routes.
+- Provider-specific notes for future admin token reporting:
+  - Anthropic: the official Usage & Cost API is the right external source, but it expects admin-level access and the current local key did not work for that endpoint.
+  - OpenAI: the official organization Usage/Costs APIs are the right external sources, but the current local key did not have access in the live check.
+  - Gemini: the public Gemini API already returns `usageMetadata` on generation responses, and `countTokens` can be used for preflight estimation.

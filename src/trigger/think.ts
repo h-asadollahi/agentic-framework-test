@@ -8,6 +8,7 @@ import {
   buildRejectedCognitionResult,
   detectCognitionGuardrailRejection,
 } from "./cognition-guardrails.js";
+import { buildDeterministicAdminObservabilityPlan } from "./admin-observability.js";
 import { parseAgentJson } from "./agent-output-parser.js";
 import { isSynthesisLikeDescription } from "./execute-routing.js";
 
@@ -369,52 +370,6 @@ function isSkillCreatorAgent(agentId: string): boolean {
     normalized === "skill_creator" ||
     normalized === "universal-skill-creator"
   );
-}
-
-function buildDeterministicAdminObservabilityPlan(
-  userMessage: string,
-  requestContext: RequestContext
-): CognitionResult | null {
-  if (requestContext.audience !== "admin") return null;
-
-  const normalized = userMessage.toLowerCase();
-  const isTokenUsageIntent =
-    /\btoken\b/.test(normalized) &&
-    (/\busage\b/.test(normalized) || /\bused\b/.test(normalized)) &&
-    (/\bllm\b/.test(normalized) ||
-      /\bmodel\b/.test(normalized) ||
-      /\bopenai\b/.test(normalized) ||
-      /\bclaude\b/.test(normalized) ||
-      /\bgemini\b/.test(normalized));
-
-  if (!isTokenUsageIntent) return null;
-
-  const audienceFilter =
-    /\badmins?\b/.test(normalized) && !/\bmarketers?\b/.test(normalized)
-      ? "admin"
-      : "marketer";
-
-  return {
-    subtasks: [
-      {
-        id: "task-1",
-        agentId: "token-usage-monitor",
-        description: "Aggregate daily LLM token usage for operational reporting",
-        input: {
-          audience: audienceFilter,
-          brandId: requestContext.brandId,
-          days: 7,
-          bucket: "day",
-        },
-        dependencies: [],
-        priority: "high",
-      },
-    ],
-    reasoning:
-      "Deterministic admin observability fast path: token-usage prompts map directly to the token-usage-monitor capability.",
-    plan: "Use the token-usage-monitor sub-agent to aggregate forward-only telemetry for the requested audience and brand scope.",
-    rejected: false,
-  };
 }
 
 function nextAutonomousSkillTaskId(subtasks: SubTask[]): string {
