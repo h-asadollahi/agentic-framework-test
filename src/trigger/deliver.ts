@@ -150,11 +150,24 @@ interface TokenUsageMonitorPayload {
   brandId: string | null;
   days: number;
   bucket: "day";
+  totalPrompts: number;
+  totalLlmCalls: number;
+  totalInputTokens: number;
+  totalOutputTokens: number;
   totalTokens: number;
   totalCalls: number;
   byProvider: Array<{ provider: string; tokens: number; calls: number }>;
   byModel: Array<{ model: string; tokens: number; calls: number }>;
-  daily: Array<{ bucket: string; tokens: number; calls: number }>;
+  daily: Array<{
+    bucket: string;
+    promptCount: number;
+    llmCallCount: number;
+    inputTokens: number;
+    outputTokens: number;
+    totalTokens: number;
+    tokens: number;
+    calls: number;
+  }>;
   note?: string;
 }
 
@@ -337,20 +350,23 @@ function buildTokenUsageMonitorFastPath(
     usage.daily.length > 0
       ? usage.daily.map(
           (entry) =>
-            `- ${entry.bucket}: ${formatCount(entry.tokens)} tokens across ${formatCount(entry.calls)} calls`
+            `- ${entry.bucket}: ${formatCount(entry.totalTokens)} total tokens (${formatCount(entry.inputTokens)} input, ${formatCount(entry.outputTokens)} output) across ${formatCount(entry.promptCount)} prompts and ${formatCount(entry.llmCallCount)} LLM calls`
         )
       : ["- No daily usage has been tracked for this window yet."];
 
   return {
     formattedResponse: [
       "## Executive Summary",
-      `Tracked ${formatCount(usage.totalTokens)} total tokens across ${formatCount(usage.totalCalls)} LLM calls for ${audienceLabel} ${scopeLabel} over the last ${formatCount(usage.days)} days.`,
+      `Tracked ${formatCount(usage.totalTokens)} total tokens across ${formatCount(usage.totalPrompts)} prompts and ${formatCount(usage.totalLlmCalls)} LLM calls for ${audienceLabel} ${scopeLabel} over the last ${formatCount(usage.days)} days.`,
       "",
       "## Key Findings",
       `- Audience filter: ${usage.audience}`,
       `- Brand filter: ${usage.brandId ?? "all brands"}`,
+      `- Total prompts: ${formatCount(usage.totalPrompts)}`,
+      `- Total input tokens: ${formatCount(usage.totalInputTokens)}`,
+      `- Total output tokens: ${formatCount(usage.totalOutputTokens)}`,
       `- Total tokens: ${formatCount(usage.totalTokens)}`,
-      `- Total calls: ${formatCount(usage.totalCalls)}`,
+      `- Total LLM calls: ${formatCount(usage.totalLlmCalls)}`,
       "",
       "## Daily Breakdown",
       ...dailyLines,
@@ -459,9 +475,22 @@ function extractTokenUsageMonitorPayload(
       ? parsed.audience
       : null;
   const days = asNumber(parsed.days);
+  const totalPrompts = asNumber(parsed.totalPrompts);
+  const totalLlmCalls = asNumber(parsed.totalLlmCalls ?? parsed.totalCalls);
+  const totalInputTokens = asNumber(parsed.totalInputTokens);
+  const totalOutputTokens = asNumber(parsed.totalOutputTokens);
   const totalTokens = asNumber(parsed.totalTokens);
-  const totalCalls = asNumber(parsed.totalCalls);
-  if (!audience || days === null || totalTokens === null || totalCalls === null) {
+  const totalCalls = asNumber(parsed.totalCalls ?? parsed.totalLlmCalls);
+  if (
+    !audience ||
+    days === null ||
+    totalPrompts === null ||
+    totalLlmCalls === null ||
+    totalInputTokens === null ||
+    totalOutputTokens === null ||
+    totalTokens === null ||
+    totalCalls === null
+  ) {
     return null;
   }
 
@@ -470,6 +499,10 @@ function extractTokenUsageMonitorPayload(
     brandId: typeof parsed.brandId === "string" ? parsed.brandId : null,
     days,
     bucket: parsed.bucket === "day" ? "day" : "day",
+    totalPrompts,
+    totalLlmCalls,
+    totalInputTokens,
+    totalOutputTokens,
     totalTokens,
     totalCalls,
     byProvider: asProviderUsageBreakdownArray(parsed.byProvider),
@@ -561,7 +594,16 @@ function asModelUsageBreakdownArray(
 
 function asDailyUsageArray(
   value: unknown
-): Array<{ bucket: string; tokens: number; calls: number }> {
+): Array<{
+  bucket: string;
+  promptCount: number;
+  llmCallCount: number;
+  inputTokens: number;
+  outputTokens: number;
+  totalTokens: number;
+  tokens: number;
+  calls: number;
+}> {
   if (!Array.isArray(value)) return [];
 
   return value
@@ -569,14 +611,46 @@ function asDailyUsageArray(
       const record = asRecord(item);
       if (!record) return null;
       const bucket = typeof record.bucket === "string" ? record.bucket : null;
-      const tokens = asNumber(record.tokens);
-      const calls = asNumber(record.calls);
-      if (!bucket || tokens === null || calls === null) {
+      const promptCount = asNumber(record.promptCount);
+      const llmCallCount = asNumber(record.llmCallCount ?? record.calls);
+      const inputTokens = asNumber(record.inputTokens);
+      const outputTokens = asNumber(record.outputTokens);
+      const totalTokens = asNumber(record.totalTokens ?? record.tokens);
+      const tokens = asNumber(record.tokens ?? record.totalTokens);
+      const calls = asNumber(record.calls ?? record.llmCallCount);
+      if (
+        !bucket ||
+        promptCount === null ||
+        llmCallCount === null ||
+        inputTokens === null ||
+        outputTokens === null ||
+        totalTokens === null ||
+        tokens === null ||
+        calls === null
+      ) {
         return null;
       }
-      return { bucket, tokens, calls };
+      return {
+        bucket,
+        promptCount,
+        llmCallCount,
+        inputTokens,
+        outputTokens,
+        totalTokens,
+        tokens,
+        calls,
+      };
     })
-    .filter((item): item is { bucket: string; tokens: number; calls: number } => Boolean(item));
+    .filter((item): item is {
+      bucket: string;
+      promptCount: number;
+      llmCallCount: number;
+      inputTokens: number;
+      outputTokens: number;
+      totalTokens: number;
+      tokens: number;
+      calls: number;
+    } => Boolean(item));
 }
 
 function buildCatalogPreviewLines(

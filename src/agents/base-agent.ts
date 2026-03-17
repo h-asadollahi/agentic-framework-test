@@ -90,22 +90,34 @@ export abstract class BaseAgent {
             ? (result.usage as { outputTokens?: number }).outputTokens
             : undefined;
 
-        await llmUsageStore.record({
-          audience: context.requestContext.audience,
-          scope: context.requestContext.scope,
-          brandId: context.requestContext.brandId,
-          source: context.requestContext.source,
-          sessionId: context.sessionId,
-          runId: context.requestContext.runId ?? context.sessionId,
-          componentKind: "agent",
-          componentId: this.config.id,
-          modelAlias: modelId,
-          resolvedModelId: resolveModelId(modelId),
-          provider: resolveProvider(resolveModelId(modelId)),
-          tokensUsed: result.usage?.totalTokens ?? 0,
-          promptTokens,
-          completionTokens,
-        });
+        try {
+          await llmUsageStore.record({
+            pipelineRunId: context.requestContext.pipelineRunId,
+            audience: context.requestContext.audience,
+            scope: context.requestContext.scope,
+            brandId: context.requestContext.brandId,
+            source: context.requestContext.source,
+            sessionId: context.sessionId,
+            runId: context.requestContext.runId ?? context.sessionId,
+            componentKind: "agent",
+            componentId: this.config.id,
+            modelAlias: modelId,
+            resolvedModelId: resolveModelId(modelId),
+            provider: resolveProvider(resolveModelId(modelId)),
+            tokensUsed: result.usage?.totalTokens ?? 0,
+            promptTokens,
+            completionTokens,
+          });
+        } catch (telemetryError) {
+          logger.warn(`Agent "${this.config.id}" telemetry write failed`, {
+            agent: this.config.id,
+            model: modelId,
+            error:
+              telemetryError instanceof Error
+                ? telemetryError.message
+                : String(telemetryError),
+          });
+        }
 
         return {
           success: true,

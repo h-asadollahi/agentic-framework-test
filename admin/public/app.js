@@ -13,6 +13,13 @@ const state = {
   slackSummary: null,
   slackMessages: [],
   llmUsageSummary: null,
+  tokenUsage: {
+    summary: null,
+    prompts: [],
+    total: 0,
+    offset: 0,
+    limit: 20,
+  },
   adminChat: {
     sessionId: window.sessionStorage.getItem("admin-chat-session-id") || null,
     runId: null,
@@ -31,6 +38,11 @@ const pageConfig = {
     page: "adminChat",
     scrollTarget: "adminChatPage",
     navHash: "#admin-chat",
+  },
+  "#token-usage": {
+    page: "tokenUsage",
+    scrollTarget: "tokenUsagePage",
+    navHash: "#token-usage",
   },
   "#learned-routes": {
     page: "routes",
@@ -137,6 +149,7 @@ function setActivePage(page) {
   const pageIds = {
     dashboard: "dashboardPage",
     adminChat: "adminChatPage",
+    tokenUsage: "tokenUsagePage",
     routes: "routesPage",
     activity: "activityPage",
     runs: "runsPage",
@@ -969,8 +982,8 @@ function updateAdminChatScopeNote() {
   );
 }
 
-function renderBrandOptions(brands) {
-  const select = $("adminChatBrand");
+function populateBrandSelect(selectId, brands) {
+  const select = $(selectId);
   if (!select) return;
 
   const previousValue = select.value;
@@ -986,7 +999,11 @@ function renderBrandOptions(brands) {
   if (previousValue && brands.some((brand) => brand.id === previousValue)) {
     select.value = previousValue;
   }
+}
 
+function renderBrandOptions(brands) {
+  populateBrandSelect("adminChatBrand", brands);
+  populateBrandSelect("tokenUsageBrand", brands);
   updateAdminChatScopeNote();
 }
 
@@ -1093,7 +1110,7 @@ function renderAdminUsageSummary(payload, errorMessage = null) {
   if (errorMessage) {
     setText("adminChatTodayTokens", "Unavailable");
     setText("adminChatSevenDayTokens", "Unavailable");
-    setText("adminChatSevenDayCalls", "Unavailable");
+    setText("adminChatSevenDayPrompts", "Unavailable");
     setText("adminChatTopProvider", "Unavailable");
     setText("adminChatScopeNote", errorMessage);
     return;
@@ -1105,9 +1122,12 @@ function renderAdminUsageSummary(payload, errorMessage = null) {
   const byProvider = Array.isArray(summary.byProvider) ? summary.byProvider : [];
   const topProvider = byProvider[0] || null;
 
-  setText("adminChatTodayTokens", latestDay ? humanizeCount(latestDay.tokens) : "0");
+  setText(
+    "adminChatTodayTokens",
+    latestDay ? humanizeCount(latestDay.totalTokens ?? latestDay.tokens) : "0"
+  );
   setText("adminChatSevenDayTokens", humanizeCount(summary.totalTokens || 0));
-  setText("adminChatSevenDayCalls", humanizeCount(summary.totalCalls || 0));
+  setText("adminChatSevenDayPrompts", humanizeCount(summary.totalPrompts || 0));
   setText(
     "adminChatTopProvider",
     topProvider ? `${humanizeToken(topProvider.provider)} (${humanizeCount(topProvider.tokens)})` : "None yet"
@@ -1154,6 +1174,161 @@ async function loadAdminUsageSummary() {
   } catch (error) {
     renderAdminUsageSummary(null, "Telemetry unavailable for the current admin scope.");
     status(`Telemetry unavailable: ${error.message}`);
+  }
+}
+
+function getSelectedTokenUsageBrandId() {
+  return $("tokenUsageBrand")?.value || "";
+}
+
+function getSelectedTokenUsageAudience() {
+  return $("tokenUsageAudience")?.value || "marketer";
+}
+
+function getSelectedTokenUsageDays() {
+  return $("tokenUsageDays")?.value || "7";
+}
+
+function renderTokenUsageSummary(payload, errorMessage = null) {
+  if (errorMessage) {
+    [
+      "tokenUsageTodayInput",
+      "tokenUsageTodayOutput",
+      "tokenUsageWindowTotal",
+      "tokenUsageWindowPrompts",
+      "tokenUsageWindowCalls",
+    ].forEach((id) => setText(id, "Unavailable"));
+    setText("tokenUsageCountPill", "Telemetry unavailable");
+    setText("tokenUsageScopePill", errorMessage);
+    return;
+  }
+
+  const summary = payload?.summary || {};
+  const daily = Array.isArray(summary.daily) ? summary.daily : [];
+  const latestDay = daily[daily.length - 1] || null;
+  const todayInput = latestDay ? latestDay.inputTokens || 0 : 0;
+  const todayOutput = latestDay ? latestDay.outputTokens || 0 : 0;
+
+  setText("tokenUsageTodayInput", humanizeCount(todayInput));
+  setText("tokenUsageTodayOutput", humanizeCount(todayOutput));
+  setText("tokenUsageWindowTotal", humanizeCount(summary.totalTokens || 0));
+  setText("tokenUsageWindowPrompts", humanizeCount(summary.totalPrompts || 0));
+  setText("tokenUsageWindowCalls", humanizeCount(summary.totalLlmCalls || 0));
+  setText(
+    "tokenUsageCountPill",
+    `${humanizeCount(summary.totalPrompts || 0)} prompt runs`
+  );
+  setText(
+    "tokenUsageScopePill",
+    `${getSelectedTokenUsageAudience()} · ${getSelectedTokenUsageDays()} days`
+  );
+
+  const tbody = $("tokenUsageDailyTable");
+  if (!tbody) return;
+  tbody.innerHTML = "";
+
+  if (!daily.length) {
+    tbody.innerHTML =
+      '<tr><td colspan="6" class="empty-state">No token usage has been tracked for this window yet.</td></tr>';
+    return;
+  }
+
+  daily.forEach((entry) => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${escapeHtml(entry.bucket)}</td>
+      <td>${escapeHtml(humanizeCount(entry.promptCount || 0))}</td>
+      <td>${escapeHtml(humanizeCount(entry.llmCallCount || 0))}</td>
+      <td>${escapeHtml(humanizeCount(entry.inputTokens || 0))}</td>
+      <td>${escapeHtml(humanizeCount(entry.outputTokens || 0))}</td>
+      <td>${escapeHtml(humanizeCount(entry.totalTokens || entry.tokens || 0))}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+function renderTokenUsagePrompts(payload, errorMessage = null) {
+  const tbody = $("tokenUsagePromptTable");
+  if (!tbody) return;
+
+  if (errorMessage) {
+    tbody.innerHTML = `<tr><td colspan="9" class="empty-state">${escapeHtml(
+      errorMessage
+    )}</td></tr>`;
+    setText("tokenUsagePromptPageInfo", "Unavailable");
+    setText("tokenUsagePromptMeta", "Unavailable");
+    return;
+  }
+
+  const prompts = Array.isArray(payload?.prompts) ? payload.prompts : [];
+  const total = Number(payload?.total || 0);
+  const limit = Number(payload?.limit || state.tokenUsage.limit || 20);
+  const offset = Number(payload?.offset || 0);
+  const pageNumber = Math.floor(offset / Math.max(limit, 1)) + 1;
+  const totalPages = Math.max(1, Math.ceil(total / Math.max(limit, 1)));
+
+  setText(
+    "tokenUsagePromptPageInfo",
+    `${humanizeCount(total)} rows total`
+  );
+  setText("tokenUsagePromptMeta", `Page ${pageNumber} of ${totalPages}`);
+  $("tokenUsagePrev")?.toggleAttribute("disabled", offset <= 0);
+  $("tokenUsageNext")?.toggleAttribute("disabled", offset + limit >= total);
+
+  tbody.innerHTML = "";
+  if (!prompts.length) {
+    tbody.innerHTML =
+      '<tr><td colspan="9" class="empty-state">No prompt history has been tracked for this window yet.</td></tr>';
+    return;
+  }
+
+  prompts.forEach((row) => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${escapeHtml(row.userPrompt || "")}</td>
+      <td>${escapeHtml(row.audience || "-")}</td>
+      <td>${escapeHtml(row.brandId || "all brands")}</td>
+      <td>${escapeHtml(humanizeCount(row.inputTokens || 0))}</td>
+      <td>${escapeHtml(humanizeCount(row.outputTokens || 0))}</td>
+      <td>${escapeHtml(humanizeCount(row.totalTokens || 0))}</td>
+      <td>${escapeHtml(humanizeToken(row.status || "-"))}</td>
+      <td>${escapeHtml(formatTimestamp(row.startedAt))}</td>
+      <td>${escapeHtml(row.finishedAt ? formatTimestamp(row.finishedAt) : "-")}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+async function loadTokenUsagePage() {
+  try {
+    const params = new URLSearchParams({
+      audience: getSelectedTokenUsageAudience(),
+      days: getSelectedTokenUsageDays(),
+      limit: String(state.tokenUsage.limit),
+      offset: String(state.tokenUsage.offset),
+    });
+    const brandId = getSelectedTokenUsageBrandId();
+    if (brandId) {
+      params.set("brandId", brandId);
+    }
+
+    const [summaryData, promptData] = await Promise.all([
+      api(`/admin/llm-usage/summary?${params.toString()}`),
+      api(`/admin/llm-usage/prompts?${params.toString()}`),
+    ]);
+
+    state.tokenUsage.summary = summaryData;
+    state.tokenUsage.prompts = promptData.prompts || [];
+    state.tokenUsage.total = promptData.total || 0;
+    renderTokenUsageSummary(summaryData);
+    renderTokenUsagePrompts(promptData);
+  } catch (error) {
+    renderTokenUsageSummary(null, "Telemetry unavailable for the selected token-usage scope.");
+    renderTokenUsagePrompts(
+      null,
+      "Prompt history is unavailable for the selected token-usage scope."
+    );
+    status(`Token usage unavailable: ${error.message}`);
   }
 }
 
@@ -1376,6 +1551,7 @@ async function loadAll() {
     loadRuns(),
     loadSlackHitl(),
     loadAdminUsageSummary(),
+    loadTokenUsagePage(),
   ]);
   status("Admin workspace loaded");
 }
@@ -1395,6 +1571,30 @@ $("adminChatClear")?.addEventListener("click", () => {
 $("adminChatBrand")?.addEventListener("change", () => {
   updateAdminChatScopeNote();
   loadAdminUsageSummary().catch((err) => status(err.message));
+});
+$("tokenUsageRefresh")?.addEventListener("click", () => {
+  state.tokenUsage.offset = 0;
+  loadTokenUsagePage().catch((err) => status(err.message));
+});
+$("tokenUsageAudience")?.addEventListener("change", () => {
+  state.tokenUsage.offset = 0;
+  loadTokenUsagePage().catch((err) => status(err.message));
+});
+$("tokenUsageBrand")?.addEventListener("change", () => {
+  state.tokenUsage.offset = 0;
+  loadTokenUsagePage().catch((err) => status(err.message));
+});
+$("tokenUsageDays")?.addEventListener("change", () => {
+  state.tokenUsage.offset = 0;
+  loadTokenUsagePage().catch((err) => status(err.message));
+});
+$("tokenUsagePrev")?.addEventListener("click", () => {
+  state.tokenUsage.offset = Math.max(0, state.tokenUsage.offset - state.tokenUsage.limit);
+  loadTokenUsagePage().catch((err) => status(err.message));
+});
+$("tokenUsageNext")?.addEventListener("click", () => {
+  state.tokenUsage.offset += state.tokenUsage.limit;
+  loadTokenUsagePage().catch((err) => status(err.message));
 });
 $("adminChatInput")?.addEventListener("keydown", (event) => {
   if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
@@ -1454,8 +1654,31 @@ async function bootstrap() {
   renderRuns({ total: 0, byStatus: {}, latest: [] });
   renderAdminChatMessages();
   renderAdminUsageSummary({
-    summary: { totalTokens: 0, totalCalls: 0, byProvider: [], daily: [] },
+    summary: {
+      totalPrompts: 0,
+      totalLlmCalls: 0,
+      totalInputTokens: 0,
+      totalOutputTokens: 0,
+      totalTokens: 0,
+      totalCalls: 0,
+      byProvider: [],
+      daily: [],
+    },
   });
+  renderTokenUsageSummary({
+    summary: {
+      totalPrompts: 0,
+      totalLlmCalls: 0,
+      totalInputTokens: 0,
+      totalOutputTokens: 0,
+      totalTokens: 0,
+      totalCalls: 0,
+      byProvider: [],
+      byModel: [],
+      daily: [],
+    },
+  });
+  renderTokenUsagePrompts({ prompts: [], total: 0, limit: state.tokenUsage.limit, offset: 0 });
   renderSlackHitl(
     {
       configuredAdminChannel: null,

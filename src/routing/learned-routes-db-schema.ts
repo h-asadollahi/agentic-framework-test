@@ -125,6 +125,7 @@ export const llmUsageEventsTable = pgTable(
   "llm_usage_events",
   {
     id: serial("id").primaryKey(),
+    pipelineRunId: text("pipeline_run_id"),
     audience: text("audience").notNull(),
     scope: text("scope").notNull(),
     brandId: text("brand_id"),
@@ -150,6 +151,45 @@ export const llmUsageEventsTable = pgTable(
       table.brandId,
       table.createdAt
     ),
+    pipelineRunIdx: index("llm_usage_events_pipeline_run_id_idx").on(
+      table.pipelineRunId
+    ),
     runIdx: index("llm_usage_events_run_id_idx").on(table.runId),
+  })
+);
+
+export const llmPromptUsageRunsTable = pgTable(
+  "llm_prompt_usage_runs",
+  {
+    id: serial("id").primaryKey(),
+    pipelineRunId: text("pipeline_run_id").notNull(),
+    audience: text("audience").notNull(),
+    scope: text("scope").notNull(),
+    brandId: text("brand_id"),
+    source: text("source").notNull(),
+    sessionId: text("session_id").notNull(),
+    userPrompt: text("user_prompt").notNull(),
+    inputTokens: integer("input_tokens").notNull().default(0),
+    outputTokens: integer("output_tokens").notNull().default(0),
+    totalTokens: integer("total_tokens").notNull().default(0),
+    llmCallCount: integer("llm_call_count").notNull().default(0),
+    status: text("status").notNull().default("running"),
+    startedAt: timestamp("started_at", { withTimezone: true }).notNull().defaultNow(),
+    finishedAt: timestamp("finished_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    pipelineRunIdx: uniqueIndex("llm_prompt_usage_runs_pipeline_run_id_key").on(
+      table.pipelineRunId
+    ),
+    audienceStartedAtIdx: index("llm_prompt_usage_runs_audience_started_at_idx").on(
+      table.audience,
+      table.startedAt
+    ),
+    brandStartedAtIdx: index("llm_prompt_usage_runs_brand_started_at_idx").on(
+      table.brandId,
+      table.startedAt
+    ),
   })
 );

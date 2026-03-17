@@ -29,11 +29,12 @@ Open `http://localhost:4174`.
 
 ## UI structure
 
-- Sidebar navigation for separate dashboard, admin-chat, learned-routes, activity-feed, run-watch, and slack-hitl pages inside the admin workspace.
+- Sidebar navigation for separate dashboard, admin-chat, token-usage, learned-routes, activity-feed, run-watch, and slack-hitl pages inside the admin workspace.
 - Compact hero/header with a refresh action and an `i` info control for API base, auth state, and workspace status.
 - Summary cards for route inventory, storage health, backfill, and export actions.
 - Dashboard page for summary cards and high-level overview only.
 - Admin-chat page for operator prompts, brand-scoped admin sessions, telemetry summary cards, and trace/raw-response inspection.
+- Token-usage page for prompt-level token summaries, daily breakdown, recent prompt history, and telemetry filters.
 - Learned-routes page for route filters and the full route explorer table.
 - Activity-feed page for route lifecycle events.
 - Run-watch page for Trigger run visibility.
@@ -49,9 +50,15 @@ The shell is designed so new admin features can be added section by section with
   - global when no brand is selected
   - brand-scoped when the brand selector is set
 - The first shipped admin capability is deterministic LLM token-usage reporting backed by forward-only Postgres telemetry.
+- Prompt-level token telemetry is now stored in `llm_prompt_usage_runs`, while provider/model detail remains in `llm_usage_events`.
 - Marketer demo/API traffic now sends `brandId` explicitly, with `acme-marketing` as the seeded local default brand.
 - Admin token-usage prompts are now matched defensively in both Cognition and Agency, so wording like `LLMs`, `OpenAI`, `Claude`, and `Gemini` no longer falls into Slack `learn-route`.
 - On 2026-03-17, the bad Slack-learned routes `route-012`, `route-013`, and `route-014` were deleted from the live store after they were confirmed to be invalid Anthropic usage-report routes.
+- The admin token-usage page is prompt-centric:
+  - one row per executed admin/marketer prompt
+  - original prompt text
+  - input/output/total token sums
+  - prompt status and timestamps
 - Provider-specific notes for future admin token reporting:
   - Anthropic: the official Usage & Cost API is the right external source, but it expects admin-level access and the current local key did not work for that endpoint.
   - OpenAI: the official organization Usage/Costs APIs are the right external sources, but the current local key did not have access in the live check.

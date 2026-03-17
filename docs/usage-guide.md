@@ -1068,6 +1068,7 @@ If both `ADMIN_ALLOWED_IPS` and `ADMIN_API_TOKEN` are empty, `/admin/*` requests
 - `GET /admin/slack/summary`
 - `GET /admin/slack/messages`
 - `GET /admin/llm-usage/summary`
+- `GET /admin/llm-usage/prompts`
 - `POST /admin/chat/message`
 - `GET /admin/chat/status/:runId`
 - `GET /admin/chat/session/:sessionId/history`
@@ -1087,7 +1088,7 @@ If both `ADMIN_ALLOWED_IPS` and `ADMIN_API_TOKEN` are empty, `/admin/*` requests
 - Open:
   - `http://localhost:4174`
 - Configure only the API base in the UI. Admin auth is handled server-side by `admin/server.mjs`.
-- The current admin UI is a workspace shell with a dedicated `Admin Chat` page for operator prompts.
+- The current admin UI is a workspace shell with a dedicated `Admin Chat` page for operator prompts and a dedicated `Token Usage` page for prompt-level telemetry review.
 - The first admin-chat capability is deterministic LLM token-usage reporting, for example:
 
 ```text
@@ -1099,7 +1100,21 @@ Give me the daily token usage across all the LLMs used for this project by marke
 
 Provider token-usage notes:
 
-- Internal admin chat token-usage answers come from the project's own forward-only `llm_usage_events` telemetry table.
+- Internal admin token-usage answers now come from two forward-only DB-backed telemetry layers:
+  - `llm_prompt_usage_runs` for one-row-per-prompt totals and prompt history
+  - `llm_usage_events` for provider/model/detail rows linked to the prompt aggregate by `pipelineRunId`
+- Prompt-level telemetry stores:
+  - original user/admin prompt text
+  - input token sum
+  - output token sum
+  - total token sum
+  - LLM call count
+  - prompt status
+- The dedicated `Token Usage` page in the admin UI shows:
+  - summary cards
+  - daily prompt-level breakdown
+  - recent prompt history table
+  - audience / brand / day-window filters
 - Anthropic external source:
   - Use the official Usage & Cost API for time-bucketed usage/cost aggregation.
   - In the live check on 2026-03-17, the current local Anthropic key returned `401`, so this project will need the right Anthropic admin-level credential before wiring that source directly.
@@ -1112,6 +1127,7 @@ Provider token-usage notes:
 - Practical implication:
   - Gemini can be tracked from provider responses now.
   - Anthropic and OpenAI should continue to rely on internal telemetry until admin/org usage credentials are added.
+  - Prompt history in `llm_prompt_usage_runs` starts from the deployment of this change forward; older token rows are not backfilled into prompt history.
 
 Sub-agent pattern:
 

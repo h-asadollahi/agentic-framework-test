@@ -19,6 +19,10 @@ const TokenUsageMonitorOutput = z.object({
   brandId: z.string().nullable(),
   days: z.number().int().min(1).max(365),
   bucket: z.enum(["day"]),
+  totalPrompts: z.number().int().nonnegative(),
+  totalLlmCalls: z.number().int().nonnegative(),
+  totalInputTokens: z.number().int().nonnegative(),
+  totalOutputTokens: z.number().int().nonnegative(),
   totalTokens: z.number().int().nonnegative(),
   totalCalls: z.number().int().nonnegative(),
   byProvider: z.array(
@@ -38,6 +42,11 @@ const TokenUsageMonitorOutput = z.object({
   daily: z.array(
     z.object({
       bucket: z.string(),
+      promptCount: z.number().int().nonnegative(),
+      llmCallCount: z.number().int().nonnegative(),
+      inputTokens: z.number().int().nonnegative(),
+      outputTokens: z.number().int().nonnegative(),
+      totalTokens: z.number().int().nonnegative(),
       tokens: z.number().int().nonnegative(),
       calls: z.number().int().nonnegative(),
     })
@@ -80,6 +89,10 @@ export class TokenUsageMonitorAgent extends BaseSubAgent {
         brandId: request.brandId ?? null,
         days: request.days,
         bucket: request.bucket,
+        totalPrompts: summary.totalPrompts,
+        totalLlmCalls: summary.totalLlmCalls,
+        totalInputTokens: summary.totalInputTokens,
+        totalOutputTokens: summary.totalOutputTokens,
         totalTokens: summary.totalTokens,
         totalCalls: summary.totalCalls,
         byProvider: summary.byProvider,

@@ -365,6 +365,46 @@ export function registerAdminRoutes(app: Hono): void {
     });
   });
 
+  admin.get("/llm-usage/prompts", async (c) => {
+    const audience = parseRequestAudience(c.req.query("audience")) ?? "marketer";
+    const brandId = parseBrandId(c.req.query("brandId")) ?? null;
+    const days = Math.min(Math.max(parseIntParam(c.req.query("days"), 7), 1), 365);
+    const limit = Math.min(Math.max(parseIntParam(c.req.query("limit"), 20), 1), 100);
+    const offset = Math.max(parseIntParam(c.req.query("offset"), 0), 0);
+
+    if (brandId) {
+      try {
+        await brandStore.assertBrandExists(brandId);
+      } catch (error) {
+        return c.json(
+          {
+            error: "Unknown brand",
+            details: error instanceof Error ? error.message : String(error),
+          },
+          400
+        );
+      }
+    }
+
+    const result = await llmUsageStore.listPromptRuns({
+      audience,
+      brandId,
+      days,
+      limit,
+      offset,
+    });
+
+    return c.json({
+      audience,
+      brandId,
+      days,
+      limit,
+      offset,
+      total: result.total,
+      prompts: result.rows,
+    });
+  });
+
   admin.post("/chat/message", async (c) => {
     const body = await c.req.json();
     const parsed = AdminChatMessageSchema.safeParse(body);

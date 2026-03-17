@@ -83,6 +83,10 @@ function makeTokenUsageAgency(): AgencyResult {
             brandId: "acme-marketing",
             days: 7,
             bucket: "day",
+            totalPrompts: 18,
+            totalLlmCalls: 123,
+            totalInputTokens: 32100,
+            totalOutputTokens: 22221,
             totalTokens: 54321,
             totalCalls: 123,
             byProvider: [
@@ -94,9 +98,36 @@ function makeTokenUsageAgency(): AgencyResult {
               { model: "anthropic:claude-sonnet-4", tokens: 22321, calls: 53 },
             ],
             daily: [
-              { bucket: "2026-03-15", tokens: 21000, calls: 41 },
-              { bucket: "2026-03-16", tokens: 17000, calls: 39 },
-              { bucket: "2026-03-17", tokens: 16321, calls: 43 },
+              {
+                bucket: "2026-03-15",
+                promptCount: 6,
+                llmCallCount: 41,
+                inputTokens: 12000,
+                outputTokens: 9000,
+                totalTokens: 21000,
+                tokens: 21000,
+                calls: 41,
+              },
+              {
+                bucket: "2026-03-16",
+                promptCount: 5,
+                llmCallCount: 39,
+                inputTokens: 9800,
+                outputTokens: 7200,
+                totalTokens: 17000,
+                tokens: 17000,
+                calls: 39,
+              },
+              {
+                bucket: "2026-03-17",
+                promptCount: 7,
+                llmCallCount: 43,
+                inputTokens: 10300,
+                outputTokens: 6021,
+                totalTokens: 16321,
+                tokens: 16321,
+                calls: 43,
+              },
             ],
             note: "Telemetry is forward-only from the time LLM usage tracking was enabled.",
           }),
@@ -166,9 +197,14 @@ describe("deliver deterministic fast path", () => {
     const result = buildDeterministicDeliveryFastPath(makeTokenUsageAgency(), []);
 
     expect(result.formattedResponse).toContain("Tracked 54,321 total tokens");
+    expect(result.formattedResponse).toContain("18 prompts and 123 LLM calls");
     expect(result.formattedResponse).toContain("Brand filter: acme-marketing");
+    expect(result.formattedResponse).toContain("Total prompts: 18");
+    expect(result.formattedResponse).toContain("Total input tokens: 32,100");
     expect(result.formattedResponse).toContain("## Daily Breakdown");
-    expect(result.formattedResponse).toContain("2026-03-17: 16,321 tokens across 43 calls");
+    expect(result.formattedResponse).toContain(
+      "2026-03-17: 16,321 total tokens (10,300 input, 6,021 output) across 7 prompts and 43 LLM calls"
+    );
     expect(result.formattedResponse).toContain("`openai`: 32,000 tokens across 70 calls");
     expect(result.formattedResponse).toContain("`openai:gpt-5.4-mini`: 25,000 tokens across 60 calls");
   });

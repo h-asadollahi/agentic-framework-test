@@ -1276,6 +1276,14 @@
             </svg>
             <span class="nav-label">Admin Chat</span>
           </a>
+          <a class="nav-link" href="#token-usage">
+            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M5 19V9"></path>
+              <path d="M12 19V5"></path>
+              <path d="M19 19v-7"></path>
+            </svg>
+            <span class="nav-label">Token Usage</span>
+          </a>
           <a class="nav-link" href="#learned-routes">
             <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
               <path d="M8 7h11"></path>
@@ -1454,11 +1462,11 @@
 
             <article class="summary-card">
               <p class="eyebrow subtle">7 Day Window</p>
-              <h3>LLM Calls</h3>
+              <h3>Prompt Runs</h3>
               <p class="summary-copy">
-                Invocation count across the tracked providers and models for the selected scope.
+                Prompt-level request count tracked for the selected brand scope.
               </p>
-              <div class="summary-value" id="adminChatSevenDayCalls">-</div>
+              <div class="summary-value" id="adminChatSevenDayPrompts">-</div>
             </article>
 
             <article class="summary-card">
@@ -1531,6 +1539,188 @@
                   </p>
                 </div>
               </aside>
+            </div>
+          </section>
+        </section>
+
+        <section class="page page-stack" id="tokenUsagePage" hidden>
+          <section class="surface-card page-header-card">
+            <div class="page-head">
+              <div>
+                <p class="eyebrow subtle">Token Usage</p>
+                <h2>Prompt Telemetry Console</h2>
+                <p>
+                  Review prompt-level token usage, daily breakdowns, and recent prompt history without opening the admin chat.
+                </p>
+              </div>
+              <div id="tokenUsageCountPill" class="section-pill">0 prompt runs</div>
+            </div>
+          </section>
+
+          <section class="surface-card">
+            <div class="section-head">
+              <div>
+                <p class="eyebrow subtle">Telemetry Filters</p>
+                <h2>Usage Window</h2>
+                <p class="section-copy">
+                  Filter prompt-level telemetry by audience, brand, and rolling day window.
+                </p>
+              </div>
+              <div class="section-pill">Forward-only prompt usage</div>
+            </div>
+
+            <div class="control-grid">
+              <label class="field">
+                <span class="field-label">Audience</span>
+                <select id="tokenUsageAudience">
+                  <option value="marketer">marketer</option>
+                  <option value="admin">admin</option>
+                </select>
+              </label>
+              <label class="field">
+                <span class="field-label">Brand Scope</span>
+                <select id="tokenUsageBrand">
+                  <option value="">All brands / global</option>
+                </select>
+              </label>
+              <label class="field">
+                <span class="field-label">Days</span>
+                <select id="tokenUsageDays">
+                  <option value="1">1 day</option>
+                  <option value="7" selected>7 days</option>
+                  <option value="30">30 days</option>
+                  <option value="90">90 days</option>
+                </select>
+              </label>
+              <button id="tokenUsageRefresh" class="primary-button">Refresh Token Usage</button>
+            </div>
+          </section>
+
+          <section class="summary-grid">
+            <article class="summary-card">
+              <p class="eyebrow subtle">Today</p>
+              <h3>Input Tokens</h3>
+              <p class="summary-copy">
+                Latest daily input-token total for the current telemetry scope.
+              </p>
+              <div class="summary-value" id="tokenUsageTodayInput">-</div>
+            </article>
+
+            <article class="summary-card">
+              <p class="eyebrow subtle">Today</p>
+              <h3>Output Tokens</h3>
+              <p class="summary-copy">
+                Latest daily output-token total for the current telemetry scope.
+              </p>
+              <div class="summary-value" id="tokenUsageTodayOutput">-</div>
+            </article>
+
+            <article class="summary-card">
+              <p class="eyebrow subtle">Current Window</p>
+              <h3>Total Tokens</h3>
+              <p class="summary-copy">
+                Prompt-level total tokens across the selected window.
+              </p>
+              <div class="summary-value" id="tokenUsageWindowTotal">-</div>
+            </article>
+
+            <article class="summary-card">
+              <p class="eyebrow subtle">Current Window</p>
+              <h3>Prompt Runs</h3>
+              <p class="summary-copy">
+                Count of executed prompt runs in the current telemetry window.
+              </p>
+              <div class="summary-value" id="tokenUsageWindowPrompts">-</div>
+            </article>
+
+            <article class="summary-card">
+              <p class="eyebrow subtle">Current Window</p>
+              <h3>LLM Calls</h3>
+              <p class="summary-copy">
+                Count of tracked LLM invocations across the current telemetry window.
+              </p>
+              <div class="summary-value" id="tokenUsageWindowCalls">-</div>
+            </article>
+          </section>
+
+          <section class="surface-card">
+            <div class="section-head">
+              <div>
+                <p class="eyebrow subtle">Daily Breakdown</p>
+                <h2>Prompt-Level Usage by Day</h2>
+                <p class="section-copy">
+                  Daily totals grouped by prompt runs, input tokens, output tokens, total tokens, and tracked LLM calls.
+                </p>
+              </div>
+              <div class="section-pill" id="tokenUsageScopePill">marketer · 7 days</div>
+            </div>
+
+            <div class="table-shell">
+              <div class="table-scroll">
+                <table class="route-table">
+                  <thead>
+                    <tr>
+                      <th>Day</th>
+                      <th>Prompts</th>
+                      <th>LLM Calls</th>
+                      <th>Input</th>
+                      <th>Output</th>
+                      <th>Total</th>
+                    </tr>
+                  </thead>
+                  <tbody id="tokenUsageDailyTable">
+                    <tr>
+                      <td colspan="6" class="empty-state">No token usage loaded.</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </section>
+
+          <section class="surface-card">
+            <div class="section-head">
+              <div>
+                <p class="eyebrow subtle">Recent Prompts</p>
+                <h2>Prompt History</h2>
+                <p class="section-copy">
+                  Most recent prompt-level token records for the selected telemetry scope.
+                </p>
+              </div>
+              <div id="tokenUsagePromptMeta" class="section-pill">Page 1</div>
+            </div>
+
+            <div class="table-shell">
+              <div class="table-scroll">
+                <table class="route-table">
+                  <thead>
+                    <tr>
+                      <th>Prompt</th>
+                      <th>Audience</th>
+                      <th>Brand</th>
+                      <th>Input</th>
+                      <th>Output</th>
+                      <th>Total</th>
+                      <th>Status</th>
+                      <th>Started</th>
+                      <th>Finished</th>
+                    </tr>
+                  </thead>
+                  <tbody id="tokenUsagePromptTable">
+                    <tr>
+                      <td colspan="9" class="empty-state">No prompt history loaded.</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div class="chat-compose-actions" style="margin-top: 18px;">
+              <div id="tokenUsagePromptPageInfo" class="section-pill">0 rows</div>
+              <div class="chat-compose-buttons">
+                <button id="tokenUsagePrev" class="ghost-button">Previous</button>
+                <button id="tokenUsageNext" class="primary-button">Next</button>
+              </div>
             </div>
           </section>
         </section>

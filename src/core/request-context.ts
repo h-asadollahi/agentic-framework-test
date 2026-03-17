@@ -21,6 +21,7 @@ export function createMarketerRequestContext(
     scope: "brand",
     source,
     runId: null,
+    pipelineRunId: null,
   };
 }
 
@@ -36,6 +37,7 @@ export function createAdminRequestContext(options: {
     scope: brandId ? "brand" : "global",
     source: options.source ?? "admin-ui",
     runId: null,
+    pipelineRunId: null,
   };
 }
 
@@ -46,6 +48,16 @@ export function withRunId(
   return {
     ...requestContext,
     runId: normalizeBrandId(runId),
+  };
+}
+
+export function withPipelineRunId(
+  requestContext: RequestContext,
+  pipelineRunId: string | null | undefined
+): RequestContext {
+  return {
+    ...requestContext,
+    pipelineRunId: normalizeBrandId(pipelineRunId),
   };
 }
 

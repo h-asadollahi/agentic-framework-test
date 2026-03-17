@@ -101,22 +101,34 @@ export abstract class BaseSubAgent implements SubAgentPlugin {
             : undefined;
         const resolvedModelId = resolveModelId(modelId);
 
-        await llmUsageStore.record({
-          audience: context.requestContext.audience,
-          scope: context.requestContext.scope,
-          brandId: context.requestContext.brandId,
-          source: context.requestContext.source,
-          sessionId: context.sessionId,
-          runId: context.requestContext.runId ?? context.sessionId,
-          componentKind: "sub-agent",
-          componentId: this.id,
-          modelAlias: modelId,
-          resolvedModelId,
-          provider: resolveProvider(resolvedModelId),
-          tokensUsed: result.usage?.totalTokens ?? 0,
-          promptTokens,
-          completionTokens,
-        });
+        try {
+          await llmUsageStore.record({
+            pipelineRunId: context.requestContext.pipelineRunId,
+            audience: context.requestContext.audience,
+            scope: context.requestContext.scope,
+            brandId: context.requestContext.brandId,
+            source: context.requestContext.source,
+            sessionId: context.sessionId,
+            runId: context.requestContext.runId ?? context.sessionId,
+            componentKind: "sub-agent",
+            componentId: this.id,
+            modelAlias: modelId,
+            resolvedModelId,
+            provider: resolveProvider(resolvedModelId),
+            tokensUsed: result.usage?.totalTokens ?? 0,
+            promptTokens,
+            completionTokens,
+          });
+        } catch (telemetryError) {
+          logger.warn(`Sub-agent "${this.id}" telemetry write failed`, {
+            agent: this.id,
+            model: modelId,
+            error:
+              telemetryError instanceof Error
+                ? telemetryError.message
+                : String(telemetryError),
+          });
+        }
 
         return {
           success: true,

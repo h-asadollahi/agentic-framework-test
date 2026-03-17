@@ -47,6 +47,73 @@ src/
 
 ## Post-Handover Progress (2026-03-10, Codex)
 
+### Plan 94: Prompt-centric token telemetry and dedicated admin token usage page
+
+Status: Implemented in code, tests, and docs on 2026-03-17.
+
+Problem addressed:
+- `llm_usage_events` already captured per-agent and per-sub-agent token usage, but it was optimized for model-call detail rather than one-row-per-user-prompt reporting.
+- Admin token answers therefore lacked prompt history with the original user/admin prompt text plus summed input/output/total tokens.
+- The admin workspace only exposed lightweight telemetry cards inside `Admin Chat`, not a dedicated token-usage page.
+
+What changed:
+- Added a stable request-level identifier:
+  - `RequestContext.pipelineRunId`
+- Added prompt-level telemetry storage:
+  - `llm_prompt_usage_runs`
+  - one row per orchestrated admin/marketer request
+  - stores:
+    - root `pipelineRunId`
+    - `sessionId`
+    - audience / scope / brand / source
+    - original `userPrompt`
+    - summed `inputTokens`
+    - summed `outputTokens`
+    - summed `totalTokens`
+    - `llmCallCount`
+    - prompt status (`running`, `completed`, `failed`, `rejected`)
+- Kept detailed per-call telemetry in `llm_usage_events`, but linked those rows to the prompt aggregate via `pipelineRunId`.
+- `orchestrate-pipeline` now:
+  - creates the prompt row at start
+  - finalizes it on `completed`, `failed`, or `rejected`
+- Every successful LLM event from `BaseAgent` and `BaseSubAgent` now:
+  - inserts the detailed `llm_usage_events` row
+  - atomically increments the matching prompt aggregate row
+- `token-usage-monitor` now answers from DB-only prompt telemetry plus provider/model breakdowns:
+  - prompt totals come from `llm_prompt_usage_runs`
+  - provider/model totals come from `llm_usage_events`
+- Extended admin telemetry APIs:
+  - `GET /admin/llm-usage/summary`
+    - now includes prompt-centric totals:
+      - `totalPrompts`
+      - `totalLlmCalls`
+      - `totalInputTokens`
+      - `totalOutputTokens`
+      - `totalTokens`
+  - `GET /admin/llm-usage/prompts`
+    - paginated prompt history with audience / brand / day-window filters
+- Added a dedicated `Token Usage` page in the admin UI with:
+  - summary cards
+  - daily prompt-level breakdown
+  - recent prompt history table
+  - audience / brand / day-window filters
+  - previous / next pagination
+- Kept the smaller telemetry cards inside `Admin Chat`, but made them prompt-aware.
+
+Behavioral outcome:
+- Admins can inspect token usage as prompt runs, not just as raw model invocations.
+- Deterministic admin token-usage answers remain fast because they are pure DB aggregation.
+- Zero-token deterministic requests still create prompt rows, so request history stays complete even when no LLM call occurs.
+
+Important current limitation:
+- Prompt-level history is forward-only from this deployment; there is no backfill from older `llm_usage_events` rows into `llm_prompt_usage_runs`.
+- Provider/model totals are intentionally filtered to the new prompt-linked telemetry (`pipelineRunId` present), so prompt totals and provider totals stay consistent.
+
+Validation:
+- `npm test -- tests/unit/admin-routes.test.ts tests/unit/deliver-fast-path.test.ts tests/unit/admin-observability-routing.test.ts tests/unit/llm-usage-store.test.ts`
+- `npx tsc --noEmit`
+- `node --check admin/public/app.js`
+
 ### Plan 93: Clean up bad admin token-usage learned routes and harden observability matching
 
 Status: Implemented in code, docs, and live cleanup on 2026-03-17.

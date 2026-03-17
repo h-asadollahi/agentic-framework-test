@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, gte, ilike, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, ilike, isNotNull, or, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
 import type {
@@ -13,6 +13,7 @@ import {
   brandsTable,
   learnedRouteEventsTable,
   learnedRoutesTable,
+  llmPromptUsageRunsTable,
   llmUsageEventsTable,
   slackHitlThreadsTable,
 } from "./learned-routes-db-schema.js";
@@ -121,6 +122,7 @@ export interface SlackHitlSummaryRecord {
 }
 
 export interface LlmUsageEventInput {
+  pipelineRunId?: string | null;
   audience: RequestAudience;
   scope: RequestScope;
   brandId?: string | null;
@@ -138,12 +140,66 @@ export interface LlmUsageEventInput {
   createdAt?: string | null;
 }
 
+export interface LlmPromptUsageRunInput {
+  pipelineRunId: string;
+  audience: RequestAudience;
+  scope: RequestScope;
+  brandId?: string | null;
+  source: RequestSource;
+  sessionId: string;
+  userPrompt: string;
+  startedAt?: string | null;
+}
+
+export type LlmPromptUsageRunStatus = "running" | "completed" | "failed" | "rejected";
+
+export interface LlmPromptUsageRunRecord {
+  id: number;
+  pipelineRunId: string;
+  audience: string;
+  scope: string;
+  brandId: string | null;
+  source: string;
+  sessionId: string;
+  userPrompt: string;
+  inputTokens: number;
+  outputTokens: number;
+  totalTokens: number;
+  llmCallCount: number;
+  status: string;
+  startedAt: string;
+  finishedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface LlmUsageSummaryRecord {
+  totalPrompts: number;
+  totalLlmCalls: number;
+  totalInputTokens: number;
+  totalOutputTokens: number;
   totalTokens: number;
   totalCalls: number;
   byProvider: Array<{ provider: string; tokens: number; calls: number }>;
   byModel: Array<{ model: string; tokens: number; calls: number }>;
-  daily: Array<{ bucket: string; tokens: number; calls: number }>;
+  daily: Array<{
+    bucket: string;
+    promptCount: number;
+    llmCallCount: number;
+    inputTokens: number;
+    outputTokens: number;
+    totalTokens: number;
+    tokens: number;
+    calls: number;
+  }>;
+}
+
+export interface LlmPromptUsageListOptions {
+  audience?: RequestAudience;
+  brandId?: string | null;
+  days?: number;
+  limit?: number;
+  offset?: number;
 }
 
 function toIsoString(value: unknown): string {
@@ -165,6 +221,30 @@ function parseEndpoint(value: unknown): Endpoint | undefined {
 function parseApiWorkflow(value: unknown): ApiWorkflow {
   if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
   return value as ApiWorkflow;
+}
+
+function fromLlmPromptUsageRunRow(
+  row: typeof llmPromptUsageRunsTable.$inferSelect
+): LlmPromptUsageRunRecord {
+  return {
+    id: row.id,
+    pipelineRunId: row.pipelineRunId,
+    audience: row.audience,
+    scope: row.scope,
+    brandId: normalizeNullableString(row.brandId),
+    source: row.source,
+    sessionId: row.sessionId,
+    userPrompt: row.userPrompt,
+    inputTokens: row.inputTokens ?? 0,
+    outputTokens: row.outputTokens ?? 0,
+    totalTokens: row.totalTokens ?? 0,
+    llmCallCount: row.llmCallCount ?? 0,
+    status: row.status,
+    startedAt: toIsoString(row.startedAt),
+    finishedAt: row.finishedAt ? toIsoString(row.finishedAt) : null,
+    createdAt: toIsoString(row.createdAt),
+    updatedAt: toIsoString(row.updatedAt),
+  };
 }
 
 function toLearnedRouteRow(route: LearnedRoute) {
@@ -416,6 +496,7 @@ export class LearnedRoutesDbRepository {
     await this.pool.query(`
       CREATE TABLE IF NOT EXISTS llm_usage_events (
         id SERIAL PRIMARY KEY,
+        pipeline_run_id TEXT,
         audience TEXT NOT NULL,
         scope TEXT NOT NULL,
         brand_id TEXT,
@@ -435,6 +516,13 @@ export class LearnedRoutesDbRepository {
     `);
 
     await this.pool.query(`
+      ALTER TABLE llm_usage_events
+        ADD COLUMN IF NOT EXISTS pipeline_run_id TEXT,
+        ADD COLUMN IF NOT EXISTS prompt_tokens INTEGER,
+        ADD COLUMN IF NOT EXISTS completion_tokens INTEGER;
+    `);
+
+    await this.pool.query(`
       CREATE INDEX IF NOT EXISTS llm_usage_events_audience_created_at_idx
       ON llm_usage_events (audience, created_at DESC);
     `);
@@ -447,6 +535,48 @@ export class LearnedRoutesDbRepository {
     await this.pool.query(`
       CREATE INDEX IF NOT EXISTS llm_usage_events_run_id_idx
       ON llm_usage_events (run_id);
+    `);
+
+    await this.pool.query(`
+      CREATE INDEX IF NOT EXISTS llm_usage_events_pipeline_run_id_idx
+      ON llm_usage_events (pipeline_run_id);
+    `);
+
+    await this.pool.query(`
+      CREATE TABLE IF NOT EXISTS llm_prompt_usage_runs (
+        id SERIAL PRIMARY KEY,
+        pipeline_run_id TEXT NOT NULL,
+        audience TEXT NOT NULL,
+        scope TEXT NOT NULL,
+        brand_id TEXT,
+        source TEXT NOT NULL,
+        session_id TEXT NOT NULL,
+        user_prompt TEXT NOT NULL,
+        input_tokens INTEGER NOT NULL DEFAULT 0,
+        output_tokens INTEGER NOT NULL DEFAULT 0,
+        total_tokens INTEGER NOT NULL DEFAULT 0,
+        llm_call_count INTEGER NOT NULL DEFAULT 0,
+        status TEXT NOT NULL DEFAULT 'running',
+        started_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        finished_at TIMESTAMPTZ,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+    `);
+
+    await this.pool.query(`
+      CREATE UNIQUE INDEX IF NOT EXISTS llm_prompt_usage_runs_pipeline_run_id_key
+      ON llm_prompt_usage_runs (pipeline_run_id);
+    `);
+
+    await this.pool.query(`
+      CREATE INDEX IF NOT EXISTS llm_prompt_usage_runs_audience_started_at_idx
+      ON llm_prompt_usage_runs (audience, started_at DESC);
+    `);
+
+    await this.pool.query(`
+      CREATE INDEX IF NOT EXISTS llm_prompt_usage_runs_brand_started_at_idx
+      ON llm_prompt_usage_runs (brand_id, started_at DESC);
     `);
   }
 
@@ -860,6 +990,7 @@ export class LearnedRoutesDbRepository {
 
   async recordLlmUsageEvent(event: LlmUsageEventInput): Promise<void> {
     await this.db.insert(llmUsageEventsTable).values({
+      pipelineRunId: normalizeNullableString(event.pipelineRunId),
       audience: event.audience,
       scope: event.scope,
       brandId: normalizeNullableString(event.brandId),
@@ -882,6 +1013,67 @@ export class LearnedRoutesDbRepository {
           : null,
       createdAt: event.createdAt ? new Date(event.createdAt) : new Date(),
     });
+
+    const pipelineRunId = normalizeNullableString(event.pipelineRunId);
+    if (!pipelineRunId) return;
+
+    const promptTokens =
+      typeof event.promptTokens === "number"
+        ? Math.max(0, Math.floor(event.promptTokens))
+        : 0;
+    const completionTokens =
+      typeof event.completionTokens === "number"
+        ? Math.max(0, Math.floor(event.completionTokens))
+        : 0;
+    const totalTokens = Math.max(0, Math.floor(event.tokensUsed || 0));
+
+    await this.db
+      .update(llmPromptUsageRunsTable)
+      .set({
+        inputTokens: sql`${llmPromptUsageRunsTable.inputTokens} + ${promptTokens}`,
+        outputTokens: sql`${llmPromptUsageRunsTable.outputTokens} + ${completionTokens}`,
+        totalTokens: sql`${llmPromptUsageRunsTable.totalTokens} + ${totalTokens}`,
+        llmCallCount: sql`${llmPromptUsageRunsTable.llmCallCount} + 1`,
+        updatedAt: new Date(),
+      })
+      .where(eq(llmPromptUsageRunsTable.pipelineRunId, pipelineRunId));
+  }
+
+  async createLlmPromptUsageRun(
+    input: LlmPromptUsageRunInput
+  ): Promise<void> {
+    await this.db
+      .insert(llmPromptUsageRunsTable)
+      .values({
+        pipelineRunId: input.pipelineRunId,
+        audience: input.audience,
+        scope: input.scope,
+        brandId: normalizeNullableString(input.brandId),
+        source: input.source,
+        sessionId: input.sessionId,
+        userPrompt: input.userPrompt,
+        status: "running",
+        startedAt: input.startedAt ? new Date(input.startedAt) : new Date(),
+        updatedAt: new Date(),
+      })
+      .onConflictDoNothing({
+        target: llmPromptUsageRunsTable.pipelineRunId,
+      });
+  }
+
+  async finalizeLlmPromptUsageRun(
+    pipelineRunId: string,
+    status: LlmPromptUsageRunStatus,
+    finishedAt?: string | null
+  ): Promise<void> {
+    await this.db
+      .update(llmPromptUsageRunsTable)
+      .set({
+        status,
+        finishedAt: finishedAt ? new Date(finishedAt) : new Date(),
+        updatedAt: new Date(),
+      })
+      .where(eq(llmPromptUsageRunsTable.pipelineRunId, pipelineRunId));
   }
 
   async getLlmUsageSummary(options: {
@@ -889,29 +1081,44 @@ export class LearnedRoutesDbRepository {
     brandId?: string | null;
     days?: number;
   } = {}): Promise<LlmUsageSummaryRecord> {
-    const conditions = [];
     const days = Math.min(Math.max(options.days ?? 7, 1), 365);
     const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+    const promptConditions = [];
+    const eventConditions = [];
 
-    conditions.push(gte(llmUsageEventsTable.createdAt, since));
+    promptConditions.push(gte(llmPromptUsageRunsTable.startedAt, since));
+    eventConditions.push(gte(llmUsageEventsTable.createdAt, since));
+    eventConditions.push(isNotNull(llmUsageEventsTable.pipelineRunId));
     if (options.audience) {
-      conditions.push(eq(llmUsageEventsTable.audience, options.audience));
+      promptConditions.push(eq(llmPromptUsageRunsTable.audience, options.audience));
+      eventConditions.push(eq(llmUsageEventsTable.audience, options.audience));
     }
     if (options.brandId) {
-      conditions.push(eq(llmUsageEventsTable.brandId, options.brandId));
+      promptConditions.push(eq(llmPromptUsageRunsTable.brandId, options.brandId));
+      eventConditions.push(eq(llmUsageEventsTable.brandId, options.brandId));
     }
 
-    const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
-    const dailyBucket = sql<string>`to_char(date_trunc('day', ${llmUsageEventsTable.createdAt}), 'YYYY-MM-DD')`;
+    const promptWhereClause =
+      promptConditions.length > 0 ? and(...promptConditions) : undefined;
+    const eventWhereClause =
+      eventConditions.length > 0 ? and(...eventConditions) : undefined;
+    const promptDailyBucket =
+      sql<string>`to_char(date_trunc('day', ${llmPromptUsageRunsTable.startedAt}), 'YYYY-MM-DD')`;
 
     const [totalsRows, providerRows, modelRows, dailyRows] = await Promise.all([
       this.db
         .select({
-          totalTokens: sql<number>`coalesce(sum(${llmUsageEventsTable.tokensUsed}), 0)::int`,
-          totalCalls: sql<number>`count(*)::int`,
+          totalPrompts: sql<number>`count(*)::int`,
+          totalLlmCalls: sql<number>`coalesce(sum(${llmPromptUsageRunsTable.llmCallCount}), 0)::int`,
+          totalInputTokens:
+            sql<number>`coalesce(sum(${llmPromptUsageRunsTable.inputTokens}), 0)::int`,
+          totalOutputTokens:
+            sql<number>`coalesce(sum(${llmPromptUsageRunsTable.outputTokens}), 0)::int`,
+          totalTokens:
+            sql<number>`coalesce(sum(${llmPromptUsageRunsTable.totalTokens}), 0)::int`,
         })
-        .from(llmUsageEventsTable)
-        .where(whereClause),
+        .from(llmPromptUsageRunsTable)
+        .where(promptWhereClause),
       this.db
         .select({
           provider: llmUsageEventsTable.provider,
@@ -919,7 +1126,7 @@ export class LearnedRoutesDbRepository {
           calls: sql<number>`count(*)::int`,
         })
         .from(llmUsageEventsTable)
-        .where(whereClause)
+        .where(eventWhereClause)
         .groupBy(llmUsageEventsTable.provider)
         .orderBy(desc(sql`coalesce(sum(${llmUsageEventsTable.tokensUsed}), 0)`)),
       this.db
@@ -929,24 +1136,35 @@ export class LearnedRoutesDbRepository {
           calls: sql<number>`count(*)::int`,
         })
         .from(llmUsageEventsTable)
-        .where(whereClause)
+        .where(eventWhereClause)
         .groupBy(llmUsageEventsTable.resolvedModelId)
         .orderBy(desc(sql`coalesce(sum(${llmUsageEventsTable.tokensUsed}), 0)`)),
       this.db
         .select({
-          bucket: dailyBucket,
-          tokens: sql<number>`coalesce(sum(${llmUsageEventsTable.tokensUsed}), 0)::int`,
-          calls: sql<number>`count(*)::int`,
+          bucket: promptDailyBucket,
+          promptCount: sql<number>`count(*)::int`,
+          llmCallCount:
+            sql<number>`coalesce(sum(${llmPromptUsageRunsTable.llmCallCount}), 0)::int`,
+          inputTokens:
+            sql<number>`coalesce(sum(${llmPromptUsageRunsTable.inputTokens}), 0)::int`,
+          outputTokens:
+            sql<number>`coalesce(sum(${llmPromptUsageRunsTable.outputTokens}), 0)::int`,
+          totalTokens:
+            sql<number>`coalesce(sum(${llmPromptUsageRunsTable.totalTokens}), 0)::int`,
         })
-        .from(llmUsageEventsTable)
-        .where(whereClause)
-        .groupBy(dailyBucket)
-        .orderBy(asc(dailyBucket)),
+        .from(llmPromptUsageRunsTable)
+        .where(promptWhereClause)
+        .groupBy(promptDailyBucket)
+        .orderBy(asc(promptDailyBucket)),
     ]);
 
     return {
+      totalPrompts: totalsRows[0]?.totalPrompts ?? 0,
+      totalLlmCalls: totalsRows[0]?.totalLlmCalls ?? 0,
+      totalInputTokens: totalsRows[0]?.totalInputTokens ?? 0,
+      totalOutputTokens: totalsRows[0]?.totalOutputTokens ?? 0,
       totalTokens: totalsRows[0]?.totalTokens ?? 0,
-      totalCalls: totalsRows[0]?.totalCalls ?? 0,
+      totalCalls: totalsRows[0]?.totalLlmCalls ?? 0,
       byProvider: providerRows.map((row) => ({
         provider: row.provider,
         tokens: row.tokens ?? 0,
@@ -959,9 +1177,51 @@ export class LearnedRoutesDbRepository {
       })),
       daily: dailyRows.map((row) => ({
         bucket: row.bucket,
-        tokens: row.tokens ?? 0,
-        calls: row.calls ?? 0,
+        promptCount: row.promptCount ?? 0,
+        llmCallCount: row.llmCallCount ?? 0,
+        inputTokens: row.inputTokens ?? 0,
+        outputTokens: row.outputTokens ?? 0,
+        totalTokens: row.totalTokens ?? 0,
+        tokens: row.totalTokens ?? 0,
+        calls: row.llmCallCount ?? 0,
       })),
+    };
+  }
+
+  async listLlmPromptUsageRuns(
+    options: LlmPromptUsageListOptions = {}
+  ): Promise<{ total: number; rows: LlmPromptUsageRunRecord[] }> {
+    const limit = Math.min(Math.max(options.limit ?? 20, 1), 100);
+    const offset = Math.max(options.offset ?? 0, 0);
+    const days = Math.min(Math.max(options.days ?? 7, 1), 365);
+    const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+    const conditions = [gte(llmPromptUsageRunsTable.startedAt, since)];
+
+    if (options.audience) {
+      conditions.push(eq(llmPromptUsageRunsTable.audience, options.audience));
+    }
+    if (options.brandId) {
+      conditions.push(eq(llmPromptUsageRunsTable.brandId, options.brandId));
+    }
+
+    const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+    const [countRows, rows] = await Promise.all([
+      this.db
+        .select({ total: sql<number>`count(*)::int` })
+        .from(llmPromptUsageRunsTable)
+        .where(whereClause),
+      this.db
+        .select()
+        .from(llmPromptUsageRunsTable)
+        .where(whereClause)
+        .orderBy(desc(llmPromptUsageRunsTable.startedAt))
+        .limit(limit)
+        .offset(offset),
+    ]);
+
+    return {
+      total: countRows[0]?.total ?? 0,
+      rows: rows.map(fromLlmPromptUsageRunRow),
     };
   }
 

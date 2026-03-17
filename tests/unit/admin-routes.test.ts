@@ -279,13 +279,52 @@ describe.sequential("admin routes", () => {
     });
   });
 
-  it("lists brands and returns scoped LLM usage summaries", async () => {
+  it("lists brands and returns scoped LLM usage summaries and prompt history", async () => {
     const usageSpy = vi.spyOn(llmUsageStore, "getSummary").mockResolvedValue({
+      totalPrompts: 8,
+      totalLlmCalls: 21,
+      totalInputTokens: 2800,
+      totalOutputTokens: 1400,
       totalTokens: 4200,
       totalCalls: 21,
       byProvider: [{ provider: "openai", tokens: 4200, calls: 21 }],
       byModel: [{ model: "openai:gpt-5.4-mini", tokens: 4200, calls: 21 }],
-      daily: [{ bucket: "2026-03-17", tokens: 4200, calls: 21 }],
+      daily: [
+        {
+          bucket: "2026-03-17",
+          promptCount: 8,
+          llmCallCount: 21,
+          inputTokens: 2800,
+          outputTokens: 1400,
+          totalTokens: 4200,
+          tokens: 4200,
+          calls: 21,
+        },
+      ],
+    });
+    const promptSpy = vi.spyOn(llmUsageStore, "listPromptRuns").mockResolvedValue({
+      total: 2,
+      rows: [
+        {
+          id: 1,
+          pipelineRunId: "run-root-1",
+          audience: "marketer",
+          scope: "brand",
+          brandId: "acme-marketing",
+          source: "api",
+          sessionId: "session-1",
+          userPrompt: "Show me my page impressions for the last 7 days",
+          inputTokens: 120,
+          outputTokens: 80,
+          totalTokens: 200,
+          llmCallCount: 2,
+          status: "completed",
+          startedAt: "2026-03-17T09:00:00.000Z",
+          finishedAt: "2026-03-17T09:00:03.000Z",
+          createdAt: "2026-03-17T09:00:00.000Z",
+          updatedAt: "2026-03-17T09:00:03.000Z",
+        },
+      ],
     });
 
     const app = buildApp();
@@ -309,6 +348,26 @@ describe.sequential("admin routes", () => {
       audience: "marketer",
       brandId: "acme-marketing",
       days: 14,
+    });
+
+    const promptsResponse = await app.request(
+      "http://localhost/admin/llm-usage/prompts?audience=marketer&brandId=acme-marketing&days=14&limit=5&offset=10",
+      { headers }
+    );
+    expect(promptsResponse.status).toBe(200);
+    expect(promptSpy).toHaveBeenCalledWith({
+      audience: "marketer",
+      brandId: "acme-marketing",
+      days: 14,
+      limit: 5,
+      offset: 10,
+    });
+    const promptsBody = await promptsResponse.json();
+    expect(promptsBody.total).toBe(2);
+    expect(promptsBody.prompts[0]).toMatchObject({
+      pipelineRunId: "run-root-1",
+      totalTokens: 200,
+      userPrompt: "Show me my page impressions for the last 7 days",
     });
   });
 

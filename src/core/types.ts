@@ -120,6 +120,7 @@ export interface RequestContext {
   scope: RequestScope;
   source: RequestSource;
   runId?: string | null;
+  pipelineRunId?: string | null;
 }
 
 // ── Pipeline Payload & Result ──────────────────────────────
