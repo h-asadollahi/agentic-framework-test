@@ -116,13 +116,13 @@ h1 {
 }
 
 .message.user {
-  background: #e9f7f7;
-  border-color: #b8e5e6;
+  background: #f5f0e6;
+  border-color: #e2d5b8;
 }
 
 .message.assistant {
-  background: #fdf2f6;
-  border-color: #f3c4d8;
+  background: #e6f7f5;
+  border-color: #b0e4de;
 }
 
 .message.system {

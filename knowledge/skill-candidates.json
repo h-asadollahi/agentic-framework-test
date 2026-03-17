@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "lastUpdated": "2026-03-11T12:55:55.576Z",
+  "lastUpdated": "2026-03-17T13:14:49.480Z",
   "candidates": [
     {
       "id": "skill-001",
@@ -17,8 +17,8 @@
       "requiresApproval": false,
       "source": "autonomous",
       "addedAt": "2026-03-11T11:19:34.622Z",
-      "lastUsedAt": "2026-03-11T12:55:55.576Z",
-      "usageCount": 4
+      "lastUsedAt": "2026-03-11T13:54:16.101Z",
+      "usageCount": 9
     },
     {
       "id": "skill-002",
@@ -38,7 +38,25 @@
       "requiresApproval": false,
       "source": "autonomous",
       "addedAt": "2026-03-11T11:42:50.760Z",
-      "lastUsedAt": "2026-03-11T12:17:08.302Z",
+      "lastUsedAt": "2026-03-17T13:14:49.480Z",
+      "usageCount": 17
+    },
+    {
+      "id": "skill-003",
+      "capability": "compliance-approval-memo-generator",
+      "description": "Generate an Approval to Execute (or Do Not Send) compliance memo by ingesting campaign brief, audience, legal basis, suppressions, data handling/tracking, content/disclosures, and operational controls, then outputting a structured memo with final sign-off conditions.",
+      "suggestedSkillFile": "skills/learned/compliance-approval-memo-generator.md",
+      "triggerPatterns": [
+        "produce an approval to execute compliance memo",
+        "create a do not send notice",
+        "compliance memo for campaign",
+        "approval to execute"
+      ],
+      "confidence": "high",
+      "requiresApproval": false,
+      "source": "autonomous",
+      "addedAt": "2026-03-17T12:57:59.214Z",
+      "lastUsedAt": "2026-03-17T13:06:32.962Z",
       "usageCount": 2
     }
   ]
