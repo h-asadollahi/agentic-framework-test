@@ -110,6 +110,48 @@ export function parseGuardrailsFile(filePath?: string): GuardrailConstraints {
   return constraints;
 }
 
+function dedupeStringList(values: string[]): string[] {
+  const seen = new Set<string>();
+  const deduped: string[] = [];
+
+  for (const value of values) {
+    const trimmed = value.trim();
+    if (!trimmed) continue;
+    if (seen.has(trimmed)) continue;
+    seen.add(trimmed);
+    deduped.push(trimmed);
+  }
+
+  return deduped;
+}
+
+export function mergeGuardrailConstraints(
+  base: GuardrailConstraints,
+  extension?: Partial<GuardrailConstraints> | null
+): GuardrailConstraints {
+  return {
+    neverDo: dedupeStringList([...(base.neverDo ?? []), ...(extension?.neverDo ?? [])]),
+    alwaysDo: dedupeStringList([...(base.alwaysDo ?? []), ...(extension?.alwaysDo ?? [])]),
+    brandVoiceRules: dedupeStringList([
+      ...(base.brandVoiceRules ?? []),
+      ...(extension?.brandVoiceRules ?? []),
+    ]),
+    contentPolicies: dedupeStringList([
+      ...(base.contentPolicies ?? []),
+      ...(extension?.contentPolicies ?? []),
+    ]),
+  };
+}
+
+export function parseMergedGuardrailsFile(options?: {
+  baseFilePath?: string;
+  extensionFilePath?: string;
+}): GuardrailConstraints {
+  const base = parseGuardrailsFile(options?.baseFilePath);
+  if (!options?.extensionFilePath) return base;
+  return mergeGuardrailConstraints(base, parseGuardrailsFile(options.extensionFilePath));
+}
+
 function parseList(value: string): string[] {
   return value
     .split(",")

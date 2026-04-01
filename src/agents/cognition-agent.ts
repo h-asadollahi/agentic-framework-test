@@ -4,7 +4,7 @@ import type { AgentConfig, ExecutionContext } from "../core/types.js";
 import { getModelAssignment } from "../config/models.js";
 import { learnedRoutesStore } from "../routing/learned-routes-store.js";
 import { skillCandidatesStore } from "../routing/skill-candidates-store.js";
-import { loadAgentPromptSpec } from "../tools/agent-spec-loader.js";
+import { loadAgentPromptSpec, resolveAgentPromptSpec } from "../tools/agent-spec-loader.js";
 import { subAgentRegistry } from "../trigger/sub-agents/registry.js";
 
 const DEFAULT_CONFIG: AgentConfig = {
@@ -121,6 +121,7 @@ Be specific about what each subtask should accomplish. Subtasks without dependen
 export class CognitionAgent extends BaseAgent {
   private promptLoader: PromptLoader;
   private promptFile: string;
+  private resolvedPromptSource: string | null;
 
   constructor(
     config?: Partial<AgentConfig>,
@@ -129,6 +130,7 @@ export class CognitionAgent extends BaseAgent {
     super({ ...DEFAULT_CONFIG, ...config });
     this.promptLoader = options?.promptLoader ?? loadAgentPromptSpec;
     this.promptFile = options?.promptFile ?? COGNITION_SYSTEM_PROMPT_FILE;
+    this.resolvedPromptSource = this.promptFile;
   }
 
   getTools(_context: ExecutionContext): Record<string, Tool> {
@@ -151,16 +153,30 @@ export class CognitionAgent extends BaseAgent {
       SKILL_CANDIDATES_SECTION: this.buildSkillCandidatesSection(context),
     };
 
+    if (this.promptLoader === loadAgentPromptSpec) {
+      const spec = resolveAgentPromptSpec(
+        this.config.id,
+        this.promptFile,
+        COGNITION_SYSTEM_PROMPT_FALLBACK,
+        vars,
+        { brandId: context.requestContext.brandId }
+      );
+      this.resolvedPromptSource = spec.source ?? this.promptFile;
+      return spec.content;
+    }
+
+    this.resolvedPromptSource = this.promptFile;
     return this.promptLoader(
       this.config.id,
       this.promptFile,
       COGNITION_SYSTEM_PROMPT_FALLBACK,
-      vars
+      vars,
+      { brandId: context.requestContext.brandId }
     );
   }
 
   protected override getPromptSourceIdentifier(): string | null {
-    return this.promptFile;
+    return this.resolvedPromptSource;
   }
 
   /**

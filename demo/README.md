@@ -29,6 +29,11 @@ http://localhost:4173
   - `http://localhost:3001/health`
   - `http://localhost:3000/health`
 - If detection fails, set `API Base` manually in the top-right input.
+- The demo now loads the available brands from `GET /brands` and renders them in a dropdown.
+- Seeded demo brands:
+  - `Acme Marketing`
+  - `Northline Fashion`
+- Switching brands resets the local demo session and clears the visible chat log so brand context does not leak across runs.
 - The app shows:
   - status transitions for each run
   - final formatted response

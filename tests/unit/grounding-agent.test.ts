@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { resolve } from "node:path";
 import { buildExecutionContext } from "../../src/core/context.js";
+import { createMarketerRequestContext } from "../../src/core/request-context.js";
 import {
   GroundingAgent,
   GROUNDING_SYSTEM_PROMPT_FALLBACK,
@@ -33,5 +34,17 @@ describe("GroundingAgent buildSystemPrompt", () => {
     const prompt = agent.buildSystemPrompt(context);
     expect(prompt).toBe(GROUNDING_SYSTEM_PROMPT_FALLBACK);
     expect(prompt).toContain("You are the Grounding Agent");
+  });
+
+  it("uses the brand-specific grounding override for northline-fashion", async () => {
+    const agent = new GroundingAgent();
+    const context = await buildExecutionContext(
+      "grounding-northline-fashion-test",
+      createMarketerRequestContext("northline-fashion", "api")
+    );
+
+    const prompt = agent.buildSystemPrompt(context);
+    expect(prompt).toContain("Grounding Agent for the Northline Fashion brand");
+    expect(prompt).toContain("stricter product envelope");
   });
 });

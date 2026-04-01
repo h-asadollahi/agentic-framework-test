@@ -231,7 +231,7 @@ describe.sequential("autonomous skill loop", () => {
       },
     ];
 
-    const result = persistAndMaterializeSkillSuggestions(suggestions, context);
+    const result = await persistAndMaterializeSkillSuggestions(suggestions, context);
     expect(result.materializations).toHaveLength(1);
     expect(result.materializations[0].success).toBe(true);
     expect(result.materializations[0].action).toBe("created");

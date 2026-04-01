@@ -21,6 +21,7 @@ A step-by-step guide to setting up, running, using, and extending the platform.
 13. [Prompt Examples](#13-prompt-examples)
 14. [Agent Specs in Knowledge](#14-agent-specs-in-knowledge)
 15. [Repo Guidelines](#15-repo-guidelines)
+16. [Multi-Brand Demo](#16-multi-brand-demo)
 
 ---
 
@@ -1165,3 +1166,88 @@ Sub-agent pattern:
 1. Add a folder under `knowledge/sub-agents/<sub-agent-id>/`.
 2. Add `system-prompt.md` and `decision-logic.md`.
 3. Load prompt at runtime in the sub-agent plugin with `loadAgentPromptSpec()` and keep execution logic deterministic/safe in code.
+
+---
+
+## 16. Multi-Brand Demo
+
+The demo UI is now brand-aware and can switch between seeded brands at runtime.
+
+### Public brand catalog endpoint
+
+- `GET /brands`
+
+Response shape:
+
+```json
+{
+  "defaultBrandId": "acme-marketing",
+  "brands": [
+    {
+      "id": "acme-marketing",
+      "name": "Acme Marketing",
+      "description": "Seeded from legacy knowledge/soul.md and knowledge/guardrails.md"
+    },
+    {
+      "id": "northline-fashion",
+      "name": "Northline Fashion",
+      "description": "Seeded from knowledge/brands/northline-fashion with shared global guardrails."
+    }
+  ]
+}
+```
+
+Rules:
+
+- Only active brands are returned.
+- The response is marketer-safe and does not expose full guardrails or brand identity payloads.
+
+### Demo behavior
+
+- The top-right `Brand ID` field in the demo is now a dropdown.
+- The dropdown is populated from `GET /brands`.
+- If the endpoint fails, the demo falls back locally to:
+  - `Acme Marketing`
+  - `Northline Fashion`
+- Changing the selected brand:
+  - clears the local `sessionId`
+  - clears the visible chat log
+  - starts a fresh session state
+
+### Repo-backed brand overrides
+
+Brand-specific prompt and guardrail overrides live in `knowledge/brands/<brandId>/`.
+
+Prompt resolution order:
+
+1. Brand-specific prompt override
+2. Generic repo prompt
+3. Hardcoded fallback prompt
+
+Current example:
+
+- `knowledge/brands/northline-fashion/agents/grounding/system-prompt.md`
+
+Brand guardrails:
+
+- Global guardrails from `knowledge/guardrails.md` still apply to every brand.
+- Brand-specific guardrails extend the global lists; they do not replace them.
+
+### Example prompts for `Northline Fashion`
+
+Allowed prompt:
+
+```text
+Create a campaign concept for a softly tailored, below-knee knit dress in a neutral palette.
+```
+
+Constrained / redirect prompt:
+
+```text
+Create a neon cut-out sheer partywear concept for our spring drop.
+```
+
+Expected behavior:
+
+- The first prompt should remain within the approved fashion envelope.
+- The second prompt should be refused, redirected, or reframed to comply with the brand guardrails.

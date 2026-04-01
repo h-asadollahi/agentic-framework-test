@@ -2367,3 +2367,65 @@ Key interfaces: `PipelinePayload`, `PipelineResult`, `SubTask`, `AgentResult`, `
 - Remaining bottleneck:
   - In this run, a cognition-generated `general` synthesis subtask consumed `38051ms`.
   - Fast-path removed Agency summary-model overhead, but total execute latency is still dominated by that synthesis subtask.
+
+### Multi-Brand Demo Dropdown + Repo-Backed Brand Overrides (Plan 99) — Completed
+- Objective:
+  - Add a second seeded demo brand, make the demo brand-aware with a dropdown, and introduce repo-backed brand-specific prompt overrides with shared global guardrails.
+- Implementation:
+  - Added second seeded brand:
+    - `northline-fashion`
+  - Added repo-backed brand knowledge:
+    - `knowledge/brands/northline-fashion/soul.md`
+    - `knowledge/brands/northline-fashion/guardrails.md`
+    - `knowledge/brands/northline-fashion/agents/grounding/system-prompt.md`
+  - Refactored brand seeding:
+    - startup now inserts missing seeded brands by `id`
+    - existing DB brands are left untouched
+    - fallback mode exposes both seeded brands
+  - Added merged guardrail behavior:
+    - global `knowledge/guardrails.md` remains active for every brand
+    - brand-specific guardrails append and de-duplicate
+  - Refactored prompt loading:
+    - prompt-backed main agents and prompt-backed sub-agents now resolve:
+      1. brand-specific repo override
+      2. generic repo prompt
+      3. hardcoded fallback
+    - added lightweight in-memory prompt file caching
+  - Grounding now has a full brand-specific override for `northline-fashion`
+  - Skill matching is now explicitly brand-preferred:
+    - matching brand-scoped skills win before global skills for the same prompt
+  - Added public marketer-safe endpoint:
+    - `GET /brands`
+  - Updated demo:
+    - brand selector is now a dropdown
+    - options load from `GET /brands`
+    - fallback list is used when the endpoint fails
+    - switching brands resets the local session and clears chat history
+- Automated validation:
+  - `npm run build`
+  - `npm test -- tests/unit/agent-spec-loader.test.ts tests/unit/grounding-agent.test.ts tests/unit/brand-store.test.ts tests/unit/skill-candidates-store.test.ts tests/unit/public-routes.test.ts`
+  - `npm test -- tests/unit/cognition-agent.test.ts tests/unit/agency-agent.test.ts tests/unit/interface-agent.test.ts tests/unit/api-fetcher-sub-agent.test.ts tests/unit/mcp-fetcher-sub-agent.test.ts tests/unit/cohort-monitor-sub-agent.test.ts`
+- Manual verification:
+  - Live API smoke check for `GET /brands`
+  - Demo smoke check for dropdown rendering and brand switch reset
+- Not tested:
+  - Full end-to-end marketer prompt run through `northline-fashion` on a live Trigger worker was not executed in this change set
+- How to test:
+  1. Start the API server, demo, and Trigger worker.
+  2. Run `curl http://localhost:3001/brands`.
+     - Expect `acme-marketing` and `northline-fashion`.
+  3. Open `http://localhost:4173`.
+     - Expect the top-right brand selector to be a dropdown.
+  4. Switch to `Northline Fashion`.
+     - Expect the session to reset and the chat log to clear.
+  5. Send:
+     - `Create a campaign concept for a softly tailored, below-knee knit dress in a neutral palette.`
+     - Expect output to stay within the fashion envelope.
+  6. Send:
+     - `Create a neon cut-out sheer partywear concept for our spring drop.`
+     - Expect refusal, redirect, or constrained reframing.
+- Important follow-up:
+  - If future brands need stronger behavior differences, add prompt overrides under:
+    - `knowledge/brands/<brandId>/agents/...`
+    - `knowledge/brands/<brandId>/sub-agents/...`
+  - Keep brand prompts/guardrails repo-backed unless there is a deliberate later decision to introduce DB overrides.

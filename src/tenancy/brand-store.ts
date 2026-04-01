@@ -1,19 +1,30 @@
 import { logger } from "../core/logger.js";
 import { getPlatformDbRepository } from "../platform/db-repository.js";
-import { parseGuardrailsFile, parseSoulFile } from "./brand-seed.js";
+import { parseMergedGuardrailsFile, parseSoulFile } from "./brand-seed.js";
 import type { BrandConfig } from "./brand-schema.js";
 
 export const DEFAULT_SEEDED_BRAND_ID = "acme-marketing";
+export const NORTHLINE_FASHION_BRAND_ID = "northline-fashion";
 
-function buildSeedBrand(): BrandConfig {
-  const brandIdentity = parseSoulFile();
-  const guardrails = parseGuardrailsFile();
+function buildSeedBrand(options?: {
+  id?: string;
+  defaultName?: string;
+  description?: string;
+  soulFilePath?: string;
+  guardrailsFilePath?: string;
+}): BrandConfig {
+  const brandIdentity = parseSoulFile(options?.soulFilePath);
+  const guardrails = parseMergedGuardrailsFile({
+    extensionFilePath: options?.guardrailsFilePath,
+  });
   const now = new Date().toISOString();
 
   return {
-    id: DEFAULT_SEEDED_BRAND_ID,
-    name: brandIdentity.name || "Acme Marketing",
-    description: "Seeded from legacy knowledge/soul.md and knowledge/guardrails.md",
+    id: options?.id ?? DEFAULT_SEEDED_BRAND_ID,
+    name: brandIdentity.name || options?.defaultName || "Brand",
+    description:
+      options?.description ??
+      "Seeded from legacy knowledge/soul.md and knowledge/guardrails.md",
     brandIdentity,
     guardrails,
     channelRules: {},
@@ -23,9 +34,45 @@ function buildSeedBrand(): BrandConfig {
   };
 }
 
+export function buildSeedBrands(): BrandConfig[] {
+  return [
+    buildSeedBrand({
+      id: DEFAULT_SEEDED_BRAND_ID,
+      defaultName: "Acme Marketing",
+      description: "Seeded from legacy knowledge/soul.md and knowledge/guardrails.md",
+    }),
+    buildSeedBrand({
+      id: NORTHLINE_FASHION_BRAND_ID,
+      defaultName: "Northline Fashion",
+      description:
+        "Seeded from knowledge/brands/northline-fashion with shared global guardrails.",
+      soulFilePath: "knowledge/brands/northline-fashion/soul.md",
+      guardrailsFilePath: "knowledge/brands/northline-fashion/guardrails.md",
+    }),
+  ];
+}
+
+export async function syncSeedBrands(
+  repo: Pick<
+    NonNullable<ReturnType<typeof getPlatformDbRepository>>,
+    "getBrandById" | "upsertBrand"
+  >,
+  seededBrands: BrandConfig[] = buildSeedBrands()
+): Promise<void> {
+  for (const brand of seededBrands) {
+    const existing = await repo.getBrandById(brand.id);
+    if (existing) continue;
+    await repo.upsertBrand(brand);
+    logger.info("Seeded brand into DB", {
+      brandId: brand.id,
+      name: brand.name,
+    });
+  }
+}
+
 class BrandStoreImpl {
   private loaded = false;
-  private fallbackBrands: BrandConfig[] = [buildSeedBrand()];
+  private fallbackBrands: BrandConfig[] = buildSeedBrands();
 
   async load(): Promise<void> {
     if (this.loaded) return;
@@ -37,16 +84,7 @@ class BrandStoreImpl {
     }
 
     await repo.init();
-
-    const count = await repo.countBrands();
-    if (count === 0) {
-      const seeded = buildSeedBrand();
-      await repo.upsertBrand(seeded);
-      logger.info("Seeded default brand into DB", {
-        brandId: seeded.id,
-        name: seeded.name,
-      });
-    }
+    await syncSeedBrands(repo);
 
     this.loaded = true;
   }

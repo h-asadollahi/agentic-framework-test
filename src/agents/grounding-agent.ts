@@ -3,7 +3,7 @@ import { BaseAgent } from "./base-agent.js";
 import type { AgentConfig, ExecutionContext } from "../core/types.js";
 import { buildKnowledgeTools } from "../tools/knowledge-tools.js";
 import { getModelAssignment } from "../config/models.js";
-import { loadAgentPromptSpec } from "../tools/agent-spec-loader.js";
+import { loadAgentPromptSpec, resolveAgentPromptSpec } from "../tools/agent-spec-loader.js";
 
 const DEFAULT_CONFIG: AgentConfig = {
   id: "grounding",
@@ -83,6 +83,7 @@ Always use the tools to read the resolved request context. Do not invent or assu
 export class GroundingAgent extends BaseAgent {
   private promptLoader: PromptLoader;
   private promptFile: string;
+  private resolvedPromptSource: string | null;
 
   constructor(
     config?: Partial<AgentConfig>,
@@ -91,22 +92,38 @@ export class GroundingAgent extends BaseAgent {
     super({ ...DEFAULT_CONFIG, ...config });
     this.promptLoader = options?.promptLoader ?? loadAgentPromptSpec;
     this.promptFile = options?.promptFile ?? GROUNDING_SYSTEM_PROMPT_FILE;
+    this.resolvedPromptSource = this.promptFile;
   }
 
   getTools(context: ExecutionContext): Record<string, Tool> {
     return buildKnowledgeTools(context);
   }
 
-  buildSystemPrompt(_context: ExecutionContext): string {
+  buildSystemPrompt(context: ExecutionContext): string {
+    if (this.promptLoader === loadAgentPromptSpec) {
+      const spec = resolveAgentPromptSpec(
+        this.config.id,
+        this.promptFile,
+        GROUNDING_SYSTEM_PROMPT_FALLBACK,
+        {},
+        { brandId: context.requestContext.brandId }
+      );
+      this.resolvedPromptSource = spec.source ?? this.promptFile;
+      return spec.content;
+    }
+
+    this.resolvedPromptSource = this.promptFile;
     return this.promptLoader(
       this.config.id,
       this.promptFile,
-      GROUNDING_SYSTEM_PROMPT_FALLBACK
+      GROUNDING_SYSTEM_PROMPT_FALLBACK,
+      {},
+      { brandId: context.requestContext.brandId }
     );
   }
 
   protected override getPromptSourceIdentifier(): string | null {
-    return this.promptFile;
+    return this.resolvedPromptSource;
   }
 }
 

@@ -3,12 +3,26 @@ const promptInput = document.getElementById("promptInput");
 const sendBtn = document.getElementById("sendBtn");
 const apiBaseInput = document.getElementById("apiBase");
 const brandIdInput = document.getElementById("brandId");
+const brandDescription = document.getElementById("brandDescription");
 const sessionInfo = document.getElementById("sessionInfo");
 const messageTemplate = document.getElementById("messageTemplate");
 
 let sessionId = null;
 let isRunning = false;
 let loaderEl = null;
+const FALLBACK_BRANDS = [
+  {
+    id: "acme-marketing",
+    name: "Acme Marketing",
+    description: "Seeded default marketing brand",
+  },
+  {
+    id: "northline-fashion",
+    name: "Northline Fashion",
+    description: "Seeded fashion brand with stricter product-envelope guardrails",
+  },
+];
+let knownBrands = [...FALLBACK_BRANDS];
 
 function showLoader(text = "Processing...") {
   removeLoader();
@@ -32,6 +46,55 @@ function removeLoader() {
   }
 }
 const API_CANDIDATES = ["http://localhost:3001", "http://localhost:3000"];
+
+function getSelectedBrandId() {
+  return brandIdInput?.value || "acme-marketing";
+}
+
+function getSelectedBrandMeta() {
+  return knownBrands.find((brand) => brand.id === getSelectedBrandId()) ?? null;
+}
+
+function updateBrandDescription() {
+  if (!brandDescription) return;
+  const brand = getSelectedBrandMeta();
+  brandDescription.textContent = brand?.description || "Brand description unavailable.";
+}
+
+function populateBrandSelector(brands, defaultBrandId, preferredBrandId = null) {
+  knownBrands = Array.isArray(brands) && brands.length ? brands : knownBrands;
+  if (!brandIdInput) return;
+
+  const desiredBrandId =
+    preferredBrandId && knownBrands.some((brand) => brand.id === preferredBrandId)
+      ? preferredBrandId
+      : knownBrands.some((brand) => brand.id === defaultBrandId)
+        ? defaultBrandId
+        : knownBrands[0]?.id || "acme-marketing";
+
+  brandIdInput.innerHTML = "";
+  knownBrands.forEach((brand) => {
+    const option = document.createElement("option");
+    option.value = brand.id;
+    option.textContent = brand.name;
+    brandIdInput.appendChild(option);
+  });
+
+  brandIdInput.value = desiredBrandId;
+  updateBrandDescription();
+}
+
+function clearChatLog() {
+  removeLoader();
+  chatLog.innerHTML = "";
+}
+
+function resetSessionState(message) {
+  sessionId = null;
+  sessionInfo.textContent = "Session: not started";
+  clearChatLog();
+  addMessage("system", message);
+}
 
 function nowStamp() {
   return new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
@@ -470,7 +533,7 @@ async function triggerPipeline(userMessage) {
   const base = apiBaseInput.value.trim().replace(/\/$/, "");
   const payload = {
     userMessage,
-    brandId: brandIdInput?.value.trim() || "acme-marketing",
+    brandId: getSelectedBrandId(),
   };
   if (sessionId) payload.sessionId = sessionId;
 
@@ -520,6 +583,33 @@ async function autoDetectApiBase() {
   );
 }
 
+async function loadBrands(options = {}) {
+  const { announceFallback = true } = options;
+  const base = apiBaseInput.value.trim().replace(/\/$/, "");
+  const preferredBrandId = getSelectedBrandId();
+
+  try {
+    const res = await fetch(`${base}/brands`);
+    if (!res.ok) {
+      throw new Error(`${res.status} ${await res.text()}`);
+    }
+
+    const payload = await res.json();
+    populateBrandSelector(payload.brands, payload.defaultBrandId, preferredBrandId);
+    return;
+  } catch (error) {
+    populateBrandSelector(FALLBACK_BRANDS, "acme-marketing", preferredBrandId);
+    if (announceFallback) {
+      addMessage(
+        "system",
+        `Brand discovery failed. Using fallback brand list instead. ${
+          error instanceof Error ? error.message : String(error)
+        }`
+      );
+    }
+  }
+}
+
 function isTerminal(status) {
   return ["COMPLETED", "FAILED", "CANCELED"].includes(status);
 }
@@ -552,6 +642,8 @@ async function onSend() {
 
   isRunning = true;
   sendBtn.disabled = true;
+  apiBaseInput.disabled = true;
+  if (brandIdInput) brandIdInput.disabled = true;
 
   addMessage("user", text);
   promptInput.value = "";
@@ -598,11 +690,21 @@ async function onSend() {
   } finally {
     isRunning = false;
     sendBtn.disabled = false;
+    apiBaseInput.disabled = false;
+    if (brandIdInput) brandIdInput.disabled = false;
     promptInput.focus();
   }
 }
 
 sendBtn.addEventListener("click", onSend);
+brandIdInput?.addEventListener("change", () => {
+  const brand = getSelectedBrandMeta();
+  updateBrandDescription();
+  resetSessionState(`Switched to ${brand?.name || getSelectedBrandId()}. Started a new session.`);
+});
+apiBaseInput?.addEventListener("change", () => {
+  loadBrands();
+});
 promptInput.addEventListener("keydown", (event) => {
   if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
     onSend();
@@ -614,4 +716,5 @@ addMessage(
   "Ready. Ask a marketing question.\nTip: use Ctrl+Enter (Cmd+Enter on Mac) to send."
 );
 
-autoDetectApiBase();
+await autoDetectApiBase();
+await loadBrands({ announceFallback: false });

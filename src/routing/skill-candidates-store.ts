@@ -382,7 +382,12 @@ class SkillCandidatesStoreImpl {
     this.ensureLoaded();
     return [...this.candidates]
       .filter((candidate) => candidateMatchesRequestContext(candidate, requestContext))
-      .sort((a, b) => b.usageCount - a.usageCount)
+      .sort((a, b) => {
+        const brandPriority =
+          getBrandScopePriority(b, requestContext) - getBrandScopePriority(a, requestContext);
+        if (brandPriority !== 0) return brandPriority;
+        return b.usageCount - a.usageCount;
+      })
       .slice(0, 20)
       .map((candidate) => ({
         id: candidate.id,
@@ -408,12 +413,46 @@ class SkillCandidatesStoreImpl {
     const lowerPrompt = prompt.trim().toLowerCase();
     if (!lowerPrompt) return null;
 
-    let best: SkillCandidate | null = null;
-    let bestScore = 0;
-
-    for (const candidate of this.candidates.filter((item) =>
+    const matchingCandidates = this.candidates.filter((item) =>
       candidateMatchesRequestContext(item, requestContext)
-    )) {
+    );
+
+    const brandScopedCandidates = matchingCandidates.filter(
+      (candidate) => getBrandScopePriority(candidate, requestContext) === 2
+    );
+    const globalCandidates = matchingCandidates.filter(
+      (candidate) => getBrandScopePriority(candidate, requestContext) < 2
+    );
+
+    const preferredMatch = findBestCandidateMatch(lowerPrompt, brandScopedCandidates);
+    if (preferredMatch) return preferredMatch;
+
+    return findBestCandidateMatch(lowerPrompt, globalCandidates);
+  }
+
+  getAll(): SkillCandidate[] {
+    this.ensureLoaded();
+    return [...this.candidates];
+  }
+
+  count(): number {
+    this.ensureLoaded();
+    return this.candidates.length;
+  }
+
+  isMaterialized(skillFile: string): boolean {
+    return skillFileExists(skillFile);
+  }
+}
+
+function findBestCandidateMatch(
+  lowerPrompt: string,
+  candidates: SkillCandidate[]
+): SkillCandidate | null {
+  let best: SkillCandidate | null = null;
+  let bestScore = 0;
+
+  for (const candidate of candidates) {
       let score = 0;
 
       for (const pattern of candidate.triggerPatterns) {
@@ -463,22 +502,7 @@ class SkillCandidatesStoreImpl {
       }
     }
 
-    return bestScore > 0 ? best : null;
-  }
-
-  getAll(): SkillCandidate[] {
-    this.ensureLoaded();
-    return [...this.candidates];
-  }
-
-  count(): number {
-    this.ensureLoaded();
-    return this.candidates.length;
-  }
-
-  isMaterialized(skillFile: string): boolean {
-    return skillFileExists(skillFile);
-  }
+  return bestScore > 0 ? best : null;
 }
 
 export const skillCandidatesStore = new SkillCandidatesStoreImpl();
@@ -491,4 +515,16 @@ function candidateMatchesRequestContext(
   if (!allowsAudience(candidate.audience, requestContext.audience)) return false;
   if (candidate.scope === "global") return true;
   return candidate.brandId === requestContext.brandId;
+}
+
+function getBrandScopePriority(
+  candidate: SkillCandidate,
+  requestContext?: RequestContext
+): number {
+  if (!requestContext?.brandId) return candidate.scope === "global" ? 1 : 0;
+  if (candidate.scope === "brand" && candidate.brandId === requestContext.brandId) {
+    return 2;
+  }
+  if (candidate.scope === "global") return 1;
+  return 0;
 }

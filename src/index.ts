@@ -13,6 +13,7 @@ import { learnedRoutesStore } from "./routing/learned-routes-store.js";
 import { subAgentRegistry } from "./trigger/sub-agents/registry.js";
 import { registerAdminRoutes } from "./admin/routes.js";
 import { brandStore } from "./tenancy/brand-store.js";
+import { registerPublicRoutes } from "./public/routes.js";
 // Register all sub-agent plugins
 import "./trigger/sub-agents/plugins/index.js";
 
@@ -31,6 +32,8 @@ app.get("/health", (c) => {
     memory: longTermMemory.stats(),
   });
 });
+
+registerPublicRoutes(app);
 
 // ── Send Message ─────────────────────────────────────────────
 const MessageSchema = z.object({

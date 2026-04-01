@@ -7,7 +7,7 @@ import type { ExecutionContext, AgentResult } from "../../../core/types.js";
 import { learnedRoutesStore } from "../../../routing/learned-routes-store.js";
 import type { LearnedRoute } from "../../../routing/learned-routes-schema.js";
 import { logger } from "../../../core/logger.js";
-import { loadAgentPromptSpec } from "../../../tools/agent-spec-loader.js";
+import { loadAgentPromptSpec, resolveAgentPromptSpec } from "../../../tools/agent-spec-loader.js";
 import { agentAuditStore } from "../../../observability/agent-audit-store.js";
 
 // ── Schemas ─────────────────────────────────────────────────
@@ -761,11 +761,13 @@ export class ApiFetcherAgent extends BaseSubAgent {
   outputSchema = ApiFetcherOutput;
   private promptLoader: PromptLoader;
   private promptFile: string;
+  private resolvedPromptSource: string | null;
 
   constructor(options?: { promptLoader?: PromptLoader; promptFile?: string }) {
     super("openai:fast", ["anthropic:fast", "google:fast"], 3, 0.1);
     this.promptLoader = options?.promptLoader ?? loadAgentPromptSpec;
     this.promptFile = options?.promptFile ?? API_FETCHER_SYSTEM_PROMPT_FILE;
+    this.resolvedPromptSource = this.promptFile;
   }
 
   async execute(
@@ -1020,11 +1022,25 @@ export class ApiFetcherAgent extends BaseSubAgent {
       BRAND_NAME: context.brandIdentity.name,
     };
 
+    if (this.promptLoader === loadAgentPromptSpec) {
+      const spec = resolveAgentPromptSpec(
+        this.id,
+        this.promptFile,
+        API_FETCHER_SYSTEM_PROMPT_FALLBACK,
+        vars,
+        { brandId: context.requestContext.brandId }
+      );
+      this.resolvedPromptSource = spec.source ?? this.promptFile;
+      return spec.content;
+    }
+
+    this.resolvedPromptSource = this.promptFile;
     return this.promptLoader(
       this.id,
       this.promptFile,
       API_FETCHER_SYSTEM_PROMPT_FALLBACK,
-      vars
+      vars,
+      { brandId: context.requestContext.brandId }
     );
   }
 
@@ -1033,7 +1049,7 @@ export class ApiFetcherAgent extends BaseSubAgent {
   }
 
   protected override getPromptSourceIdentifier(): string | null {
-    return this.promptFile;
+    return this.resolvedPromptSource;
   }
 }
 

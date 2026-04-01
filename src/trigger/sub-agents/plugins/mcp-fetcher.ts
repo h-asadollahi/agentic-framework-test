@@ -5,7 +5,7 @@ import type { ExecutionContext, AgentResult } from "../../../core/types.js";
 import { mcpManager } from "../../../tools/mcp-client.js";
 import { learnedRoutesStore } from "../../../routing/learned-routes-store.js";
 import { logger } from "../../../core/logger.js";
-import { loadAgentPromptSpec } from "../../../tools/agent-spec-loader.js";
+import { loadAgentPromptSpec, resolveAgentPromptSpec } from "../../../tools/agent-spec-loader.js";
 import { agentAuditStore } from "../../../observability/agent-audit-store.js";
 
 type JsonRecord = Record<string, unknown>;
@@ -270,11 +270,13 @@ export class McpFetcherAgent extends BaseSubAgent {
   outputSchema = McpFetcherOutput;
   private promptLoader: PromptLoader;
   private promptFile: string;
+  private resolvedPromptSource: string | null;
 
   constructor(options?: { promptLoader?: PromptLoader; promptFile?: string }) {
     super("openai:fast", ["anthropic:fast", "google:fast"], 3, 0.1);
     this.promptLoader = options?.promptLoader ?? loadAgentPromptSpec;
     this.promptFile = options?.promptFile ?? MCP_FETCHER_SYSTEM_PROMPT_FILE;
+    this.resolvedPromptSource = this.promptFile;
   }
 
   async execute(input: unknown, context: ExecutionContext): Promise<AgentResult> {
@@ -473,11 +475,25 @@ export class McpFetcherAgent extends BaseSubAgent {
       SKILL_CREATION_INSTRUCTION: this.getSkillCreationInstruction(),
       BRAND_NAME: context.brandIdentity.name,
     };
+    if (this.promptLoader === loadAgentPromptSpec) {
+      const spec = resolveAgentPromptSpec(
+        this.id,
+        this.promptFile,
+        MCP_FETCHER_SYSTEM_PROMPT_FALLBACK,
+        vars,
+        { brandId: context.requestContext.brandId }
+      );
+      this.resolvedPromptSource = spec.source ?? this.promptFile;
+      return spec.content;
+    }
+
+    this.resolvedPromptSource = this.promptFile;
     return this.promptLoader(
       this.id,
       this.promptFile,
       MCP_FETCHER_SYSTEM_PROMPT_FALLBACK,
-      vars
+      vars,
+      { brandId: context.requestContext.brandId }
     );
   }
 
@@ -486,7 +502,7 @@ export class McpFetcherAgent extends BaseSubAgent {
   }
 
   protected override getPromptSourceIdentifier(): string | null {
-    return this.promptFile;
+    return this.resolvedPromptSource;
   }
 }
 

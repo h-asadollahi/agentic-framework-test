@@ -30,9 +30,9 @@ describe.sequential("skill-candidates store", () => {
     backupContent = backupExisted ? readFileSync(candidatesFile, "utf-8") : null;
   });
 
-  beforeEach(() => {
+  beforeEach(async () => {
     writeFileSync(candidatesFile, initialCandidatesFile, "utf-8");
-    skillCandidatesStore.load();
+    await skillCandidatesStore.load();
   });
 
   afterAll(() => {
@@ -43,8 +43,8 @@ describe.sequential("skill-candidates store", () => {
     writeFileSync(candidatesFile, initialCandidatesFile, "utf-8");
   });
 
-  it("adds a new skill candidate", () => {
-    const candidate = skillCandidatesStore.upsertCandidate({
+  it("adds a new skill candidate", async () => {
+    const candidate = await skillCandidatesStore.upsertCandidate({
       capability: "mapp-monthly-analysis-usage",
       description: "Automate monthly analysis usage reporting.",
       suggestedSkillFile: "skills/learned/mapp-monthly-analysis-usage.md",
@@ -60,8 +60,8 @@ describe.sequential("skill-candidates store", () => {
     );
   });
 
-  it("normalizes autonomous skill paths into skills/learned", () => {
-    const candidate = skillCandidatesStore.upsertCandidate({
+  it("normalizes autonomous skill paths into skills/learned", async () => {
+    const candidate = await skillCandidatesStore.upsertCandidate({
       capability: "legacy-root-path-skill",
       description: "Legacy suggested path in skills root.",
       suggestedSkillFile: "skills/legacy-root-path-skill.md",
@@ -75,8 +75,8 @@ describe.sequential("skill-candidates store", () => {
     );
   });
 
-  it("upserts by capability and merges trigger patterns", () => {
-    skillCandidatesStore.upsertCandidate({
+  it("upserts by capability and merges trigger patterns", async () => {
+    await skillCandidatesStore.upsertCandidate({
       capability: "mapp-monthly-analysis-usage",
       description: "Automate monthly analysis usage reporting.",
       suggestedSkillFile: "skills/learned/mapp-monthly-analysis-usage.md",
@@ -85,7 +85,7 @@ describe.sequential("skill-candidates store", () => {
       requiresApproval: true,
     });
 
-    const updated = skillCandidatesStore.upsertCandidate({
+    const updated = await skillCandidatesStore.upsertCandidate({
       capability: "mapp-monthly-analysis-usage",
       description: "Automate monthly API usage + summary insights.",
       suggestedSkillFile: "skills/learned/mapp-monthly-analysis-usage.md",
@@ -100,8 +100,8 @@ describe.sequential("skill-candidates store", () => {
     expect(updated.triggerPatterns).toContain("api calculations this month");
   });
 
-  it("fuzzy-deduplicates semantically similar candidates", () => {
-    const first = skillCandidatesStore.upsertCandidate({
+  it("fuzzy-deduplicates semantically similar candidates", async () => {
+    const first = await skillCandidatesStore.upsertCandidate({
       capability: "mapp-monthly-analysis-usage",
       description: "Automate monthly analysis usage reporting.",
       suggestedSkillFile: "skills/learned/mapp-monthly-analysis-usage.md",
@@ -113,7 +113,7 @@ describe.sequential("skill-candidates store", () => {
       requiresApproval: false,
     });
 
-    const second = skillCandidatesStore.upsertCandidate({
+    const second = await skillCandidatesStore.upsertCandidate({
       capability: "monthly-api-usage-summarizer",
       description: "Summarize monthly API calculation usage for Mapp.",
       suggestedSkillFile: "skills/learned/monthly-api-usage-summarizer.md",
@@ -132,8 +132,8 @@ describe.sequential("skill-candidates store", () => {
     );
   });
 
-  it("finds best matching candidate by prompt text", () => {
-    skillCandidatesStore.upsertCandidate({
+  it("finds best matching candidate by prompt text", async () => {
+    await skillCandidatesStore.upsertCandidate({
       capability: "mapp-monthly-analysis-usage",
       description: "Automate monthly analysis usage reporting.",
       suggestedSkillFile: "skills/learned/mapp-monthly-analysis-usage.md",
@@ -142,7 +142,7 @@ describe.sequential("skill-candidates store", () => {
       requiresApproval: false,
     });
 
-    skillCandidatesStore.upsertCandidate({
+    await skillCandidatesStore.upsertCandidate({
       capability: "generic-reporting-helper",
       description: "Generic report helper",
       suggestedSkillFile: "skills/learned/generic-reporting-helper.md",
@@ -158,13 +158,50 @@ describe.sequential("skill-candidates store", () => {
     expect(match?.capability).toBe("mapp-monthly-analysis-usage");
   });
 
-  it("marks summary entries as materialized when skill file exists", () => {
+  it("prefers a brand-scoped skill over a global skill for the same prompt", async () => {
+    await skillCandidatesStore.upsertCandidate({
+      capability: "fashion-tone-helper",
+      description: "Northline fashion tone and merchandising helper.",
+      scope: "brand",
+      brandId: "northline-fashion",
+      suggestedSkillFile: "skills/learned/fashion-tone-helper.md",
+      triggerPatterns: ["campaign concept", "neutral palette dress"],
+      confidence: "high",
+      requiresApproval: false,
+    });
+
+    await skillCandidatesStore.upsertCandidate({
+      capability: "generic-campaign-helper",
+      description: "Generic campaign helper.",
+      scope: "global",
+      suggestedSkillFile: "skills/learned/generic-campaign-helper.md",
+      triggerPatterns: ["campaign concept", "neutral palette dress"],
+      confidence: "high",
+      requiresApproval: false,
+    });
+
+    const match = skillCandidatesStore.findBestMatchByPrompt(
+      "Create a campaign concept for a neutral palette dress",
+      {
+        audience: "marketer",
+        brandId: "northline-fashion",
+        scope: "brand",
+        source: "api",
+        runId: null,
+        pipelineRunId: null,
+      }
+    );
+
+    expect(match?.capability).toBe("fashion-tone-helper");
+  });
+
+  it("marks summary entries as materialized when skill file exists", async () => {
     const skillFile = "skills/learned/skill-candidate-materialized-test.md";
     const absoluteSkillFile = resolve(process.cwd(), skillFile);
     mkdirSync(dirname(absoluteSkillFile), { recursive: true });
     writeFileSync(absoluteSkillFile, "# test\n", "utf-8");
 
-    skillCandidatesStore.upsertCandidate({
+    await skillCandidatesStore.upsertCandidate({
       capability: "materialized-skill-test",
       description: "Materialized skill candidate test.",
       suggestedSkillFile: skillFile,

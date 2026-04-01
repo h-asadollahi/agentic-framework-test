@@ -4,7 +4,7 @@ import { BaseSubAgent } from "../base-sub-agent.js";
 import type { ExecutionContext, AgentResult } from "../../../core/types.js";
 import { getMockCohortData, getMockCohortOverview } from "./cohort-monitor-mock.js";
 import { logger } from "../../../core/logger.js";
-import { loadAgentPromptSpec } from "../../../tools/agent-spec-loader.js";
+import { loadAgentPromptSpec, resolveAgentPromptSpec } from "../../../tools/agent-spec-loader.js";
 import { agentAuditStore } from "../../../observability/agent-audit-store.js";
 
 // ── Schemas ────────────────────────────────────────────────────
@@ -110,6 +110,7 @@ export class CohortMonitorAgent extends BaseSubAgent {
   outputSchema = CohortMonitorOutput;
   private promptLoader: PromptLoader;
   private promptFile: string;
+  private resolvedPromptSource: string | null;
 
   constructor(options?: { promptLoader?: PromptLoader; promptFile?: string }) {
     super(
@@ -120,6 +121,7 @@ export class CohortMonitorAgent extends BaseSubAgent {
     );
     this.promptLoader = options?.promptLoader ?? loadAgentPromptSpec;
     this.promptFile = options?.promptFile ?? COHORT_MONITOR_SYSTEM_PROMPT_FILE;
+    this.resolvedPromptSource = this.promptFile;
   }
 
   // ── Mock-based execution (no AI model calls) ──────────────
@@ -246,11 +248,25 @@ export class CohortMonitorAgent extends BaseSubAgent {
       SKILL_CREATION_INSTRUCTION: this.getSkillCreationInstruction(),
     };
 
+    if (this.promptLoader === loadAgentPromptSpec) {
+      const spec = resolveAgentPromptSpec(
+        this.id,
+        this.promptFile,
+        COHORT_MONITOR_SYSTEM_PROMPT_FALLBACK,
+        vars,
+        { brandId: context.requestContext.brandId }
+      );
+      this.resolvedPromptSource = spec.source ?? this.promptFile;
+      return spec.content;
+    }
+
+    this.resolvedPromptSource = this.promptFile;
     return this.promptLoader(
       this.id,
       this.promptFile,
       COHORT_MONITOR_SYSTEM_PROMPT_FALLBACK,
-      vars
+      vars,
+      { brandId: context.requestContext.brandId }
     );
   }
 
@@ -261,7 +277,7 @@ export class CohortMonitorAgent extends BaseSubAgent {
   }
 
   protected override getPromptSourceIdentifier(): string | null {
-    return this.promptFile;
+    return this.resolvedPromptSource;
   }
 }
 

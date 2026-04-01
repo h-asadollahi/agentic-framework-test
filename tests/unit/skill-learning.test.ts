@@ -32,9 +32,9 @@ describe.sequential("skill-learning helpers", () => {
     backupContent = backupExisted ? readFileSync(candidatesFile, "utf-8") : null;
   });
 
-  beforeEach(() => {
+  beforeEach(async () => {
     writeFileSync(candidatesFile, initialCandidatesFile, "utf-8");
-    skillCandidatesStore.load();
+    await skillCandidatesStore.load();
   });
 
   afterAll(() => {
@@ -45,13 +45,13 @@ describe.sequential("skill-learning helpers", () => {
     writeFileSync(candidatesFile, initialCandidatesFile, "utf-8");
   });
 
-  it("locks suggestions to existing materialized candidate and applies one-item cap", () => {
+  it("locks suggestions to existing materialized candidate and applies one-item cap", async () => {
     const skillFile = "skills/learned/mapp-monthly-analysis-usage.md";
     const absoluteSkillFile = resolve(process.cwd(), skillFile);
     mkdirSync(dirname(absoluteSkillFile), { recursive: true });
     writeFileSync(absoluteSkillFile, "# existing skill\n", "utf-8");
 
-    const candidate = skillCandidatesStore.upsertCandidate({
+    const candidate = await skillCandidatesStore.upsertCandidate({
       capability: "mapp-monthly-analysis-usage",
       description: "Automate monthly usage retrieval and summary.",
       suggestedSkillFile: skillFile,

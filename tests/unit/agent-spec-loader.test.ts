@@ -2,7 +2,11 @@ import { describe, expect, it } from "vitest";
 import { mkdirSync, mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
-import { loadAgentPromptSpec } from "../../src/tools/agent-spec-loader.js";
+import {
+  loadAgentPromptSpec,
+  resolveAgentPromptSpec,
+  resolveBrandOverridePromptFile,
+} from "../../src/tools/agent-spec-loader.js";
 
 const PROJECT_ROOT = resolve(import.meta.dirname, "../..");
 
@@ -72,5 +76,39 @@ describe("loadAgentPromptSpec", () => {
     } finally {
       process.chdir(originalCwd);
     }
+  });
+
+  it("maps generic prompt files to brand override paths", () => {
+    expect(
+      resolveBrandOverridePromptFile(
+        "knowledge/agents/grounding/system-prompt.md",
+        "northline-fashion"
+      )
+    ).toBe("knowledge/brands/northline-fashion/agents/grounding/system-prompt.md");
+
+    expect(
+      resolveBrandOverridePromptFile(
+        "knowledge/sub-agents/mcp-fetcher/system-prompt.md",
+        "northline-fashion"
+      )
+    ).toBe(
+      "knowledge/brands/northline-fashion/sub-agents/mcp-fetcher/system-prompt.md"
+    );
+  });
+
+  it("prefers a brand-specific prompt override when one exists", () => {
+    const resolved = resolveAgentPromptSpec(
+      "grounding",
+      "knowledge/agents/grounding/system-prompt.md",
+      "fallback",
+      {},
+      { brandId: "northline-fashion" }
+    );
+
+    expect(resolved.source).toBe(
+      "knowledge/brands/northline-fashion/agents/grounding/system-prompt.md"
+    );
+    expect(resolved.content).toContain("Northline Fashion");
+    expect(resolved.content).not.toBe("fallback");
   });
 });
