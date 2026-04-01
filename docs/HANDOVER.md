@@ -47,6 +47,111 @@ src/
 
 ## Post-Handover Progress (2026-03-10, Codex)
 
+### Plan 107: Audit Trail redesign — Trigger.dev-style tree + detail pane
+
+Status: Implemented and pushed on 2026-04-01 (Claude Sonnet 4.6).
+
+Problem addressed:
+- The Admin UI Audit Trail showed a flat timeline grouped by phase with no parent/child structure.
+- Inspecting a single event required scrolling through a wall of JSON for every event in the same phase.
+- No focused detail pane — all context was visible at once, making it hard to isolate a single node.
+
+What changed (frontend-only, no backend changes):
+- Replaced the runs table + flat timeline sections with a single 2-column workspace (`audit-workspace`).
+- Left panel (300 px): compact runs list at top (status icon, run ID, Inspect button) + scrollable run tree below.
+- Right panel (flex): node detail pane — shows key fields for the selected node, with collapsible payload JSON for event nodes.
+- Tree hierarchy: Run → Phase (grouped by `event.phase`) → Component (grouped by `componentKind::componentId`) → Event (leaf).
+- Each node shows a type icon (🔵 run / 🟣 phase / 🤖 or ⚡ component / ℹ ✓ ⚠ ✗ event) and a status badge.
+- Clicking a node: selects it (highlights row, populates detail pane) + toggles expand/collapse if it has children.
+- Phases start expanded; components start collapsed (matching Trigger.dev's progressive disclosure UX).
+
+Important files changed:
+- `admin/public/index.html` — added audit workspace CSS + replaced two old surface-card sections with new 2-column layout
+- `admin/public/app.js` — replaced `renderAuditRuns` (table → compact list), replaced `renderAuditRunDetails` (timeline → tree), added `buildAuditTree`, `renderAuditTreeNode`, `selectAuditNode`, `renderAuditNodeDetail`, `auditStatusBadge`, `auditNodeIcon`
+
+Validation:
+- Open Admin UI → Audit Trail.
+- Summary cards + filters remain at the top.
+- Left panel shows compact runs list; right panel shows "Select a node" placeholder.
+- Click Inspect on a run → tree appears with 🔵 run at root, 🟣 phase children, ⚡/🤖 components, and event leaves.
+- Click any node → right pane shows type-specific fields (run: prompt + session; phase: event count + timing; component: model + tokens; event: eventType + payload).
+- Clicking a component expands/collapses its events; clicking a phase expands/collapses its components.
+
+### Plan 106: Dismiss false-alarm Slack HITL threads immediately
+
+Status: Implemented in code, admin UI summary counters, tests, and docs on 2026-04-01.
+
+Problem addressed:
+- Slack HITL flows previously forced operators into two bad choices when a review thread was a false alarm:
+  - provide the requested attributes anyway
+  - wait for the full timeout window
+- Route-learning threads only supported `provide route info` or timeout.
+- Escalation threads supported `approve` / `reject`, but had no explicit no-action / false-alarm resolution.
+- This created unnecessary 30-minute waits for route-learning and long waits for escalations that should simply be closed.
+
+What changed:
+- Added explicit dismissal / false-alarm parsing to both Slack HITL flows.
+- Supported phrases now include:
+  - `dismiss`
+  - `ignore`
+  - `false alarm`
+  - `no action needed`
+  - similar no-action variants
+- Route-learning polling now:
+  - checks newest Slack replies first
+  - resolves immediately with `dismissed` when a human marks the request as a false alarm
+  - posts a confirmation back into the Slack thread
+  - does not save a route in that case
+- Escalation polling now:
+  - recognizes dismissal replies separately from hard rejection
+  - resolves immediately with `dismissed`
+  - posts a confirmation back into the Slack thread
+- Admin Slack HITL summary now tracks `dismissed` as a first-class status instead of forcing operators to infer it from timeouts or rejections.
+
+Behavioral outcome:
+- Admins/marketers can explicitly close false-alarm HITL threads without waiting for timeout.
+- Timeout still exists for true no-response cases.
+- Escalation callers still receive a non-approved outcome for dismissed threads, so the system remains safe by default.
+- Admin UI now distinguishes:
+  - `approved`
+  - `dismissed`
+  - `rejected`
+  - `timed_out`
+
+Important files changed:
+- `src/routing/route-learning-escalation.ts`
+- `src/trigger/learn-route.ts`
+- `src/escalation/slack-escalation.ts`
+- `src/trigger/escalate.ts`
+- `src/core/types.ts`
+- `src/routing/learned-routes-db-repository.ts`
+- `src/routing/learned-routes-store.ts`
+- `admin/public/app.js`
+- `admin/public/index.html`
+- `tests/unit/route-learning-parser.test.ts`
+- `tests/unit/slack-escalation-parser.test.ts`
+- `tests/unit/admin-routes.test.ts`
+- `docs/usage-guide.md`
+- `docs/ai-coding-plans/plan-106-codex.md`
+
+Validation:
+- `npm test -- tests/unit/route-learning-parser.test.ts tests/unit/slack-escalation-parser.test.ts tests/unit/admin-routes.test.ts`
+- `node --check admin/public/app.js`
+- `npm run build`
+
+Manual verification recommended:
+1. Trigger a route-learning Slack HITL thread.
+2. Reply in the thread with `false alarm` or `dismiss`.
+3. Confirm the Trigger task resolves immediately instead of waiting for timeout.
+4. Trigger an escalation Slack HITL thread.
+5. Reply with `ignore` or `no action needed`.
+6. Confirm the thread resolves immediately and the admin Slack page shows `dismissed`.
+
+Operational note for the next assistant:
+- `dismissed` is intentionally separate from `rejected`.
+- Upstream system safety still treats dismissed escalations as non-approved, which is the desired fail-safe default.
+- If future product behavior needs "dismiss and continue anyway", that should be a separate policy change rather than reusing the current dismissal status.
+
 ### Plan 95: Deep agent audit trail for admin visibility
 
 Status: Implemented in code, admin UI/API, cleanup task, and tests on 2026-04-01.
