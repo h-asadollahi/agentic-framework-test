@@ -2471,6 +2471,22 @@ Key interfaces: `PipelinePayload`, `PipelineResult`, `SubTask`, `AgentResult`, `
 
 ---
 
+## Plan 102 — Fix: Knowledge Editor files not loading on initial visit (Claude, 2026-04-01)
+
+**Deliverable:** Bug fix — knowledge file tree was stuck on "Loading…" on first page visit.
+
+**Root cause:** `loadKnowledgeFiles()` was only triggered by `hashchange`, which never fires on initial page load.
+
+**Fix:** Added `loadKnowledgeFiles()` to `loadAll()` so it runs in `bootstrap()` on every startup.
+
+**Automated validation:** None.
+
+**Manual verification:** Not yet run.
+
+**How to test:** See [plan-102-claude.md](ai-coding-plans/plan-102-claude.md).
+
+---
+
 ## Plan 102 — Prevent Creative `general` Task Route Hijack (Codex, 2026-04-01)
 
 **Deliverable:** `pipeline-execute` no longer lets stale broad learned API routes override creative/copy `general` subtasks unless the task actually looks like external data retrieval.
