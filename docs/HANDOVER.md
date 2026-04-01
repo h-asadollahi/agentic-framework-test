@@ -2487,6 +2487,27 @@ Key interfaces: `PipelinePayload`, `PipelineResult`, `SubTask`, `AgentResult`, `
 
 ---
 
+## Plan 104 — Marketer Demo redesign + brand-scoped Knowledge Editor (Claude, 2026-04-01)
+
+**Deliverable:** Demo UI matches admin UI style and adds a brand-scoped Knowledge Editor. Marketers see only their own brand's `.md` files.
+
+**What was built:**
+- `src/admin/knowledge-fs.ts`: added `listBrandFiles`, `readBrandFile`, `writeBrandFile` — restricted to `knowledge/brands/{brandId}/`, brandId validated with regex
+- `src/public/routes.ts`: added `GET/PUT /brands/:brandId/knowledge/file(s)` public routes
+- `demo/index.html`: full redesign — sidebar layout, admin colour palette, Chat + Knowledge Editor pages
+- `demo/app.js`: sidebar navigation, brand-scoped VS Code tree, chat retained, brand switch reloads tree
+- `demo/styles.css`: replaced teal/pink palette with admin purple/cream design tokens
+
+**Security:** Cross-brand access prevented server-side — each route resolves only within `knowledge/brands/{brandId}/`. Path traversal uses same guard as admin. No file creation.
+
+**Automated validation:** None.
+
+**Manual verification:** Not yet run.
+
+**How to test:** See [plan-104-claude.md](ai-coding-plans/plan-104-claude.md).
+
+---
+
 ## Plan 102 — Prevent Creative `general` Task Route Hijack (Codex, 2026-04-01)
 
 **Deliverable:** `pipeline-execute` no longer lets stale broad learned API routes override creative/copy `general` subtasks unless the task actually looks like external data retrieval.
