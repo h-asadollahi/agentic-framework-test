@@ -202,6 +202,7 @@ export interface EscalationResult {
   feedback?: string;
   slackThreadTs?: string;
   timedOut: boolean;
+  dismissed?: boolean;
 }
 
 // ── Sub-Agent Plugin Interface ─────────────────────────────

@@ -94,6 +94,7 @@ export const escalateTask = task({
     logger.info("Escalation resolved", {
       runId: escalation.runId,
       approved: decision.approved,
+      dismissed: decision.dismissed === true,
       timedOut: decision.timedOut,
       decidedBy: decision.decidedBy,
     });

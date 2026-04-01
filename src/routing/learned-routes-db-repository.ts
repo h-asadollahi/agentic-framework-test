@@ -116,6 +116,7 @@ export interface SlackHitlSummaryRecord {
   pending: number;
   routeAdded: number;
   approved: number;
+  dismissed: number;
   rejected: number;
   timedOut: number;
   escalations: number;
@@ -1158,6 +1159,8 @@ export class LearnedRoutesDbRepository {
           sql<number>`count(*) filter (where ${slackHitlThreadsTable.addedRouteId} is not null)::int`,
         approved:
           sql<number>`count(*) filter (where ${slackHitlThreadsTable.status} = 'approved')::int`,
+        dismissed:
+          sql<number>`count(*) filter (where ${slackHitlThreadsTable.status} = 'dismissed')::int`,
         rejected:
           sql<number>`count(*) filter (where ${slackHitlThreadsTable.status} = 'rejected')::int`,
         timedOut:
@@ -1178,6 +1181,7 @@ export class LearnedRoutesDbRepository {
       pending: rows[0]?.pending ?? 0,
       routeAdded: rows[0]?.routeAdded ?? 0,
       approved: rows[0]?.approved ?? 0,
+      dismissed: rows[0]?.dismissed ?? 0,
       rejected: rows[0]?.rejected ?? 0,
       timedOut: rows[0]?.timedOut ?? 0,
       escalations: rows[0]?.escalations ?? 0,

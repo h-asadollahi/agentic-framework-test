@@ -1,5 +1,8 @@
 import { describe, it, expect } from "vitest";
-import { parseRouteInfoReply } from "../../src/routing/route-learning-escalation.js";
+import {
+  parseRouteInfoReply,
+  parseRouteLearningDismissalReply,
+} from "../../src/routing/route-learning-escalation.js";
 
 describe("route-learning parser", () => {
   it("returns null when no url exists", () => {
@@ -36,6 +39,17 @@ describe("route-learning parser", () => {
         cohortId: "{{input.cohortId}}",
         dateRange: "last_30_days",
       },
+    });
+  });
+
+  it("detects dismissal replies for false alarms", () => {
+    const parsed = parseRouteLearningDismissalReply(
+      "False alarm, ignore this one for now."
+    );
+
+    expect(parsed).toEqual({
+      dismissed: true,
+      decision: 'Dismissed as false alarm (reply: "False alarm, ignore this one for now.")',
     });
   });
 });

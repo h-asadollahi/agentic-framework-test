@@ -28,6 +28,12 @@ export interface RouteLearningResult {
   rawReply?: string;
   respondedBy?: string;
   timedOut: boolean;
+  dismissed?: boolean;
+}
+
+interface ParsedRouteLearningDismissal {
+  dismissed: true;
+  decision: string;
 }
 
 interface SlackMessageRef {
@@ -64,6 +70,23 @@ function getChannelCandidates(): string[] {
 
   return [...new Set(candidates)];
 }
+
+const DISMISS_KEYWORDS = [
+  "ignore",
+  "ignored",
+  "dismiss",
+  "dismissed",
+  "false alarm",
+  "false positive",
+  "skip this",
+  "skip it",
+  "not needed",
+  "not required",
+  "no action needed",
+  "no action required",
+  "not necessary",
+  "no need",
+];
 
 // ── Send route learning message ─────────────────────────────
 
@@ -116,6 +139,8 @@ export async function sendRouteLearningMessage(
           "> `Params:` campaignId, dateRange _(optional)_",
           "",
           "Or just paste the URL and I'll figure out the rest.",
+          "",
+          "> `dismiss` / `false alarm` — close this request without saving a route",
         ].join("\n"),
       },
     },
@@ -256,6 +281,21 @@ export function parseRouteInfoReply(text: string): ParsedRouteInfo | null {
   return { url, method, headers, queryParams };
 }
 
+export function parseRouteLearningDismissalReply(
+  text: string
+): ParsedRouteLearningDismissal | null {
+  const lower = text.toLowerCase().trim();
+  for (const keyword of DISMISS_KEYWORDS) {
+    if (lower.includes(keyword)) {
+      return {
+        dismissed: true,
+        decision: `Dismissed as false alarm (reply: "${text.slice(0, 100)}")`,
+      };
+    }
+  }
+  return null;
+}
+
 // ── Poll for route info ─────────────────────────────────────
 
 /**
@@ -293,12 +333,43 @@ export async function pollForRouteInfo(
       const messages = repliesResult.messages ?? [];
       const replies = messages.slice(1); // skip original message
 
-      for (const reply of replies) {
+      for (const reply of replies.reverse()) {
         const text = reply.text ?? "";
         const userId = reply.user ?? "unknown";
 
         // Skip bot messages
         if (reply.bot_id) continue;
+
+        const dismissed = parseRouteLearningDismissalReply(text);
+        if (dismissed) {
+          logger.info("Route learning dismissed from Slack", {
+            respondedBy: userId,
+            decision: dismissed.decision,
+          });
+
+          await learnedRoutesStore.upsertSlackHitlThreadForAdmin({
+            kind: "route-learning",
+            channel,
+            messageTs: threadTs,
+            threadTs,
+            status: "dismissed",
+            respondedBy: userId,
+            responseText: text,
+            respondedAt: new Date().toISOString(),
+            resolvedAt: new Date().toISOString(),
+            metadata: {
+              dismissalReason: dismissed.decision,
+            },
+          });
+
+          return {
+            learned: false,
+            rawReply: text,
+            respondedBy: userId,
+            timedOut: false,
+            dismissed: true,
+          };
+        }
 
         // Try to parse route info from the reply
         const parsed = parseRouteInfoReply(text);
@@ -372,7 +443,13 @@ export async function pollForRouteInfo(
 export async function postRouteLearningConfirmation(
   channel: string,
   threadTs: string,
-  result: { learned: boolean; routeId?: string; endpoint?: string; timedOut: boolean }
+  result: {
+    learned: boolean;
+    routeId?: string;
+    endpoint?: string;
+    timedOut: boolean;
+    dismissed?: boolean;
+  }
 ): Promise<void> {
   const client = getSlackClient();
 
@@ -380,6 +457,9 @@ export async function postRouteLearningConfirmation(
 
   if (result.timedOut) {
     text = ":hourglass: *Route learning timed out* — falling back to AI response. No route was saved.";
+  } else if (result.dismissed) {
+    text =
+      ":white_check_mark: *Route learning dismissed* — marked as a false alarm / no-action thread. No route was saved.";
   } else if (result.learned) {
     text = [
       `:white_check_mark: *Route learned and saved!*`,

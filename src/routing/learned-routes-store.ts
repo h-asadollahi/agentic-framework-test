@@ -476,6 +476,7 @@ class LearnedRoutesStoreImpl {
         pending: 0,
         routeAdded: 0,
         approved: 0,
+        dismissed: 0,
         rejected: 0,
         timedOut: 0,
         escalations: 0,

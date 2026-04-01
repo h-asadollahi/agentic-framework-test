@@ -12,6 +12,22 @@ import { learnedRoutesStore } from "../routing/learned-routes-store.js";
 
 const APPROVE_KEYWORDS = ["approve", "approved", "yes", "lgtm", "go ahead", "proceed", "confirmed"];
 const REJECT_KEYWORDS = ["reject", "rejected", "no", "deny", "denied", "stop", "cancel"];
+const DISMISS_KEYWORDS = [
+  "ignore",
+  "ignored",
+  "dismiss",
+  "dismissed",
+  "false alarm",
+  "false positive",
+  "skip this",
+  "skip it",
+  "not needed",
+  "not required",
+  "no action needed",
+  "no action required",
+  "not necessary",
+  "no need",
+];
 
 // ── Slack client factory ────────────────────────────────────
 
@@ -112,6 +128,7 @@ export async function sendEscalationMessage(
           "",
           "> :white_check_mark: `approve` — approve the action",
           "> :x: `reject` — reject the action",
+          "> :zzz: `dismiss` / `false alarm` — close this as a no-action false alarm",
           "> :speech_balloon: Any other text — add feedback (polling continues)",
         ].join("\n"),
       },
@@ -231,13 +248,25 @@ interface ParsedDecision {
   approved: boolean;
   decision: string;
   decidedBy: string;
+  dismissed?: boolean;
 }
 
 /**
  * Check if a reply text contains an approval or rejection keyword.
  */
-function parseReplyText(text: string): ParsedDecision | null {
+export function parseReplyText(text: string): ParsedDecision | null {
   const lower = text.toLowerCase().trim();
+
+  for (const keyword of DISMISS_KEYWORDS) {
+    if (lower.includes(keyword)) {
+      return {
+        approved: false,
+        decision: `Dismissed as false alarm (reply: "${text.slice(0, 100)}")`,
+        decidedBy: "",
+        dismissed: true,
+      };
+    }
+  }
 
   for (const keyword of APPROVE_KEYWORDS) {
     if (lower.includes(keyword)) {
@@ -331,7 +360,7 @@ export async function pollForDecision(
             channel,
             messageTs: threadTs,
             threadTs,
-            status: parsed.approved ? "approved" : "rejected",
+            status: parsed.dismissed ? "dismissed" : parsed.approved ? "approved" : "rejected",
             respondedBy: userId,
             responseText: text,
             respondedAt: new Date().toISOString(),
@@ -348,6 +377,7 @@ export async function pollForDecision(
             feedback: collectedFeedback.length > 0 ? collectedFeedback.join("\n") : undefined,
             slackThreadTs: threadTs,
             timedOut: false,
+            dismissed: parsed.dismissed ?? false,
           };
         }
 
@@ -416,6 +446,8 @@ export async function postDecisionConfirmation(
     text = ":hourglass: *Escalation timed out* — auto-rejected (no response received).";
   } else if (decision.approved) {
     text = `:white_check_mark: *Approved* by <@${decision.decidedBy ?? "unknown"}>`;
+  } else if (decision.dismissed) {
+    text = `:white_check_mark: *Dismissed as false alarm* by <@${decision.decidedBy ?? "unknown"}>`;
   } else {
     text = `:x: *Rejected* by <@${decision.decidedBy ?? "unknown"}>`;
   }

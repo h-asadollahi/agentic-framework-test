@@ -140,11 +140,15 @@ export const learnRouteTask = task({
       30
     );
 
-    if (result.timedOut || !result.learned || !result.route) {
-      logger.warn("Route learning timed out or no route provided");
+    if (result.dismissed || result.timedOut || !result.learned || !result.route) {
+      logger.warn("Route learning resolved without a saved route", {
+        dismissed: result.dismissed === true,
+        timedOut: result.timedOut,
+      });
       await postRouteLearningConfirmation(slackRef.channel, slackRef.ts, {
         learned: false,
         timedOut: result.timedOut,
+        dismissed: result.dismissed ?? false,
       });
       return { learned: false, fallbackUsed: true };
     }

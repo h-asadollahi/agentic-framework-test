@@ -326,6 +326,7 @@ describe.sequential("admin routes", () => {
         pending: 1,
         routeAdded: 2,
         approved: 1,
+        dismissed: 1,
         rejected: 1,
         timedOut: 1,
         escalations: 2,
@@ -380,6 +381,7 @@ describe.sequential("admin routes", () => {
       responded: 3,
       routeAdded: 2,
       approved: 1,
+      dismissed: 1,
     });
 
     const messagesResponse = await app.request(

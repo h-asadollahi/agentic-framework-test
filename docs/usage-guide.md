@@ -1064,6 +1064,9 @@ Slack HITL page behavior:
 - Shows both direct Slack notifications and threaded HITL flows on the same page
 - Counts `Responded` when a tracked thread receives a parsed human reply/decision
 - Counts `Routes Added` when a route-learning Slack thread results in a saved learned route
+- Supports explicit false-alarm dismissal replies for both escalation and route-learning threads
+- Use replies such as `dismiss`, `ignore`, `false alarm`, or `no action needed` to resolve a HITL thread immediately without waiting for timeout
+- Dismissed false alarms now appear as `dismissed` in the admin Slack HITL page instead of being mixed into `timed_out`
 
 If both `ADMIN_ALLOWED_IPS` and `ADMIN_API_TOKEN` are empty, `/admin/*` requests are rejected.
 
