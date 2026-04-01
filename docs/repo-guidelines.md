@@ -47,6 +47,7 @@ Use this structure in final updates and in `docs/HANDOVER.md` when relevant:
 ## Git Hygiene
 
 - Commit only the files related to the implemented change.
+- In multi-assistant workflows, commit and push only the changes you made yourself.
+- Do not include another coding assistant's edits or the user's manual edits unless the user explicitly asks for that combined commit/push.
 - Do not include unrelated local edits unless explicitly requested.
 - If the working tree contains user-owned experimental changes, leave them untouched and call them out in the final update.
-

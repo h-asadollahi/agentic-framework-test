@@ -152,6 +152,32 @@ Operational note for the next assistant:
 - Upstream system safety still treats dismissed escalations as non-approved, which is the desired fail-safe default.
 - If future product behavior needs "dismiss and continue anyway", that should be a separate policy change rather than reusing the current dismissal status.
 
+### Plan 109: Tighten repo guideline for assistant-scoped commits
+
+Status: Implemented in docs on 2026-04-01.
+
+What changed:
+- Updated `docs/repo-guidelines.md` under `Git Hygiene`.
+- The guideline is now explicit that in multi-assistant workflows, each assistant should commit and push only its own changes.
+- Also made explicit that another assistant's edits or the user's manual edits must not be included unless the user specifically asks for a combined commit/push.
+
+Why this matters:
+- The repo is now being edited by multiple coding assistants plus manual user changes.
+- This reduces accidental mixed commits and keeps authorship and rollback boundaries clearer.
+
+Files changed:
+- `docs/repo-guidelines.md`
+- `docs/ai-coding-plans/plan-109-codex.md`
+- `docs/HANDOVER.md`
+
+Validation:
+- Reviewed `docs/repo-guidelines.md` for the new assistant-scoped commit wording.
+
+Manual verification recommended:
+1. Open `docs/repo-guidelines.md`
+2. Read the `Git Hygiene` section
+3. Confirm the assistant-scoped commit rule is present
+
 ### Plan 95: Deep agent audit trail for admin visibility
 
 Status: Implemented in code, admin UI/API, cleanup task, and tests on 2026-04-01.
