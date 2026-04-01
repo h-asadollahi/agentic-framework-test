@@ -1,4 +1,4 @@
-# Plan 102 — Fix: Knowledge Editor files not loading on initial page visit
+# Plan 103 — Fix: Knowledge Editor files not loading on initial page visit
 
 **Assistant:** Claude (claude-sonnet-4-6 via Claude Code)
 **Date:** 2026-04-01

@@ -2471,7 +2471,7 @@ Key interfaces: `PipelinePayload`, `PipelineResult`, `SubTask`, `AgentResult`, `
 
 ---
 
-## Plan 102 — Fix: Knowledge Editor files not loading on initial visit (Claude, 2026-04-01)
+## Plan 103 — Fix: Knowledge Editor files not loading on initial visit (Claude, 2026-04-01)
 
 **Deliverable:** Bug fix — knowledge file tree was stuck on "Loading…" on first page visit.
 
@@ -2483,7 +2483,7 @@ Key interfaces: `PipelinePayload`, `PipelineResult`, `SubTask`, `AgentResult`, `
 
 **Manual verification:** Not yet run.
 
-**How to test:** See [plan-102-claude.md](ai-coding-plans/plan-102-claude.md).
+**How to test:** See [plan-103-claude.md](ai-coding-plans/plan-103-claude.md).
 
 ---
 
