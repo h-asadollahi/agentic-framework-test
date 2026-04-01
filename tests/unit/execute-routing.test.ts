@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   shouldAttemptRouteLearning,
   resolveUnknownSubtaskStrategy,
+  shouldUseMatchedLearnedRoute,
 } from "../../src/trigger/execute-routing.js";
 
 describe("execute routing strategy", () => {
@@ -83,6 +84,31 @@ describe("execute routing strategy", () => {
     );
 
     expect(strategy).toBe("use-learned-route");
+  });
+
+  it("does not use learned routes for creative general tasks that lack retrieval intent", () => {
+    const subtask = {
+      agentId: "general",
+      description:
+        "Define a single, cohesive campaign concept that anchors on the product envelope and brand voice.",
+    };
+
+    expect(shouldUseMatchedLearnedRoute(subtask)).toBe(false);
+    expect(
+      resolveUnknownSubtaskStrategy(subtask, true, { allowLearnedRoute: false })
+    ).toBe("llm-fallback");
+  });
+
+  it("still allows learned routes for explicit catalog/data retrieval prompts", () => {
+    const subtask = {
+      agentId: "general",
+      description: "List all available dimensions and metrics in Mapp Intelligence",
+    };
+
+    expect(shouldUseMatchedLearnedRoute(subtask)).toBe(true);
+    expect(
+      resolveUnknownSubtaskStrategy(subtask, true, { allowLearnedRoute: true })
+    ).toBe("use-learned-route");
   });
 
   it("does not route-learn for general synthesis/consolidation tasks", () => {

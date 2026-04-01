@@ -2468,3 +2468,50 @@ Key interfaces: `PipelinePayload`, `PipelineResult`, `SubTask`, `AgentResult`, `
 **Not tested:** Collapse state persistence across page reloads (intentionally in-memory only).
 
 **How to test:** See [plan-101-claude.md](ai-coding-plans/plan-101-claude.md).
+
+---
+
+## Plan 102 — Prevent Creative `general` Task Route Hijack (Codex, 2026-04-01)
+
+**Deliverable:** `pipeline-execute` no longer lets stale broad learned API routes override creative/copy `general` subtasks unless the task actually looks like external data retrieval.
+
+**What was built:**
+- Added creative-task detection in `src/trigger/execute-routing.ts`
+- Added `shouldUseMatchedLearnedRoute()` so creative/copy subtasks fall back to the Agency LLM instead of blindly accepting any learned route match
+- Wired `pipeline-execute` to pass `allowLearnedRoute` into `resolveUnknownSubtaskStrategy()`
+- Added audit detail on LLM fallback when a learned route match was intentionally ignored
+- Added regression tests proving:
+  - creative `general` tasks do **not** use matched learned routes
+  - the Mapp catalog prompt still **does** use the learned deterministic route
+
+**Root cause investigated:**
+- The reported run `run_cmng3ndwr002u3annnbpogzy8` was **not** the Mapp dimensions prompt; it was:
+  - `Create a campaign concept for a softly tailored, below-knee knit dress in a neutral palette.`
+- DB-backed `route-011` is a bad global API route pointing at `https://api.example.com/v1/data`
+- Its generic match patterns allowed `pipeline-execute` to select it for a creative `general` subtask
+- `api-fetcher` then failed with `fetch failed`
+
+**Automated validation:**
+- `npm test -- tests/unit/execute-routing.test.ts`
+
+**Manual verification:**
+- Direct DB-backed logic check with `learnedRoutesStore.load()`:
+  - confirmed the bad route still exists in DB
+  - confirmed the new guard rejects learned-route usage for the creative subtask description
+
+**Not tested:**
+- Full live Trigger rerun of the creative prompt after the fix in a running local worker
+
+**How to test:**
+1. Run `npm test -- tests/unit/execute-routing.test.ts`
+2. Re-run:
+   - `Create a campaign concept for a softly tailored, below-knee knit dress in a neutral palette.`
+3. In audit/Trigger logs, confirm:
+   - task-1 does **not** call `api-fetcher`
+   - task-1 does **not** bind to `route-011`
+   - task-1 falls back to the LLM creative path
+4. Re-run:
+   - `List all available dimensions and metrics in Mapp Intelligence`
+5. Confirm the Mapp prompt still uses the MCP learned route and is unaffected
+
+**Reference plan:** [plan-102-codex.md](ai-coding-plans/plan-102-codex.md)

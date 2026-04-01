@@ -8,6 +8,7 @@ import { learnRouteTask } from "./learn-route.js";
 import {
   isSynthesisLikeDescription,
   resolveUnknownSubtaskStrategy,
+  shouldUseMatchedLearnedRoute,
 } from "./execute-routing.js";
 import { parseAgentJson } from "./agent-output-parser.js";
 import { hydrateRegisteredSubtaskInput } from "./learned-route-input-hydration.js";
@@ -377,6 +378,12 @@ export const executeTask = task({
               subtask.description,
               payload.context.requestContext
             );
+            const hasExplicitRouteId =
+              typeof subtask.input?.routeId === "string" &&
+              subtask.input.routeId.trim().length > 0;
+            const allowLearnedRoute = shouldUseMatchedLearnedRoute(subtask, {
+              hasExplicitRouteId,
+            });
 
             const strategy = resolveUnknownSubtaskStrategy(
               subtask,
@@ -384,6 +391,7 @@ export const executeTask = task({
               {
                 hasDeterministicRouteContext:
                   hasDeterministicRouteContext(subtask, allResults),
+                allowLearnedRoute,
               }
             );
 
@@ -525,6 +533,8 @@ export const executeTask = task({
                 payload: {
                   decision: "agency-llm-fallback",
                   description: subtask.description,
+                  ignoredLearnedRouteId:
+                    learnedRoute && !allowLearnedRoute ? learnedRoute.id : null,
                 },
               });
               result = await agencyAgent.execute(

@@ -7,6 +7,7 @@ export type UnknownSubtaskStrategy =
 
 export type UnknownSubtaskStrategyOptions = {
   hasDeterministicRouteContext?: boolean;
+  allowLearnedRoute?: boolean;
 };
 
 const DATA_SIGNALS = [
@@ -65,6 +66,30 @@ const BUILD_SIGNALS = [
   "generate",
 ];
 
+const CREATIVE_GENERATION_SIGNALS = [
+  "campaign concept",
+  "creative concept",
+  "creative idea",
+  "tagline",
+  "headline",
+  "subhead",
+  "hero copy",
+  "cta",
+  "art direction",
+  "styling",
+  "shoot list",
+  "positioning",
+  "merchandising",
+  "launch announcement",
+  "email copy",
+  "caption",
+  "variant",
+  "variants",
+  "copy",
+  "draft",
+  "write",
+];
+
 const INTEGRATION_SIGNALS = [
   "mcp",
   "server",
@@ -81,6 +106,16 @@ function isGeneralAgent(agentId: string): boolean {
   return normalized === "general" || normalized === "assistant";
 }
 
+function hasDataRetrievalIntent(description: string): boolean {
+  const lower = description.toLowerCase();
+  return DATA_SIGNALS.some((signal) => lower.includes(signal));
+}
+
+function hasCreativeGenerationIntent(description: string): boolean {
+  const lower = description.toLowerCase();
+  return CREATIVE_GENERATION_SIGNALS.some((signal) => lower.includes(signal));
+}
+
 export function isSynthesisLikeDescription(description: string): boolean {
   const lower = description.toLowerCase();
   if (SYNTHESIS_SIGNALS.some((signal) => lower.includes(signal))) {
@@ -89,6 +124,28 @@ export function isSynthesisLikeDescription(description: string): boolean {
 
   // Common cognition output style for synthesis subtasks.
   return /\b(single|final)\s+(narrative|report|summary)\b/.test(lower);
+}
+
+export function shouldUseMatchedLearnedRoute(
+  subtask: Pick<SubTask, "agentId" | "description">,
+  options: { hasExplicitRouteId?: boolean } = {}
+): boolean {
+  if (options.hasExplicitRouteId) {
+    return true;
+  }
+
+  if (!isGeneralAgent(subtask.agentId)) {
+    return true;
+  }
+
+  const isCreativeGeneration = hasCreativeGenerationIntent(subtask.description);
+  const isDataRetrieval = hasDataRetrievalIntent(subtask.description);
+
+  if (isCreativeGeneration && !isDataRetrieval) {
+    return false;
+  }
+
+  return true;
 }
 
 export function shouldAttemptRouteLearning(subtask: Pick<SubTask, "agentId" | "description">): boolean {
@@ -117,7 +174,7 @@ export function resolveUnknownSubtaskStrategy(
   hasLearnedRoute: boolean,
   options: UnknownSubtaskStrategyOptions = {}
 ): UnknownSubtaskStrategy {
-  if (hasLearnedRoute) {
+  if (hasLearnedRoute && options.allowLearnedRoute !== false) {
     return "use-learned-route";
   }
 
