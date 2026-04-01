@@ -9,7 +9,7 @@ import {
 const PROJECT_ROOT = resolve(import.meta.dirname, "../..");
 
 describe("CognitionAgent buildSystemPrompt", () => {
-  it("uses runtime prompt content from knowledge specs", () => {
+  it("uses runtime prompt content from knowledge specs", async () => {
     const customPromptPath = resolve(
       PROJECT_ROOT,
       "tests/fixtures/cognition-system-prompt-custom.md"
@@ -18,17 +18,17 @@ describe("CognitionAgent buildSystemPrompt", () => {
     const agent = new CognitionAgent(undefined, {
       promptFile: customPromptPath,
     });
-    const context = buildExecutionContext("cognition-prompt-test");
+    const context = await buildExecutionContext("cognition-prompt-test");
 
     const prompt = agent.buildSystemPrompt(context);
     expect(prompt).toContain(`Custom Cognition Prompt Fixture for ${context.brandIdentity.name}`);
   });
 
-  it("falls back when runtime prompt file is unavailable", () => {
+  it("falls back when runtime prompt file is unavailable", async () => {
     const agent = new CognitionAgent(undefined, {
       promptFile: "knowledge/agents/cognition/not-found.md",
     });
-    const context = buildExecutionContext("cognition-fallback-test");
+    const context = await buildExecutionContext("cognition-fallback-test");
 
     const prompt = agent.buildSystemPrompt(context);
     expect(prompt).toContain(context.brandIdentity.name);

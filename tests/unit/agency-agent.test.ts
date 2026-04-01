@@ -9,7 +9,7 @@ import {
 const PROJECT_ROOT = resolve(import.meta.dirname, "../..");
 
 describe("AgencyAgent buildSystemPrompt", () => {
-  it("uses runtime prompt content from knowledge specs", () => {
+  it("uses runtime prompt content from knowledge specs", async () => {
     const customPromptPath = resolve(
       PROJECT_ROOT,
       "tests/fixtures/agency-system-prompt-custom.md"
@@ -18,7 +18,7 @@ describe("AgencyAgent buildSystemPrompt", () => {
     const agent = new AgencyAgent(undefined, {
       promptFile: customPromptPath,
     });
-    const context = buildExecutionContext("agency-prompt-test");
+    const context = await buildExecutionContext("agency-prompt-test");
 
     const prompt = agent.buildSystemPrompt(context);
     expect(prompt).toContain(
@@ -26,11 +26,11 @@ describe("AgencyAgent buildSystemPrompt", () => {
     );
   });
 
-  it("falls back when runtime prompt file is unavailable", () => {
+  it("falls back when runtime prompt file is unavailable", async () => {
     const agent = new AgencyAgent(undefined, {
       promptFile: "knowledge/agents/agency/not-found.md",
     });
-    const context = buildExecutionContext("agency-fallback-test");
+    const context = await buildExecutionContext("agency-fallback-test");
 
     const prompt = agent.buildSystemPrompt(context);
     expect(prompt).toContain(context.brandIdentity.name);

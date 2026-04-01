@@ -12,6 +12,14 @@ const state = {
   runSummary: null,
   slackSummary: null,
   slackMessages: [],
+  audit: {
+    summary: null,
+    runs: [],
+    total: 0,
+    selectedPipelineRunId: null,
+    selectedRun: null,
+    selectedEvents: [],
+  },
   llmUsageSummary: null,
   tokenUsage: {
     summary: null,
@@ -73,6 +81,11 @@ const pageConfig = {
     page: "runs",
     scrollTarget: "runsPage",
     navHash: "#run-watch",
+  },
+  "#audit-trail": {
+    page: "audit",
+    scrollTarget: "auditPage",
+    navHash: "#audit-trail",
   },
   "#runs-section": {
     page: "runs",
@@ -153,6 +166,7 @@ function setActivePage(page) {
     routes: "routesPage",
     activity: "activityPage",
     runs: "runsPage",
+    audit: "auditPage",
     slack: "slackPage",
   };
 
@@ -947,6 +961,269 @@ function renderSlackHitl(summaryPayload, messages) {
     .join("");
 }
 
+function formatAuditPhaseLabel(phase) {
+  const value = String(phase || "unknown").toLowerCase();
+  if (value === "sub-agent") return "Sub-Agents";
+  return humanizeToken(value);
+}
+
+function renderAuditSummary(payload, errorMessage = null) {
+  if (errorMessage) {
+    [
+      "auditTotalRuns",
+      "auditRunningRuns",
+      "auditFailedRuns",
+      "auditEventTotal",
+      "auditWarningTotal",
+      "auditErrorTotal",
+    ].forEach((id) => setText(id, "Unavailable"));
+    setText("auditStatusPill", errorMessage);
+    return;
+  }
+
+  const summary = payload?.summary || {};
+  setText("auditTotalRuns", humanizeCount(summary.totalRuns || 0));
+  setText("auditRunningRuns", humanizeCount(summary.runningRuns || 0));
+  setText(
+    "auditFailedRuns",
+    humanizeCount((summary.failedRuns || 0) + (summary.rejectedRuns || 0))
+  );
+  setText("auditEventTotal", humanizeCount(summary.totalEvents || 0));
+  setText("auditWarningTotal", humanizeCount(summary.totalWarnings || 0));
+  setText("auditErrorTotal", humanizeCount(summary.totalErrors || 0));
+  setText(
+    "auditStatusPill",
+    `${humanizeCount(summary.totalRuns || 0)} runs · ${humanizeCount(summary.totalEvents || 0)} events`
+  );
+
+  const phaseMeta = $("auditPhaseMeta");
+  if (phaseMeta) {
+    const byPhase = Array.isArray(summary.byPhase) ? summary.byPhase : [];
+    phaseMeta.innerHTML =
+      byPhase.length > 0
+        ? byPhase
+            .slice(0, 5)
+            .map(
+              (entry) =>
+                `<span class="mini-pill">${escapeHtml(formatAuditPhaseLabel(entry.phase))}: ${escapeHtml(
+                  humanizeCount(entry.events)
+                )}</span>`
+            )
+            .join("")
+        : '<span class="mini-pill">No events yet</span>';
+  }
+}
+
+function renderAuditRuns(payload) {
+  const tbody = $("auditRunsTable");
+  if (!tbody) return;
+
+  const runs = Array.isArray(payload?.runs) ? payload.runs : [];
+  setText("auditRunsCount", `${humanizeCount(payload?.total || 0)} runs`);
+  tbody.innerHTML = "";
+
+  if (!runs.length) {
+    tbody.innerHTML =
+      '<tr><td colspan="8" class="empty-state">No audit runs matched the current filters.</td></tr>';
+    return;
+  }
+
+  runs.forEach((run) => {
+    const tr = document.createElement("tr");
+    if (run.pipelineRunId === state.audit.selectedPipelineRunId) {
+      tr.classList.add("selected");
+    }
+    tr.innerHTML = `
+      <td><code>${escapeHtml(run.pipelineRunId)}</code></td>
+      <td>${escapeHtml(humanizeToken(run.status || "-"))}</td>
+      <td>${escapeHtml(run.audience || "-")}</td>
+      <td>${escapeHtml(run.brandId || "global")}</td>
+      <td>${escapeHtml(humanizeCount(run.totalEvents || 0))}</td>
+      <td>${escapeHtml(humanizeCount(run.totalWarnings || 0))}</td>
+      <td>${escapeHtml(humanizeCount(run.totalErrors || 0))}</td>
+      <td>
+        <button class="secondary-button table-action" data-audit-view="${escapeHtml(
+          run.pipelineRunId
+        )}">Inspect</button>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  tbody.querySelectorAll("button[data-audit-view]").forEach((button) => {
+    button.addEventListener("click", async () => {
+      const pipelineRunId = button.getAttribute("data-audit-view");
+      if (!pipelineRunId) return;
+      await loadAuditRunDetails(pipelineRunId);
+    });
+  });
+}
+
+function renderAuditRunDetails(run, events) {
+  const summary = $("auditRunSummary");
+  const timeline = $("auditTimeline");
+  const raw = $("auditRunRaw");
+  if (!summary || !timeline || !raw) return;
+
+  if (!run) {
+    summary.innerHTML =
+      '<div class="empty-state">Select an audit run to inspect its stage timeline, prompts, tool calls, and results.</div>';
+    timeline.innerHTML =
+      '<div class="empty-state">Timeline will appear here once an audit run is selected.</div>';
+    raw.textContent = "No audit run selected.";
+    setText("auditSelectedTitle", "Run Detail");
+    setText("auditSelectedMeta", "Choose a run from the list to inspect the sanitized audit trail.");
+    return;
+  }
+
+  setText("auditSelectedTitle", run.pipelineRunId);
+  setText(
+    "auditSelectedMeta",
+    `${humanizeToken(run.status)} · ${formatTimestamp(run.startedAt)} · ${humanizeCount(
+      run.totalEvents || 0
+    )} events`
+  );
+
+  summary.innerHTML = `
+    <div class="detail-grid">
+      <div class="detail-card">
+        <h4>Run</h4>
+        <dl>
+          <dt>Pipeline Run</dt>
+          <dd>${escapeHtml(run.pipelineRunId)}</dd>
+          <dt>Session</dt>
+          <dd>${escapeHtml(run.sessionId)}</dd>
+          <dt>Status</dt>
+          <dd>${escapeHtml(humanizeToken(run.status))}</dd>
+          <dt>Source</dt>
+          <dd>${escapeHtml(run.source)}</dd>
+        </dl>
+      </div>
+      <div class="detail-card">
+        <h4>Scope</h4>
+        <dl>
+          <dt>Audience</dt>
+          <dd>${escapeHtml(run.audience)}</dd>
+          <dt>Scope</dt>
+          <dd>${escapeHtml(run.scope)}</dd>
+          <dt>Brand</dt>
+          <dd>${escapeHtml(run.brandId || "global")}</dd>
+          <dt>Finished</dt>
+          <dd>${escapeHtml(run.finishedAt ? formatTimestamp(run.finishedAt) : "Running")}</dd>
+        </dl>
+      </div>
+      <div class="detail-card">
+        <h4>Prompt</h4>
+        <pre>${escapeHtml(run.userPrompt || "")}</pre>
+      </div>
+    </div>
+  `;
+
+  const grouped = new Map();
+  (Array.isArray(events) ? events : []).forEach((event) => {
+    const phase = formatAuditPhaseLabel(event.phase);
+    if (!grouped.has(phase)) grouped.set(phase, []);
+    grouped.get(phase).push(event);
+  });
+
+  if (grouped.size === 0) {
+    timeline.innerHTML = '<div class="empty-state">No audit events were recorded for this run.</div>';
+  } else {
+    timeline.innerHTML = Array.from(grouped.entries())
+      .map(([phase, phaseEvents]) => {
+        const eventMarkup = phaseEvents
+          .map((event) => {
+            const meta = [
+              humanizeToken(event.eventType),
+              event.componentKind,
+              event.componentId,
+              formatTimestamp(event.createdAt),
+            ].filter(Boolean);
+            return `
+              <article class="activity-item">
+                <div class="activity-top">
+                  <div class="activity-title">${escapeHtml(humanizeToken(event.eventType))}</div>
+                  <span class="status-tag ${formatRunTone(event.status || "info")}">${escapeHtml(
+                    humanizeToken(event.status || "info")
+                  )}</span>
+                </div>
+                <div class="activity-meta">${escapeHtml(meta.join(" • "))}</div>
+                <details class="raw-json">
+                  <summary>Payload</summary>
+                  <pre>${escapeHtml(prettyJson(event.payload || {}))}</pre>
+                </details>
+              </article>
+            `;
+          })
+          .join("");
+
+        return `
+          <section class="surface-card" style="padding: 20px 22px;">
+            <div class="section-head" style="margin-bottom: 16px;">
+              <div>
+                <p class="eyebrow subtle">Phase</p>
+                <h2>${escapeHtml(phase)}</h2>
+              </div>
+              <div class="section-pill">${escapeHtml(humanizeCount(phaseEvents.length))} events</div>
+            </div>
+            <div class="feed-stack">${eventMarkup}</div>
+          </section>
+        `;
+      })
+      .join("");
+  }
+
+  raw.textContent = prettyJson({ run, events });
+}
+
+async function loadAuditRunDetails(pipelineRunId) {
+  state.audit.selectedPipelineRunId = pipelineRunId;
+  const payload = await api(`/admin/audit/runs/${pipelineRunId}`);
+  state.audit.selectedRun = payload.run || null;
+  state.audit.selectedEvents = payload.events || [];
+  renderAuditRuns({ runs: state.audit.runs, total: state.audit.total });
+  renderAuditRunDetails(state.audit.selectedRun, state.audit.selectedEvents);
+}
+
+async function loadAudit() {
+  const params = new URLSearchParams({
+    audience: $("auditAudience")?.value || "marketer",
+    days: $("auditDays")?.value || "7",
+    status: $("auditStatus")?.value || "all",
+    limit: "25",
+    offset: "0",
+  });
+  const brandId = $("auditBrand")?.value || "";
+  if (brandId) params.set("brandId", brandId);
+
+  const [summaryData, runsData] = await Promise.all([
+    api(`/admin/audit/summary?${params.toString()}`),
+    api(`/admin/audit/runs?${params.toString()}`),
+  ]);
+
+  state.audit.summary = summaryData;
+  state.audit.runs = runsData.runs || [];
+  state.audit.total = runsData.total || 0;
+  renderAuditSummary(summaryData);
+  renderAuditRuns(runsData);
+
+  const selected =
+    state.audit.selectedPipelineRunId &&
+    state.audit.runs.some((run) => run.pipelineRunId === state.audit.selectedPipelineRunId)
+      ? state.audit.selectedPipelineRunId
+      : state.audit.runs[0]?.pipelineRunId;
+
+  if (!selected) {
+    state.audit.selectedPipelineRunId = null;
+    state.audit.selectedRun = null;
+    state.audit.selectedEvents = [];
+    renderAuditRunDetails(null, []);
+    return;
+  }
+
+  await loadAuditRunDetails(selected);
+}
+
 function getSelectedAdminChatBrandId() {
   return $("adminChatBrand")?.value.trim() || "";
 }
@@ -1004,6 +1281,7 @@ function populateBrandSelect(selectId, brands) {
 function renderBrandOptions(brands) {
   populateBrandSelect("adminChatBrand", brands);
   populateBrandSelect("tokenUsageBrand", brands);
+  populateBrandSelect("auditBrand", brands);
   updateAdminChatScopeNote();
 }
 
@@ -1549,6 +1827,7 @@ async function loadAll() {
     loadRoutes(),
     loadEvents(),
     loadRuns(),
+    loadAudit(),
     loadSlackHitl(),
     loadAdminUsageSummary(),
     loadTokenUsagePage(),
@@ -1595,6 +1874,14 @@ $("tokenUsagePrev")?.addEventListener("click", () => {
 $("tokenUsageNext")?.addEventListener("click", () => {
   state.tokenUsage.offset += state.tokenUsage.limit;
   loadTokenUsagePage().catch((err) => status(err.message));
+});
+$("auditRefresh")?.addEventListener("click", () => {
+  loadAudit().catch((err) => status(err.message));
+});
+["auditAudience", "auditBrand", "auditDays", "auditStatus"].forEach((id) => {
+  $(id)?.addEventListener("change", () => {
+    loadAudit().catch((err) => status(err.message));
+  });
 });
 $("adminChatInput")?.addEventListener("keydown", (event) => {
   if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
@@ -1652,6 +1939,23 @@ async function bootstrap() {
   renderRouteDetails(null);
   renderEvents([]);
   renderRuns({ total: 0, byStatus: {}, latest: [] });
+  renderAuditSummary({
+    summary: {
+      totalRuns: 0,
+      runningRuns: 0,
+      completedRuns: 0,
+      failedRuns: 0,
+      rejectedRuns: 0,
+      totalEvents: 0,
+      totalErrors: 0,
+      totalWarnings: 0,
+      byPhase: [],
+      byComponentKind: [],
+      byStatus: [],
+    },
+  });
+  renderAuditRuns({ runs: [], total: 0 });
+  renderAuditRunDetails(null, []);
   renderAdminChatMessages();
   renderAdminUsageSummary({
     summary: {

@@ -9,24 +9,24 @@ import {
 const PROJECT_ROOT = resolve(import.meta.dirname, "../..");
 
 describe("McpFetcherAgent prompt + execution", () => {
-  it("uses runtime prompt content from knowledge specs", () => {
+  it("uses runtime prompt content from knowledge specs", async () => {
     const customPromptPath = resolve(
       PROJECT_ROOT,
       "tests/fixtures/mcp-fetcher-system-prompt-custom.md"
     );
     const agent = new McpFetcherAgent({ promptFile: customPromptPath });
-    const context = buildExecutionContext("mcp-fetcher-prompt-test");
+    const context = await buildExecutionContext("mcp-fetcher-prompt-test");
 
     const prompt = agent.getSystemPrompt(context);
     expect(prompt).toContain("Custom MCP Fetcher Prompt");
     expect(prompt).toContain("universal-agent-skill-creator.md");
   });
 
-  it("falls back when runtime prompt file is unavailable", () => {
+  it("falls back when runtime prompt file is unavailable", async () => {
     const agent = new McpFetcherAgent({
       promptFile: "knowledge/sub-agents/mcp-fetcher/not-found.md",
     });
-    const context = buildExecutionContext("mcp-fetcher-fallback-test");
+    const context = await buildExecutionContext("mcp-fetcher-fallback-test");
 
     const prompt = agent.getSystemPrompt(context);
     expect(prompt).toContain("You are the MCP Fetcher sub-agent");
@@ -37,7 +37,7 @@ describe("McpFetcherAgent prompt + execution", () => {
 
   it("returns deterministic error on invalid input", async () => {
     const agent = new McpFetcherAgent();
-    const context = buildExecutionContext("mcp-fetcher-exec-test");
+    const context = await buildExecutionContext("mcp-fetcher-exec-test");
 
     const result = await agent.execute({}, context);
     expect(result.success).toBe(false);

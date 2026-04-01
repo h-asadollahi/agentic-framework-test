@@ -8,6 +8,7 @@ import {
 } from "../../providers/model-router.js";
 import { logger } from "../../core/logger.js";
 import { llmUsageStore } from "../../observability/llm-usage-store.js";
+import { agentAuditStore } from "../../observability/agent-audit-store.js";
 
 /**
  * Base class for domain-specific sub-agents.
@@ -58,6 +59,14 @@ export abstract class BaseSubAgent implements SubAgentPlugin {
    */
   abstract getTools(context: ExecutionContext): Record<string, Tool>;
 
+  protected getAuditPhase(): string {
+    return "sub-agent";
+  }
+
+  protected getPromptSourceIdentifier(): string | null {
+    return null;
+  }
+
   /**
    * Shared instruction for long-term capability creation.
    */
@@ -73,17 +82,65 @@ export abstract class BaseSubAgent implements SubAgentPlugin {
    */
   async execute(input: unknown, context: ExecutionContext): Promise<AgentResult> {
     const models = [this.preferredModel, ...this.fallbackModels];
+    const tools = this.getTools(context);
+    const hasTools = Object.keys(tools).length > 0;
+    const systemPrompt = this.getSystemPrompt(context);
+    const auditBase = {
+      pipelineRunId: context.requestContext.pipelineRunId ?? context.sessionId,
+      runId: context.requestContext.runId ?? context.sessionId,
+      sessionId: context.sessionId,
+      phase: this.getAuditPhase(),
+      componentKind: "sub-agent" as const,
+      componentId: this.id,
+      audience: context.requestContext.audience,
+      scope: context.requestContext.scope,
+      brandId: context.requestContext.brandId,
+    };
+
+    await agentAuditStore.record({
+      ...auditBase,
+      eventType: "invoke",
+      status: "running",
+      payload: {
+        input,
+        hasTools,
+        availableTools: Object.keys(tools),
+        candidateModels: models,
+      },
+    });
+    await agentAuditStore.record({
+      ...auditBase,
+      eventType: "prompt_snapshot",
+      status: "captured",
+      payload: {
+        promptSource: this.getPromptSourceIdentifier(),
+        systemPrompt,
+        prompt: JSON.stringify(input),
+      },
+    });
 
     for (const modelId of models) {
       try {
         const model = modelRouter.resolve(modelId);
-        const tools = this.getTools(context);
-        const hasTools = Object.keys(tools).length > 0;
         const supportsTemperature = modelSupportsTemperature(modelId);
+        const resolvedModelId = resolveModelId(modelId);
+
+        await agentAuditStore.record({
+          ...auditBase,
+          eventType: "model_attempt",
+          status: "started",
+          modelAlias: modelId,
+          resolvedModelId,
+          provider: resolveProvider(resolvedModelId),
+          payload: {
+            supportsTemperature,
+            maxSteps: hasTools ? this.maxSteps : 0,
+          },
+        });
 
         const result = await generateText({
           model,
-          system: this.getSystemPrompt(context),
+          system: systemPrompt,
           prompt: JSON.stringify(input),
           ...(hasTools ? { tools, maxSteps: this.maxSteps } : {}),
           ...(supportsTemperature ? { temperature: this.temperature } : {}),
@@ -99,7 +156,6 @@ export abstract class BaseSubAgent implements SubAgentPlugin {
           "number"
             ? (result.usage as { outputTokens?: number }).outputTokens
             : undefined;
-        const resolvedModelId = resolveModelId(modelId);
 
         try {
           await llmUsageStore.record({
@@ -130,6 +186,22 @@ export abstract class BaseSubAgent implements SubAgentPlugin {
           });
         }
 
+        await agentAuditStore.record({
+          ...auditBase,
+          eventType: "result",
+          status: "completed",
+          modelAlias: modelId,
+          resolvedModelId,
+          provider: resolveProvider(resolvedModelId),
+          tokensUsed: result.usage?.totalTokens ?? 0,
+          payload: {
+            output: result.text,
+            stepCount: result.steps?.length ?? 1,
+            promptTokens,
+            completionTokens,
+          },
+        });
+
         return {
           success: true,
           output: result.text,
@@ -141,9 +213,31 @@ export abstract class BaseSubAgent implements SubAgentPlugin {
         };
       } catch (error) {
         logger.warn(`Sub-agent "${this.id}" failed with model "${modelId}": ${error instanceof Error ? error.message : String(error)}`);
+        const resolvedModelId = resolveModelId(modelId);
+        await agentAuditStore.record({
+          ...auditBase,
+          eventType: "error",
+          status: "failed",
+          modelAlias: modelId,
+          resolvedModelId,
+          provider: resolveProvider(resolvedModelId),
+          payload: {
+            message: error instanceof Error ? error.message : String(error),
+          },
+        });
         continue;
       }
     }
+
+    await agentAuditStore.record({
+      ...auditBase,
+      eventType: "error",
+      status: "failed",
+      payload: {
+        message: "All sub-agent models exhausted",
+        attemptedModels: models,
+      },
+    });
 
     return {
       success: false,

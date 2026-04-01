@@ -98,6 +98,13 @@ class LearnedRoutesStoreImpl {
 
     try {
       const raw = readFileSync(ROUTES_FILE, "utf-8");
+      if (raw.trim().length === 0) {
+        logger.warn("learned-routes.json is empty, treating fallback catalog as empty");
+        this.routes = [];
+        this.loaded = true;
+        this.dbEnabled = false;
+        return;
+      }
       const parsed = JSON.parse(raw);
       const validated = LearnedRoutesFileSchema.parse(parsed);
       this.routes = validated.routes;

@@ -2,6 +2,7 @@ import { task, logger } from "@trigger.dev/sdk/v3";
 import type { NotificationRequest, NotificationResult } from "../core/types.js";
 // Register all channel adapters
 import { channelRegistry } from "../channels/index.js";
+import { agentAuditStore } from "../observability/agent-audit-store.js";
 
 /**
  * Notify Task
@@ -17,17 +18,74 @@ export const notifyTask = task({
   retry: { maxAttempts: 3 },
   run: async (payload: { notification: NotificationRequest }): Promise<NotificationResult> => {
     const { notification } = payload;
+    const requestContext = notification.metadata?.requestContext as
+      | NotificationRequest["metadata"]
+      | undefined;
+    const pipelineRunId =
+      typeof requestContext?.pipelineRunId === "string"
+        ? requestContext.pipelineRunId
+        : typeof requestContext?.sessionId === "string"
+          ? requestContext.sessionId
+          : "notification";
+    const sessionId =
+      typeof notification.metadata?.sessionId === "string"
+        ? notification.metadata.sessionId
+        : pipelineRunId;
 
     logger.info(`Sending ${notification.channel} notification`, {
       channel: notification.channel,
       recipient: notification.recipient,
       priority: notification.priority,
     });
+    await agentAuditStore.record({
+      pipelineRunId,
+      runId:
+        typeof notification.metadata?.runId === "string"
+          ? notification.metadata.runId
+          : sessionId,
+      sessionId,
+      phase: "notification",
+      componentKind: "notification",
+      componentId: notification.channel,
+      eventType: "invoke",
+      status: "running",
+      audience:
+        requestContext?.audience === "admin" ? "admin" : "marketer",
+      scope: requestContext?.scope === "brand" ? "brand" : "global",
+      brandId:
+        typeof requestContext?.brandId === "string" ? requestContext.brandId : null,
+      payload: {
+        recipient: notification.recipient,
+        subject: notification.subject,
+        priority: notification.priority,
+      },
+    });
 
     const adapter = channelRegistry.get(notification.channel);
 
     if (!adapter) {
       logger.error(`No adapter for channel: ${notification.channel}`);
+      await agentAuditStore.record({
+        pipelineRunId,
+        runId:
+          typeof notification.metadata?.runId === "string"
+            ? notification.metadata.runId
+            : sessionId,
+        sessionId,
+        phase: "notification",
+        componentKind: "notification",
+        componentId: notification.channel,
+        eventType: "error",
+        status: "failed",
+        audience:
+          requestContext?.audience === "admin" ? "admin" : "marketer",
+        scope: requestContext?.scope === "brand" ? "brand" : "global",
+        brandId:
+          typeof requestContext?.brandId === "string" ? requestContext.brandId : null,
+        payload: {
+          message: `Unknown channel: ${notification.channel}`,
+        },
+      });
       return {
         success: false,
         error: `Unknown channel: ${notification.channel}`,
@@ -49,6 +107,30 @@ export const notifyTask = task({
         error: result.error,
       });
     }
+
+    await agentAuditStore.record({
+      pipelineRunId,
+      runId:
+        typeof notification.metadata?.runId === "string"
+          ? notification.metadata.runId
+          : sessionId,
+      sessionId,
+      phase: "notification",
+      componentKind: "notification",
+      componentId: notification.channel,
+      eventType: "result",
+      status: result.success ? "completed" : "failed",
+      audience:
+        requestContext?.audience === "admin" ? "admin" : "marketer",
+      scope: requestContext?.scope === "brand" ? "brand" : "global",
+      brandId:
+        typeof requestContext?.brandId === "string" ? requestContext.brandId : null,
+      payload: {
+        recipient: notification.recipient,
+        messageId: result.messageId ?? null,
+        error: result.error ?? null,
+      },
+    });
 
     return result;
   },

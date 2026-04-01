@@ -3,8 +3,8 @@ import { buildExecutionContext } from "../../src/core/context.js";
 import { buildGroundingResultFromOutput } from "../../src/trigger/ground.js";
 
 describe("grounding output parsing", () => {
-  it("parses plain JSON grounding output", () => {
-    const context = buildExecutionContext("ground-plain-json");
+  it("parses plain JSON grounding output", async () => {
+    const context = await buildExecutionContext("ground-plain-json");
     const output = JSON.stringify({
       brandIdentity: {
         ...context.brandIdentity,
@@ -28,8 +28,8 @@ describe("grounding output parsing", () => {
     ]);
   });
 
-  it("parses fenced JSON grounding output", () => {
-    const context = buildExecutionContext("ground-fenced-json");
+  it("parses fenced JSON grounding output", async () => {
+    const context = await buildExecutionContext("ground-fenced-json");
     const fenced = [
       "Grounding summary:",
       "```json",
@@ -52,8 +52,8 @@ describe("grounding output parsing", () => {
     expect(groundingResult.guardrails).toEqual(context.guardrails);
   });
 
-  it("falls back to context when output is non-JSON", () => {
-    const context = buildExecutionContext("ground-fallback");
+  it("falls back to context when output is non-JSON", async () => {
+    const context = await buildExecutionContext("ground-fallback");
     const { parsedJson, groundingResult } = buildGroundingResultFromOutput(
       "Grounding complete. Proceeding with defaults.",
       context

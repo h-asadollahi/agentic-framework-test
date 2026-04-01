@@ -128,6 +128,10 @@ export class AgencyAgent extends BaseAgent {
       vars
     );
   }
+
+  protected override getPromptSourceIdentifier(): string | null {
+    return this.promptFile;
+  }
 }
 
 export const agencyAgent = new AgencyAgent();

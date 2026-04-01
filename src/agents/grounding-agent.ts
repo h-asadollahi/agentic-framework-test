@@ -104,6 +104,10 @@ export class GroundingAgent extends BaseAgent {
       GROUNDING_SYSTEM_PROMPT_FALLBACK
     );
   }
+
+  protected override getPromptSourceIdentifier(): string | null {
+    return this.promptFile;
+  }
 }
 
 export const groundingAgent = new GroundingAgent();

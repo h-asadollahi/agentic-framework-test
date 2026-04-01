@@ -168,12 +168,27 @@ export function filterSkillSuggestionsForCognitionContext(
 export function prepareAutonomousSkillSuggestionsForPersistence(
   suggestions: SkillSuggestion[],
   cognitionResult: CognitionResult,
-  requestContext?: ExecutionContext["requestContext"],
+  requestContextOrOptions?:
+    | ExecutionContext["requestContext"]
+    | { maxSuggestions?: number },
   options: { maxSuggestions?: number } = {}
 ): PreparedSkillSuggestionSet {
   if (suggestions.length === 0) {
     return { suggestions: [], droppedCount: 0 };
   }
+
+  const requestContext =
+    requestContextOrOptions &&
+    typeof requestContextOrOptions === "object" &&
+    "audience" in requestContextOrOptions
+      ? requestContextOrOptions
+      : undefined;
+  const resolvedOptions =
+    requestContextOrOptions &&
+    typeof requestContextOrOptions === "object" &&
+    !("audience" in requestContextOrOptions)
+      ? requestContextOrOptions
+      : options;
 
   const promptAnchor = derivePromptAnchorFromCognition(cognitionResult);
   const matchedCandidate = promptAnchor
@@ -191,7 +206,7 @@ export function prepareAutonomousSkillSuggestionsForPersistence(
     {
       lockedCapability: matchedMaterializedCandidate?.capability,
       lockedSkillFile: matchedMaterializedCandidate?.suggestedSkillFile,
-      maxSuggestions: options.maxSuggestions ?? 1,
+      maxSuggestions: resolvedOptions.maxSuggestions ?? 1,
     }
   );
 

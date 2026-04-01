@@ -9,7 +9,7 @@ import {
 const PROJECT_ROOT = resolve(import.meta.dirname, "../..");
 
 describe("GroundingAgent buildSystemPrompt", () => {
-  it("uses runtime prompt content from knowledge specs", () => {
+  it("uses runtime prompt content from knowledge specs", async () => {
     const customPromptPath = resolve(
       PROJECT_ROOT,
       "tests/fixtures/grounding-system-prompt-custom.md"
@@ -18,17 +18,17 @@ describe("GroundingAgent buildSystemPrompt", () => {
     const agent = new GroundingAgent(undefined, {
       promptFile: customPromptPath,
     });
-    const context = buildExecutionContext("grounding-prompt-test");
+    const context = await buildExecutionContext("grounding-prompt-test");
 
     const prompt = agent.buildSystemPrompt(context);
     expect(prompt).toContain("Custom Grounding Prompt Fixture");
   });
 
-  it("falls back when runtime prompt file is unavailable", () => {
+  it("falls back when runtime prompt file is unavailable", async () => {
     const agent = new GroundingAgent(undefined, {
       promptFile: "knowledge/agents/grounding/not-found.md",
     });
-    const context = buildExecutionContext("grounding-fallback-test");
+    const context = await buildExecutionContext("grounding-fallback-test");
 
     const prompt = agent.buildSystemPrompt(context);
     expect(prompt).toBe(GROUNDING_SYSTEM_PROMPT_FALLBACK);

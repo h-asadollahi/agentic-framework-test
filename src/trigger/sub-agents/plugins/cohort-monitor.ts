@@ -5,6 +5,7 @@ import type { ExecutionContext, AgentResult } from "../../../core/types.js";
 import { getMockCohortData, getMockCohortOverview } from "./cohort-monitor-mock.js";
 import { logger } from "../../../core/logger.js";
 import { loadAgentPromptSpec } from "../../../tools/agent-spec-loader.js";
+import { agentAuditStore } from "../../../observability/agent-audit-store.js";
 
 // ── Schemas ────────────────────────────────────────────────────
 // All fields are OPTIONAL with sensible defaults so the cognition
@@ -132,6 +133,26 @@ export class CohortMonitorAgent extends BaseSubAgent {
    * AI-based flow with tools.
    */
   async execute(input: unknown, context: ExecutionContext): Promise<AgentResult> {
+    const pipelineRunId = context.requestContext.pipelineRunId ?? context.sessionId;
+    const runId = context.requestContext.runId ?? context.sessionId;
+    const auditBase = {
+      pipelineRunId,
+      runId,
+      sessionId: context.sessionId,
+      phase: "sub-agent",
+      componentKind: "sub-agent" as const,
+      componentId: this.id,
+      audience: context.requestContext.audience,
+      scope: context.requestContext.scope,
+      brandId: context.requestContext.brandId,
+    };
+    await agentAuditStore.record({
+      ...auditBase,
+      eventType: "invoke",
+      status: "running",
+      payload: { input },
+    });
+
     const parsed = CohortMonitorInput.safeParse(input);
 
     if (!parsed.success) {
@@ -140,6 +161,21 @@ export class CohortMonitorAgent extends BaseSubAgent {
         errors: parsed.error.flatten(),
       });
       const fallback = getMockCohortData({});
+      await agentAuditStore.record({
+        ...auditBase,
+        eventType: "decision",
+        status: "warning",
+        payload: {
+          decision: "input-parse-failed-using-defaults",
+          details: parsed.error.flatten(),
+        },
+      });
+      await agentAuditStore.record({
+        ...auditBase,
+        eventType: "result",
+        status: "completed",
+        payload: fallback as unknown as Record<string, unknown>,
+      });
       return {
         success: true,
         output: JSON.stringify(fallback),
@@ -155,10 +191,28 @@ export class CohortMonitorAgent extends BaseSubAgent {
       timeRange,
       compareBaseline,
     });
+    await agentAuditStore.record({
+      ...auditBase,
+      eventType: "decision",
+      status: "completed",
+      payload: {
+        decision: "mock-cohort-query",
+        cohortId,
+        metric,
+        timeRange,
+        compareBaseline,
+      },
+    });
 
     // If no specific metric was requested, return an overview of all metrics
     if (!input || (typeof input === "object" && !(input as Record<string, unknown>).metric)) {
       const overview = getMockCohortOverview(cohortId);
+      await agentAuditStore.record({
+        ...auditBase,
+        eventType: "result",
+        status: "completed",
+        payload: { overview } as Record<string, unknown>,
+      });
       return {
         success: true,
         output: JSON.stringify(overview),
@@ -168,6 +222,12 @@ export class CohortMonitorAgent extends BaseSubAgent {
 
     // Single-metric query
     const result = getMockCohortData({ cohortId, metric, timeRange, compareBaseline });
+    await agentAuditStore.record({
+      ...auditBase,
+      eventType: "result",
+      status: "completed",
+      payload: result as unknown as Record<string, unknown>,
+    });
 
     return {
       success: true,
@@ -198,6 +258,10 @@ export class CohortMonitorAgent extends BaseSubAgent {
     // Tools are available for the AI-based execution path (future use).
     // In mock mode, execute() returns data directly without calling tools.
     return {};
+  }
+
+  protected override getPromptSourceIdentifier(): string | null {
+    return this.promptFile;
   }
 }
 

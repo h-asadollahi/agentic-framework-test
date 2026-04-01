@@ -5,6 +5,7 @@ import { resolve } from "node:path";
 import { tasks } from "@trigger.dev/sdk/v3";
 import { registerAdminRoutes } from "../../src/admin/routes.js";
 import { llmUsageStore } from "../../src/observability/llm-usage-store.js";
+import { agentAuditStore } from "../../src/observability/agent-audit-store.js";
 import { learnedRoutesStore } from "../../src/routing/learned-routes-store.js";
 
 const routesFile = resolve(process.cwd(), "knowledge/learned-routes.json");
@@ -137,6 +138,130 @@ describe.sequential("admin routes", () => {
       }
     );
     expect(deleteResponse.status).toBe(200);
+  });
+
+  it("returns audit summary, filtered runs, and run detail timelines", async () => {
+    const summarySpy = vi.spyOn(agentAuditStore, "getSummary").mockResolvedValue({
+      totalRuns: 2,
+      runningRuns: 1,
+      completedRuns: 1,
+      failedRuns: 0,
+      rejectedRuns: 0,
+      totalEvents: 12,
+      totalErrors: 1,
+      totalWarnings: 2,
+      byPhase: [{ phase: "grounding", events: 3 }],
+      byComponentKind: [{ componentKind: "agent", events: 8 }],
+      byStatus: [{ status: "completed", events: 9 }],
+    });
+    const runsSpy = vi.spyOn(agentAuditStore, "listRuns").mockResolvedValue({
+      total: 1,
+      rows: [
+        {
+          pipelineRunId: "run-pipeline-1",
+          sessionId: "session-1",
+          audience: "marketer",
+          scope: "brand",
+          brandId: "brand-1",
+          source: "api",
+          userPrompt: "List all available dimensions and metrics in Mapp Intelligence",
+          status: "completed",
+          startedAt: "2026-04-01T09:00:00.000Z",
+          finishedAt: "2026-04-01T09:00:05.000Z",
+          totalEvents: 8,
+          totalErrors: 0,
+          totalWarnings: 1,
+          createdAt: "2026-04-01T09:00:00.000Z",
+          updatedAt: "2026-04-01T09:00:05.000Z",
+        },
+      ],
+    });
+    const runSpy = vi.spyOn(agentAuditStore, "getRun").mockResolvedValue({
+      pipelineRunId: "run-pipeline-1",
+      sessionId: "session-1",
+      audience: "marketer",
+      scope: "brand",
+      brandId: "brand-1",
+      source: "api",
+      userPrompt: "List all available dimensions and metrics in Mapp Intelligence",
+      status: "completed",
+      startedAt: "2026-04-01T09:00:00.000Z",
+      finishedAt: "2026-04-01T09:00:05.000Z",
+      totalEvents: 8,
+      totalErrors: 0,
+      totalWarnings: 1,
+      createdAt: "2026-04-01T09:00:00.000Z",
+      updatedAt: "2026-04-01T09:00:05.000Z",
+    });
+    const eventsSpy = vi.spyOn(agentAuditStore, "listEvents").mockResolvedValue({
+      total: 2,
+      rows: [
+        {
+          id: 1,
+          pipelineRunId: "run-pipeline-1",
+          runId: "run-stage-1",
+          sessionId: "session-1",
+          phase: "grounding",
+          componentKind: "agent",
+          componentId: "grounding",
+          eventType: "prompt_snapshot",
+          sequence: 1,
+          status: "captured",
+          modelAlias: "openai:fast",
+          resolvedModelId: "openai:gpt-4o-mini",
+          provider: "openai",
+          durationMs: null,
+          tokensUsed: null,
+          brandId: "brand-1",
+          audience: "marketer",
+          scope: "brand",
+          payload: { promptSource: "knowledge/agents/grounding/system-prompt.md" },
+          createdAt: "2026-04-01T09:00:01.000Z",
+        },
+      ],
+    });
+
+    const app = buildApp();
+    const headers = { Authorization: "Bearer admin-token" };
+
+    const summaryResponse = await app.request(
+      "http://localhost/admin/audit/summary?audience=marketer&days=14",
+      { headers }
+    );
+    expect(summaryResponse.status).toBe(200);
+    expect(summarySpy).toHaveBeenCalledWith({
+      audience: "marketer",
+      brandId: null,
+      days: 14,
+    });
+
+    const runsResponse = await app.request(
+      "http://localhost/admin/audit/runs?status=completed&componentKind=agent",
+      { headers }
+    );
+    expect(runsResponse.status).toBe(200);
+    expect(runsSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        status: "completed",
+        componentKind: "agent",
+      })
+    );
+
+    const detailResponse = await app.request(
+      "http://localhost/admin/audit/runs/run-pipeline-1",
+      { headers }
+    );
+    expect(detailResponse.status).toBe(200);
+    expect(runSpy).toHaveBeenCalledWith("run-pipeline-1");
+    expect(eventsSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        pipelineRunId: "run-pipeline-1",
+      })
+    );
+
+    const detailBody = await detailResponse.json();
+    expect(detailBody.run.pipelineRunId).toBe("run-pipeline-1");
+    expect(detailBody.totalEvents).toBe(2);
   });
 
   it("uses Trigger's v1 run list endpoint for admin run summaries", async () => {

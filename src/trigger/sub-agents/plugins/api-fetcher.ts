@@ -8,6 +8,7 @@ import { learnedRoutesStore } from "../../../routing/learned-routes-store.js";
 import type { LearnedRoute } from "../../../routing/learned-routes-schema.js";
 import { logger } from "../../../core/logger.js";
 import { loadAgentPromptSpec } from "../../../tools/agent-spec-loader.js";
+import { agentAuditStore } from "../../../observability/agent-audit-store.js";
 
 // ── Schemas ─────────────────────────────────────────────────
 
@@ -771,11 +772,42 @@ export class ApiFetcherAgent extends BaseSubAgent {
     input: unknown,
     context: ExecutionContext
   ): Promise<AgentResult> {
+    const pipelineRunId = context.requestContext.pipelineRunId ?? context.sessionId;
+    const runId = context.requestContext.runId ?? context.sessionId;
+    const auditBase = {
+      pipelineRunId,
+      runId,
+      sessionId: context.sessionId,
+      phase: "sub-agent",
+      componentKind: "sub-agent" as const,
+      componentId: this.id,
+      audience: context.requestContext.audience,
+      scope: context.requestContext.scope,
+      brandId: context.requestContext.brandId,
+    };
+    await agentAuditStore.record({
+      ...auditBase,
+      eventType: "invoke",
+      status: "running",
+      payload: {
+        input,
+      },
+    });
+
     const parsed = ApiFetcherInput.safeParse(input);
 
     if (!parsed.success) {
       logger.warn("api-fetcher: invalid input", {
         errors: parsed.error.flatten(),
+      });
+      await agentAuditStore.record({
+        ...auditBase,
+        eventType: "error",
+        status: "failed",
+        payload: {
+          message: "Invalid input for api-fetcher",
+          details: parsed.error.flatten(),
+        },
       });
       return {
         success: false,
@@ -792,6 +824,15 @@ export class ApiFetcherAgent extends BaseSubAgent {
 
     if (!route) {
       logger.warn(`api-fetcher: route "${routeId}" not found`);
+      await agentAuditStore.record({
+        ...auditBase,
+        eventType: "error",
+        status: "failed",
+        payload: {
+          routeId,
+          message: `Learned route \"${routeId}\" not found`,
+        },
+      });
       return {
         success: false,
         output: JSON.stringify({
@@ -803,6 +844,15 @@ export class ApiFetcherAgent extends BaseSubAgent {
 
     if (route.routeType !== "api" || !route.endpoint) {
       logger.warn(`api-fetcher: route "${routeId}" is not an API route`);
+      await agentAuditStore.record({
+        ...auditBase,
+        eventType: "error",
+        status: "failed",
+        payload: {
+          routeId,
+          message: `Learned route \"${routeId}\" is not an API route`,
+        },
+      });
       return {
         success: false,
         output: JSON.stringify({
@@ -813,6 +863,17 @@ export class ApiFetcherAgent extends BaseSubAgent {
     }
 
     const workflowType = route.apiWorkflow?.workflowType ?? "single-request";
+    await agentAuditStore.record({
+      ...auditBase,
+      eventType: "decision",
+      status: "completed",
+      payload: {
+        routeId,
+        workflowType,
+        endpoint: route.endpoint.url,
+        method: route.endpoint.method,
+      },
+    });
 
     try {
       const resolvedUrl = resolveTemplateString(route.endpoint.url, params);
@@ -829,6 +890,23 @@ export class ApiFetcherAgent extends BaseSubAgent {
 
       const bodyInfo = createRequestBody(route, params);
       const preflight = buildMcpBuilderPreflight(route, workflowType, bodyInfo.source);
+      await agentAuditStore.record({
+        ...auditBase,
+        eventType: "tool_call",
+        status: "started",
+        payload: {
+          routeId,
+          workflowType,
+          request: {
+            method: route.endpoint.method,
+            url: url.toString(),
+            headers: resolvedHeaders,
+            queryParams: resolvedQueryParams,
+            bodyPreview: bodyInfo.body,
+          },
+          preflight,
+        },
+      });
 
       logger.info(`api-fetcher: executing route "${routeId}"`, {
         url: url.toString(),
@@ -885,6 +963,13 @@ export class ApiFetcherAgent extends BaseSubAgent {
         workflowType,
       });
 
+      await agentAuditStore.record({
+        ...auditBase,
+        eventType: "result",
+        status: success ? "completed" : "failed",
+        payload: output,
+      });
+
       return {
         success,
         output: JSON.stringify(output),
@@ -901,6 +986,18 @@ export class ApiFetcherAgent extends BaseSubAgent {
         workflowType,
         normalizeString(route.apiWorkflow?.requestBodySource)
       );
+
+      await agentAuditStore.record({
+        ...auditBase,
+        eventType: "error",
+        status: "failed",
+        payload: {
+          routeId,
+          workflowType,
+          message,
+          preflight,
+        },
+      });
 
       return {
         success: false,
@@ -933,6 +1030,10 @@ export class ApiFetcherAgent extends BaseSubAgent {
 
   getTools(_context: ExecutionContext): Record<string, Tool> {
     return {};
+  }
+
+  protected override getPromptSourceIdentifier(): string | null {
+    return this.promptFile;
   }
 }
 

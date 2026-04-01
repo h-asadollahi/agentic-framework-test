@@ -45,7 +45,7 @@ function jsonResponse(status: number, payload: unknown): Response {
 }
 
 describe("api-fetcher workflows", () => {
-  const context = buildExecutionContext("api-fetcher-workflow-test");
+  let context: Awaited<ReturnType<typeof buildExecutionContext>>;
   const originalEnv = {
     MAPP_ANALYTICS_API_URL: process.env.MAPP_ANALYTICS_API_URL,
     MAPP_ANALYTICS_API_TOKEN: process.env.MAPP_ANALYTICS_API_TOKEN,
@@ -53,12 +53,13 @@ describe("api-fetcher workflows", () => {
     MAPP_ANALYTICS_API_CLIENT_SECRET: process.env.MAPP_ANALYTICS_API_CLIENT_SECRET,
   };
 
-  beforeEach(() => {
+  beforeEach(async () => {
     process.env.MAPP_ANALYTICS_API_URL = "https://intelligence.eu.mapp.com";
     process.env.MAPP_ANALYTICS_API_TOKEN = "seed-token";
     process.env.MAPP_ANALYTICS_API_CLIENT_ID = "client-id";
     process.env.MAPP_ANALYTICS_API_CLIENT_SECRET = "client-secret";
     __resetRuntimeMappTokenCache();
+    context = await buildExecutionContext("api-fetcher-workflow-test");
   });
 
   afterEach(() => {

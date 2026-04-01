@@ -9,7 +9,7 @@ import {
 const PROJECT_ROOT = resolve(import.meta.dirname, "../..");
 
 describe("InterfaceAgent buildSystemPrompt", () => {
-  it("uses runtime prompt content from knowledge specs", () => {
+  it("uses runtime prompt content from knowledge specs", async () => {
     const customPromptPath = resolve(
       PROJECT_ROOT,
       "tests/fixtures/interface-system-prompt-custom.md"
@@ -18,7 +18,7 @@ describe("InterfaceAgent buildSystemPrompt", () => {
     const agent = new InterfaceAgent(undefined, {
       promptFile: customPromptPath,
     });
-    const context = buildExecutionContext("interface-prompt-test");
+    const context = await buildExecutionContext("interface-prompt-test");
 
     const prompt = agent.buildSystemPrompt(context);
     expect(prompt).toContain(
@@ -26,11 +26,11 @@ describe("InterfaceAgent buildSystemPrompt", () => {
     );
   });
 
-  it("falls back when runtime prompt file is unavailable", () => {
+  it("falls back when runtime prompt file is unavailable", async () => {
     const agent = new InterfaceAgent(undefined, {
       promptFile: "knowledge/agents/interface/not-found.md",
     });
-    const context = buildExecutionContext("interface-fallback-test");
+    const context = await buildExecutionContext("interface-fallback-test");
 
     const prompt = agent.buildSystemPrompt(context);
     expect(prompt).toContain(context.brandIdentity.name);

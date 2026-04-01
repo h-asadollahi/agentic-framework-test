@@ -2,6 +2,7 @@ import { z } from "zod";
 import type { Tool } from "ai";
 import type { AgentResult, ExecutionContext } from "../../../core/types.js";
 import { llmUsageStore } from "../../../observability/llm-usage-store.js";
+import { agentAuditStore } from "../../../observability/agent-audit-store.js";
 import { BaseSubAgent } from "../base-sub-agent.js";
 import { subAgentRegistry } from "../registry.js";
 
@@ -74,12 +75,58 @@ export class TokenUsageMonitorAgent extends BaseSubAgent {
   }
 
   async execute(input: unknown, _context: ExecutionContext): Promise<AgentResult> {
+    const context = _context;
+    const pipelineRunId = context.requestContext.pipelineRunId ?? context.sessionId;
+    const runId = context.requestContext.runId ?? context.sessionId;
+    const auditBase = {
+      pipelineRunId,
+      runId,
+      sessionId: context.sessionId,
+      phase: "sub-agent",
+      componentKind: "sub-agent" as const,
+      componentId: this.id,
+      audience: context.requestContext.audience,
+      scope: context.requestContext.scope,
+      brandId: context.requestContext.brandId,
+    };
     const parsed = TokenUsageMonitorInput.safeParse(input);
     const request = parsed.success ? parsed.data : TokenUsageMonitorInput.parse({});
+    await agentAuditStore.record({
+      ...auditBase,
+      eventType: "invoke",
+      status: "running",
+      payload: { input: request },
+    });
     const summary = await llmUsageStore.getSummary({
       audience: request.audience,
       brandId: request.brandId ?? null,
       days: request.days,
+    });
+    await agentAuditStore.record({
+      ...auditBase,
+      eventType: "decision",
+      status: "completed",
+      payload: {
+        decision: "deterministic-telemetry-query",
+        audience: request.audience,
+        brandId: request.brandId ?? null,
+        days: request.days,
+      },
+    });
+    await agentAuditStore.record({
+      ...auditBase,
+      eventType: "result",
+      status: "completed",
+      payload: {
+        audience: request.audience,
+        brandId: request.brandId ?? null,
+        days: request.days,
+        totalPrompts: summary.totalPrompts,
+        totalLlmCalls: summary.totalLlmCalls,
+        totalTokens: summary.totalTokens,
+        byProvider: summary.byProvider,
+        byModel: summary.byModel,
+      },
     });
 
     return {
@@ -110,6 +157,10 @@ export class TokenUsageMonitorAgent extends BaseSubAgent {
 
   getTools(_context: ExecutionContext): Record<string, Tool> {
     return {};
+  }
+
+  protected override getPromptSourceIdentifier(): string | null {
+    return "deterministic-inline";
   }
 }
 

@@ -5,6 +5,7 @@ import { logger } from "../core/logger.js";
 import { createAdminRequestContext } from "../core/request-context.js";
 import { shortTermMemory } from "../memory/short-term.js";
 import { llmUsageStore } from "../observability/llm-usage-store.js";
+import { agentAuditStore } from "../observability/agent-audit-store.js";
 import {
   fetchTriggerRunSummary,
   retrieveTriggerRun,
@@ -137,6 +138,18 @@ function parseScope(
   return value === "global" || value === "brand" ? value : undefined;
 }
 
+function parseAuditRunStatus(
+  value: string | undefined
+): "running" | "completed" | "failed" | "rejected" | "all" | undefined {
+  return value === "running" ||
+    value === "completed" ||
+    value === "failed" ||
+    value === "rejected" ||
+    value === "all"
+    ? value
+    : undefined;
+}
+
 function parseBrandId(value: string | undefined): string | undefined {
   const normalized = String(value ?? "").trim();
   return normalized.length > 0 ? normalized : undefined;
@@ -262,6 +275,122 @@ export function registerAdminRoutes(app: Hono): void {
     });
 
     return c.json({ events, limit, offset });
+  });
+
+  admin.get("/audit/summary", async (c) => {
+    const audience = parseRequestAudience(c.req.query("audience"));
+    const brandId = parseBrandId(c.req.query("brandId")) ?? null;
+    const days = Math.min(Math.max(parseIntParam(c.req.query("days"), 7), 1), 365);
+
+    const summary = await agentAuditStore.getSummary({
+      audience,
+      brandId,
+      days,
+    });
+
+    return c.json({
+      audience: audience ?? null,
+      brandId,
+      days,
+      summary,
+    });
+  });
+
+  admin.get("/audit/runs", async (c) => {
+    const audience = parseRequestAudience(c.req.query("audience"));
+    const brandId = parseBrandId(c.req.query("brandId")) ?? null;
+    const status = parseAuditRunStatus(c.req.query("status")) ?? "all";
+    const componentKind = c.req.query("componentKind") || undefined;
+    const days = Math.min(Math.max(parseIntParam(c.req.query("days"), 7), 1), 365);
+    const limit = Math.min(Math.max(parseIntParam(c.req.query("limit"), 25), 1), 200);
+    const offset = Math.max(parseIntParam(c.req.query("offset"), 0), 0);
+
+    const result = await agentAuditStore.listRuns({
+      audience,
+      brandId,
+      status,
+      componentKind,
+      days,
+      limit,
+      offset,
+    });
+
+    return c.json({
+      audience: audience ?? null,
+      brandId,
+      status,
+      componentKind: componentKind ?? null,
+      days,
+      limit,
+      offset,
+      total: result.total,
+      runs: result.rows,
+    });
+  });
+
+  admin.get("/audit/runs/:pipelineRunId", async (c) => {
+    const pipelineRunId = c.req.param("pipelineRunId");
+    const run = await agentAuditStore.getRun(pipelineRunId);
+    if (!run) {
+      return c.json({ error: "Audit run not found" }, 404);
+    }
+
+    const events = await agentAuditStore.listEvents({
+      pipelineRunId,
+      limit: 1000,
+      offset: 0,
+      days: 365,
+    });
+
+    return c.json({
+      run,
+      events: events.rows,
+      totalEvents: events.total,
+    });
+  });
+
+  admin.get("/audit/events", async (c) => {
+    const pipelineRunId = c.req.query("pipelineRunId") || undefined;
+    const phase = c.req.query("phase") || undefined;
+    const componentKind = c.req.query("componentKind") || undefined;
+    const componentId = c.req.query("componentId") || undefined;
+    const eventType = c.req.query("eventType") || undefined;
+    const status = c.req.query("status") || undefined;
+    const audience = parseRequestAudience(c.req.query("audience"));
+    const brandId = parseBrandId(c.req.query("brandId")) ?? null;
+    const days = Math.min(Math.max(parseIntParam(c.req.query("days"), 7), 1), 365);
+    const limit = Math.min(Math.max(parseIntParam(c.req.query("limit"), 200), 1), 1000);
+    const offset = Math.max(parseIntParam(c.req.query("offset"), 0), 0);
+
+    const result = await agentAuditStore.listEvents({
+      pipelineRunId,
+      phase,
+      componentKind,
+      componentId,
+      eventType,
+      status,
+      audience,
+      brandId,
+      days,
+      limit,
+      offset,
+    });
+
+    return c.json({
+      pipelineRunId: pipelineRunId ?? null,
+      phase: phase ?? null,
+      componentKind: componentKind ?? null,
+      componentId: componentId ?? null,
+      eventType: eventType ?? null,
+      status: status ?? null,
+      audience: audience ?? null,
+      brandId,
+      days,
+      limit,
+      offset,
+      total: result.total,
+      events: result.rows,
+    });
   });
 
   admin.get("/runs/summary", async (c) => {

@@ -94,7 +94,7 @@ PORT=3000
 
 ```bash
 npx tsc --noEmit     # should exit with no errors
-npm test             # should pass all 32 tests
+npm test             # should pass the full test suite
 ```
 
 ---
@@ -1069,6 +1069,10 @@ If both `ADMIN_ALLOWED_IPS` and `ADMIN_API_TOKEN` are empty, `/admin/*` requests
 - `GET /admin/slack/messages`
 - `GET /admin/llm-usage/summary`
 - `GET /admin/llm-usage/prompts`
+- `GET /admin/audit/summary`
+- `GET /admin/audit/runs`
+- `GET /admin/audit/runs/:pipelineRunId`
+- `GET /admin/audit/events`
 - `POST /admin/chat/message`
 - `GET /admin/chat/status/:runId`
 - `GET /admin/chat/session/:sessionId/history`
@@ -1088,7 +1092,10 @@ If both `ADMIN_ALLOWED_IPS` and `ADMIN_API_TOKEN` are empty, `/admin/*` requests
 - Open:
   - `http://localhost:4174`
 - Configure only the API base in the UI. Admin auth is handled server-side by `admin/server.mjs`.
-- The current admin UI is a workspace shell with a dedicated `Admin Chat` page for operator prompts and a dedicated `Token Usage` page for prompt-level telemetry review.
+- The current admin UI is a workspace shell with:
+  - a dedicated `Admin Chat` page for operator prompts
+  - a dedicated `Token Usage` page for prompt-level telemetry review
+  - a dedicated `Audit` page for deep per-run agent visibility
 - The first admin-chat capability is deterministic LLM token-usage reporting, for example:
 
 ```text
@@ -1115,6 +1122,18 @@ Provider token-usage notes:
   - daily prompt-level breakdown
   - recent prompt history table
   - audience / brand / day-window filters
+- The dedicated `Audit` page in the admin UI shows:
+  - summary cards for runs, warnings, errors, and event volume
+  - a filtered run list by status / brand / audience / day window
+  - a run-detail timeline grouped by stage/component
+  - expandable sanitized payloads for prompt snapshots, model attempts, decisions, tool/API/MCP calls, and outputs
+- Audit storage notes:
+  - Deep audit data is admin-only and separate from the marketer-facing `trace`.
+  - The system stores explicit prompts, outputs, tool calls, parsed plans, and deterministic decisions that the framework controls.
+  - It does not attempt to expose hidden provider chain-of-thought.
+  - Sensitive fields such as tokens, secrets, auth headers, cookies, and passwords are redacted before persistence.
+  - Large payloads are truncated into readable previews with metadata so the admin UI stays usable.
+  - Detailed audit events are retained for 7 days; aggregate run rows stay queryable longer.
 - Anthropic external source:
   - Use the official Usage & Cost API for time-bucketed usage/cost aggregation.
   - In the live check on 2026-03-17, the current local Anthropic key returned `401`, so this project will need the right Anthropic admin-level credential before wiring that source directly.

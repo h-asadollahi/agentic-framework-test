@@ -23,6 +23,7 @@ import {
 } from "./universal-skill-creator.js";
 import { skillCandidatesStore } from "../routing/skill-candidates-store.js";
 import { inferAdminTokenUsageMonitorRequest } from "./admin-observability.js";
+import { agentAuditStore } from "../observability/agent-audit-store.js";
 // Register all plugins on import
 import "./sub-agents/plugins/index.js";
 import type {
@@ -71,10 +72,30 @@ export const executeTask = task({
     await preloadExecutionStores();
 
     const { subtasks } = payload.cognitionResult;
+    const auditBase = {
+      pipelineRunId: payload.context.requestContext.pipelineRunId ?? payload.context.sessionId,
+      runId: payload.context.requestContext.runId ?? payload.context.sessionId,
+      sessionId: payload.context.sessionId,
+      phase: "agency",
+      componentKind: "task" as const,
+      componentId: "pipeline-execute",
+      audience: payload.context.requestContext.audience,
+      scope: payload.context.requestContext.scope,
+      brandId: payload.context.requestContext.brandId,
+    };
 
     logger.info("Starting agency phase", {
       subtaskCount: subtasks.length,
       registeredAgents: subAgentRegistry.list().map((a) => a.id),
+    });
+    await agentAuditStore.record({
+      ...auditBase,
+      eventType: "invoke",
+      status: "running",
+      payload: {
+        subtaskCount: subtasks.length,
+        subtasks,
+      },
     });
 
     // ── Topological grouping ────────────────────────────────
@@ -89,6 +110,19 @@ export const executeTask = task({
       const levelResults = await Promise.allSettled(
         level.map(async (subtask) => {
           const startTime = Date.now();
+          await agentAuditStore.record({
+            ...auditBase,
+            componentKind: "subtask",
+            componentId: subtask.id,
+            eventType: "invoke",
+            status: "running",
+            payload: {
+              agentId: subtask.agentId,
+              description: subtask.description,
+              input: subtask.input,
+              dependencies: subtask.dependencies,
+            },
+          });
 
           let result: AgentResult;
 
@@ -101,6 +135,18 @@ export const executeTask = task({
               subtaskId: subtask.id,
               sourceSubtaskId: skipSynthesis.sourceSubtaskId,
               sourceAgentId: skipSynthesis.sourceAgentId,
+            });
+            await agentAuditStore.record({
+              ...auditBase,
+              componentKind: "subtask",
+              componentId: subtask.id,
+              eventType: "skipped",
+              status: "completed",
+              payload: {
+                reason: "redundant deterministic-route synthesis",
+                sourceSubtaskId: skipSynthesis.sourceSubtaskId,
+                sourceAgentId: skipSynthesis.sourceAgentId,
+              },
             });
             return {
               subtaskId: subtask.id,
@@ -124,6 +170,17 @@ export const executeTask = task({
             logger.info(
               `Using deterministic universal skill creator workflow for "${subtask.agentId}"`
             );
+            await agentAuditStore.record({
+              ...auditBase,
+              componentKind: "subtask",
+              componentId: subtask.id,
+              eventType: "decision",
+              status: "completed",
+              payload: {
+                decision: "deterministic-skill-creator",
+                agentId: subtask.agentId,
+              },
+            });
             result = buildUniversalSkillCreatorAgentResult(
               subtask,
               payload.context
@@ -161,6 +218,20 @@ export const executeTask = task({
                 routeType: learnedRoute.routeType,
                 reason: targetResolution.reason,
               });
+              await agentAuditStore.record({
+                ...auditBase,
+                componentKind: "subtask",
+                componentId: subtask.id,
+                eventType: "decision",
+                status: "completed",
+                payload: {
+                  decision: "registered-sub-agent-overridden",
+                  requestedAgentId: subtask.agentId,
+                  executionAgentId: targetResolution.executionAgentId,
+                  routeId: learnedRoute.id,
+                  reason: targetResolution.reason,
+                },
+              });
             }
 
             let executionInput = hydrateRegisteredSubtaskInput(
@@ -197,6 +268,17 @@ export const executeTask = task({
               logger.info(
                 `Using universal skill creator workflow for "${subtask.agentId}"`
               );
+              await agentAuditStore.record({
+                ...auditBase,
+                componentKind: "subtask",
+                componentId: subtask.id,
+                eventType: "decision",
+                status: "completed",
+                payload: {
+                  decision: "universal-skill-creator-intent",
+                  agentId: subtask.agentId,
+                },
+              });
               result = buildUniversalSkillCreatorAgentResult(
                 subtask,
                 payload.context
@@ -212,6 +294,17 @@ export const executeTask = task({
               logger.info(
                 `Using MCP builder skill workflow for "${subtask.agentId}"`
               );
+              await agentAuditStore.record({
+                ...auditBase,
+                componentKind: "subtask",
+                componentId: subtask.id,
+                eventType: "decision",
+                status: "completed",
+                payload: {
+                  decision: "mcp-builder-intent",
+                  agentId: subtask.agentId,
+                },
+              });
               result = buildMcpBuilderAgentResult(subtask, payload.context);
               return {
                 subtaskId: subtask.id,
@@ -225,6 +318,18 @@ export const executeTask = task({
               logger.info(
                 `Using materialized learned skill "${materializedSkill.skillFile}" for "${subtask.agentId}"`
               );
+              await agentAuditStore.record({
+                ...auditBase,
+                componentKind: "subtask",
+                componentId: subtask.id,
+                eventType: "decision",
+                status: "completed",
+                payload: {
+                  decision: "materialized-skill-guidance",
+                  skillFile: materializedSkill.skillFile,
+                  candidateId: materializedSkill.candidateId,
+                },
+              });
               result = await agencyAgent.execute(
                 buildAgencyFallbackInput(subtask, { learnedSkill: materializedSkill }),
                 payload.context
@@ -244,6 +349,17 @@ export const executeTask = task({
               logger.info(
                 `Using deterministic admin observability fallback for "${subtask.agentId}"`
               );
+              await agentAuditStore.record({
+                ...auditBase,
+                componentKind: "subtask",
+                componentId: subtask.id,
+                eventType: "decision",
+                status: "completed",
+                payload: {
+                  decision: "admin-observability-fallback",
+                  executionAgentId: adminObservabilityFallback.agentId,
+                },
+              });
               result = await subAgentRegistry.execute(
                 adminObservabilityFallback.agentId,
                 adminObservabilityFallback.input,
@@ -275,6 +391,19 @@ export const executeTask = task({
               // Use existing learned route target
               logger.info(`Found learned route "${learnedRoute.id}" for "${subtask.agentId}"`, {
                 routeType: learnedRoute.routeType,
+              });
+              await agentAuditStore.record({
+                ...auditBase,
+                componentKind: "subtask",
+                componentId: subtask.id,
+                eventType: "decision",
+                status: "completed",
+                payload: {
+                  decision: "use-learned-route",
+                  routeId: learnedRoute.id,
+                  routeType: learnedRoute.routeType,
+                  targetAgentId: learnedRoute.agentId ?? "api-fetcher",
+                },
               });
 
               if (learnedRoute.routeType === "sub-agent" && learnedRoute.agentId) {
@@ -320,6 +449,17 @@ export const executeTask = task({
               logger.info(
                 `No learned route for "${subtask.agentId}", triggering route learning`
               );
+              await agentAuditStore.record({
+                ...auditBase,
+                componentKind: "subtask",
+                componentId: subtask.id,
+                eventType: "decision",
+                status: "queued",
+                payload: {
+                  decision: "learn-new-route",
+                  description: subtask.description,
+                },
+              });
 
               const learnResult = await learnRouteTask.triggerAndWait({
                 subtaskDescription: subtask.description,
@@ -339,12 +479,34 @@ export const executeTask = task({
                 learnResult.output.fetchResult
               ) {
                 // Route learned and data fetched successfully
+                await agentAuditStore.record({
+                  ...auditBase,
+                  componentKind: "subtask",
+                  componentId: subtask.id,
+                  eventType: "decision",
+                  status: "completed",
+                  payload: {
+                    decision: "route-learned-and-fetched",
+                    routeId: learnResult.output.route?.id ?? null,
+                  },
+                });
                 result = learnResult.output.fetchResult;
               } else {
                 // Step 3: Final fallback — use the Agency LLM agent
                 logger.info(
                   "Route learning failed or timed out, falling back to LLM"
                 );
+                await agentAuditStore.record({
+                  ...auditBase,
+                  componentKind: "subtask",
+                  componentId: subtask.id,
+                  eventType: "decision",
+                  status: "warning",
+                  payload: {
+                    decision: "route-learning-fallback-to-agency",
+                    learned: learnResult.ok ? learnResult.output.learned : false,
+                  },
+                });
                 result = await agencyAgent.execute(
                   buildAgencyFallbackInput(subtask),
                   payload.context
@@ -354,12 +516,37 @@ export const executeTask = task({
               logger.info(
                 `Unknown subtask "${subtask.agentId}" is not data-oriented, using LLM fallback`
               );
+              await agentAuditStore.record({
+                ...auditBase,
+                componentKind: "subtask",
+                componentId: subtask.id,
+                eventType: "decision",
+                status: "completed",
+                payload: {
+                  decision: "agency-llm-fallback",
+                  description: subtask.description,
+                },
+              });
               result = await agencyAgent.execute(
                 buildAgencyFallbackInput(subtask),
                 payload.context
               );
             }
           }
+
+          await agentAuditStore.record({
+            ...auditBase,
+            componentKind: "subtask",
+            componentId: subtask.id,
+            eventType: "result",
+            status: result.success ? "completed" : "failed",
+            durationMs: Date.now() - startTime,
+            payload: {
+              agentId: subtask.agentId,
+              modelUsed: result.modelUsed,
+              output: result.output,
+            },
+          });
 
           return {
             subtaskId: subtask.id,
@@ -375,6 +562,19 @@ export const executeTask = task({
           allResults.push(settled.value);
         } else {
           logger.error("Subtask failed", { error: settled.reason });
+          await agentAuditStore.record({
+            ...auditBase,
+            componentKind: "subtask",
+            componentId: "unknown",
+            eventType: "error",
+            status: "failed",
+            payload: {
+              message:
+                settled.reason instanceof Error
+                  ? settled.reason.message
+                  : String(settled.reason),
+            },
+          });
           allResults.push({
             subtaskId: "unknown",
             agentId: "unknown",
@@ -406,6 +606,16 @@ export const executeTask = task({
         successful: allResults.filter((r) => r.result.success).length,
         model: "deterministic-fast-path",
         routeAgentId: fastPath.routeAgentId,
+      });
+      await agentAuditStore.record({
+        ...auditBase,
+        eventType: "decision",
+        status: "completed",
+        payload: {
+          decision: "deterministic-agency-fast-path",
+          routeAgentId: fastPath.routeAgentId,
+          issues: fastPath.issues ?? [],
+        },
       });
     } else {
       // ── Summarise via the Agency LLM agent ────────────────
@@ -455,6 +665,19 @@ export const executeTask = task({
       // Keep execute focused on response-critical work.
       agencyResult.skillSuggestions = rawSuggestions;
     }
+
+    await agentAuditStore.record({
+      ...auditBase,
+      eventType: "result",
+      status: agencyResult.needsHumanReview ? "warning" : "completed",
+      payload: {
+        summary: agencyResult.summary,
+        issues: agencyResult.issues ?? [],
+        needsHumanReview: agencyResult.needsHumanReview ?? false,
+        skillSuggestionCount: agencyResult.skillSuggestions?.length ?? 0,
+        resultCount: agencyResult.results.length,
+      },
+    });
 
     return agencyResult;
   },

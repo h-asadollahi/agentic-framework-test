@@ -75,8 +75,8 @@ describe.sequential("autonomous skill loop", () => {
     writeFileSync(candidatesFile, initialCandidatesFile, "utf-8");
   });
 
-  it("materializes universal skill file and keeps it unchanged on second run", () => {
-    const context = buildExecutionContext("autonomous-skill-materialize-test");
+  it("materializes universal skill file and keeps it unchanged on second run", async () => {
+    const context = await buildExecutionContext("autonomous-skill-materialize-test");
     const skillFile = "skills/learned/autonomous-skill-materialize-test.md";
     cleanupSkillFile(skillFile);
 
@@ -214,8 +214,8 @@ describe.sequential("autonomous skill loop", () => {
     cleanupSkillFile(skillFile);
   });
 
-  it("persists and materializes skill suggestions without human-approval gating", () => {
-    const context = buildExecutionContext("autonomous-skill-suggestion-test");
+  it("persists and materializes skill suggestions without human-approval gating", async () => {
+    const context = await buildExecutionContext("autonomous-skill-suggestion-test");
     const skillFile = "skills/learned/autonomous-suggestion-materialized.md";
     cleanupSkillFile(skillFile);
 

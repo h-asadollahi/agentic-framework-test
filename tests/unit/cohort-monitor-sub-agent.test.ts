@@ -9,13 +9,13 @@ import {
 const PROJECT_ROOT = resolve(import.meta.dirname, "../..");
 
 describe("CohortMonitorAgent prompt + execution", () => {
-  it("uses runtime prompt content from knowledge specs", () => {
+  it("uses runtime prompt content from knowledge specs", async () => {
     const customPromptPath = resolve(
       PROJECT_ROOT,
       "tests/fixtures/cohort-monitor-system-prompt-custom.md"
     );
     const agent = new CohortMonitorAgent({ promptFile: customPromptPath });
-    const context = buildExecutionContext("cohort-monitor-prompt-test");
+    const context = await buildExecutionContext("cohort-monitor-prompt-test");
 
     const prompt = agent.getSystemPrompt(context);
     expect(prompt).toContain(
@@ -23,11 +23,11 @@ describe("CohortMonitorAgent prompt + execution", () => {
     );
   });
 
-  it("falls back when runtime prompt file is unavailable", () => {
+  it("falls back when runtime prompt file is unavailable", async () => {
     const agent = new CohortMonitorAgent({
       promptFile: "knowledge/sub-agents/cohort-monitor/not-found.md",
     });
-    const context = buildExecutionContext("cohort-monitor-fallback-test");
+    const context = await buildExecutionContext("cohort-monitor-fallback-test");
 
     const prompt = agent.getSystemPrompt(context);
     expect(prompt).toContain(context.brandIdentity.name);
@@ -38,7 +38,7 @@ describe("CohortMonitorAgent prompt + execution", () => {
 
   it("keeps mock execution behavior for default input", async () => {
     const agent = new CohortMonitorAgent();
-    const context = buildExecutionContext("cohort-monitor-exec-test");
+    const context = await buildExecutionContext("cohort-monitor-exec-test");
 
     const result = await agent.execute({}, context);
     expect(result.success).toBe(true);

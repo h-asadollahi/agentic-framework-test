@@ -35,6 +35,7 @@ function getRepository(): LearnedRoutesDbRepository {
 export async function importLearnedRoutesFromJsonToDb(options: {
   jsonFile?: string;
 } = {}): Promise<{ imported: number; skipped: number; totalInFile: number }> {
+  const repo = getRepository();
   const jsonFile = options.jsonFile
     ? resolve(PROJECT_ROOT, options.jsonFile)
     : DEFAULT_JSON_PATH;
@@ -47,7 +48,6 @@ export async function importLearnedRoutesFromJsonToDb(options: {
     JSON.parse(readFileSync(jsonFile, "utf-8"))
   );
 
-  const repo = getRepository();
   await repo.init();
 
   const existing = await repo.listRoutes({ limit: 5000, offset: 0 });
@@ -108,4 +108,3 @@ export async function exportLearnedRoutesFromDbToJson(options: {
 
   return { exported: routes.length, targetFile: jsonFile };
 }
-

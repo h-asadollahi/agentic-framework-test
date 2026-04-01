@@ -9,24 +9,24 @@ import {
 const PROJECT_ROOT = resolve(import.meta.dirname, "../..");
 
 describe("ApiFetcherAgent prompt + execution", () => {
-  it("uses runtime prompt content from knowledge specs", () => {
+  it("uses runtime prompt content from knowledge specs", async () => {
     const customPromptPath = resolve(
       PROJECT_ROOT,
       "tests/fixtures/api-fetcher-system-prompt-custom.md"
     );
     const agent = new ApiFetcherAgent({ promptFile: customPromptPath });
-    const context = buildExecutionContext("api-fetcher-prompt-test");
+    const context = await buildExecutionContext("api-fetcher-prompt-test");
 
     const prompt = agent.getSystemPrompt(context);
     expect(prompt).toContain("Custom API Fetcher Prompt");
     expect(prompt).toContain("universal-agent-skill-creator.md");
   });
 
-  it("falls back when runtime prompt file is unavailable", () => {
+  it("falls back when runtime prompt file is unavailable", async () => {
     const agent = new ApiFetcherAgent({
       promptFile: "knowledge/sub-agents/api-fetcher/not-found.md",
     });
-    const context = buildExecutionContext("api-fetcher-fallback-test");
+    const context = await buildExecutionContext("api-fetcher-fallback-test");
 
     const prompt = agent.getSystemPrompt(context);
     expect(prompt).toContain("You are the API Fetcher sub-agent");
@@ -37,7 +37,7 @@ describe("ApiFetcherAgent prompt + execution", () => {
 
   it("returns deterministic error when route is missing", async () => {
     const agent = new ApiFetcherAgent();
-    const context = buildExecutionContext("api-fetcher-exec-test");
+    const context = await buildExecutionContext("api-fetcher-exec-test");
 
     const result = await agent.execute({ routeId: "missing-route" }, context);
     expect(result.success).toBe(false);

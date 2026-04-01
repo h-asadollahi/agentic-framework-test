@@ -6,6 +6,7 @@ import { mcpManager } from "../../../tools/mcp-client.js";
 import { learnedRoutesStore } from "../../../routing/learned-routes-store.js";
 import { logger } from "../../../core/logger.js";
 import { loadAgentPromptSpec } from "../../../tools/agent-spec-loader.js";
+import { agentAuditStore } from "../../../observability/agent-audit-store.js";
 
 type JsonRecord = Record<string, unknown>;
 
@@ -277,9 +278,64 @@ export class McpFetcherAgent extends BaseSubAgent {
   }
 
   async execute(input: unknown, context: ExecutionContext): Promise<AgentResult> {
+    const pipelineRunId = context.requestContext.pipelineRunId ?? context.sessionId;
+    const runId = context.requestContext.runId ?? context.sessionId;
+    const auditBase = {
+      pipelineRunId,
+      runId,
+      sessionId: context.sessionId,
+      phase: "sub-agent",
+      componentKind: "sub-agent" as const,
+      componentId: this.id,
+      audience: context.requestContext.audience,
+      scope: context.requestContext.scope,
+      brandId: context.requestContext.brandId,
+    };
     const hydratedInput = hydrateMcpInputFromLearnedRoute(input);
+    const originalInput = asRecord(input);
+    const hydratedRecord = asRecord(hydratedInput);
+
+    await agentAuditStore.record({
+      ...auditBase,
+      eventType: "invoke",
+      status: "running",
+      payload: {
+        input,
+      },
+    });
+
+    if (
+      originalInput &&
+      hydratedRecord &&
+      typeof originalInput.routeId === "string" &&
+      (!originalInput.serverName || !originalInput.toolName) &&
+      hydratedRecord.serverName &&
+      hydratedRecord.toolName
+    ) {
+      await agentAuditStore.record({
+        ...auditBase,
+        eventType: "decision",
+        status: "completed",
+        payload: {
+          decision: "learned-route hydration",
+          routeId: originalInput.routeId,
+          serverName: hydratedRecord.serverName,
+          toolName: hydratedRecord.toolName,
+        },
+      });
+    }
+
     const parsed = McpFetcherInput.safeParse(hydratedInput);
     if (!parsed.success) {
+      await agentAuditStore.record({
+        ...auditBase,
+        eventType: "error",
+        status: "failed",
+        payload: {
+          message: "Invalid input for mcp-fetcher",
+          details: parsed.error.flatten(),
+        },
+      });
       return {
         success: false,
         output: JSON.stringify({
@@ -297,6 +353,15 @@ export class McpFetcherAgent extends BaseSubAgent {
       const tool = tools[toolName] as ExecutableTool | undefined;
 
       if (!tool) {
+        await agentAuditStore.record({
+          ...auditBase,
+          eventType: "error",
+          status: "failed",
+          payload: {
+            message: `MCP tool \"${toolName}\" was not found on server \"${serverName}\"`,
+            availableTools: Object.keys(tools),
+          },
+        });
         return {
           success: false,
           output: JSON.stringify({
@@ -308,6 +373,14 @@ export class McpFetcherAgent extends BaseSubAgent {
       }
 
       if (typeof tool.execute !== "function") {
+        await agentAuditStore.record({
+          ...auditBase,
+          eventType: "error",
+          status: "failed",
+          payload: {
+            message: `MCP tool \"${toolName}\" is not executable`,
+          },
+        });
         return {
           success: false,
           output: JSON.stringify({
@@ -318,6 +391,17 @@ export class McpFetcherAgent extends BaseSubAgent {
       }
 
       const toolArgs = buildMcpToolArgs(args, params);
+      await agentAuditStore.record({
+        ...auditBase,
+        eventType: "tool_call",
+        status: "started",
+        payload: {
+          serverName,
+          toolName,
+          routeId,
+          args: toolArgs,
+        },
+      });
       logger.info(`mcp-fetcher: executing ${serverName}.${toolName}`, {
         routeId,
         argKeys: Object.keys(toolArgs),
@@ -343,6 +427,13 @@ export class McpFetcherAgent extends BaseSubAgent {
         executedAt: new Date().toISOString(),
       };
 
+      await agentAuditStore.record({
+        ...auditBase,
+        eventType: "result",
+        status: "completed",
+        payload: output,
+      });
+
       return {
         success: true,
         output: JSON.stringify(output),
@@ -352,6 +443,17 @@ export class McpFetcherAgent extends BaseSubAgent {
       const message = error instanceof Error ? error.message : String(error);
       logger.error(`mcp-fetcher: execution failed for ${serverName}.${toolName}`, {
         error: message,
+      });
+      await agentAuditStore.record({
+        ...auditBase,
+        eventType: "error",
+        status: "failed",
+        payload: {
+          serverName,
+          toolName,
+          routeId,
+          message,
+        },
       });
       return {
         success: false,
@@ -381,6 +483,10 @@ export class McpFetcherAgent extends BaseSubAgent {
 
   getTools(_context: ExecutionContext): Record<string, Tool> {
     return {};
+  }
+
+  protected override getPromptSourceIdentifier(): string | null {
+    return this.promptFile;
   }
 }
 

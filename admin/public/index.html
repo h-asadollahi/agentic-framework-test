@@ -1308,6 +1308,15 @@
             </svg>
             <span class="nav-label">Run Watch</span>
           </a>
+          <a class="nav-link" href="#audit-trail">
+            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M4 19h16"></path>
+              <path d="M7 16V8"></path>
+              <path d="M12 16V5"></path>
+              <path d="M17 16v-4"></path>
+            </svg>
+            <span class="nav-label">Audit Trail</span>
+          </a>
           <a class="nav-link" href="#slack-hitl">
             <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
               <path d="M8 14a3 3 0 0 1-3-3V7a3 3 0 0 1 3-3h5"></path>
@@ -1851,6 +1860,171 @@
             <div id="runs" class="run-stack">
               <div class="empty-state">No run summary loaded.</div>
             </div>
+          </section>
+        </section>
+
+        <section class="page page-stack" id="auditPage" hidden>
+          <section class="surface-card page-header-card">
+            <div class="page-head">
+              <div>
+                <p class="eyebrow subtle">Audit Trail</p>
+                <h2>Deep Agent Visibility</h2>
+                <p>
+                  Inspect sanitized prompts, decisions, tool calls, outputs, and failures across the entire pipeline run timeline.
+                </p>
+              </div>
+              <div id="auditStatusPill" class="section-pill">0 runs · 0 events</div>
+            </div>
+          </section>
+
+          <section class="summary-grid">
+            <article class="summary-card">
+              <p class="eyebrow subtle">Run Volume</p>
+              <h3>Total Runs</h3>
+              <p class="summary-copy">Audit-indexed pipeline runs in the selected window.</p>
+              <div class="summary-value" id="auditTotalRuns">0</div>
+            </article>
+            <article class="summary-card">
+              <p class="eyebrow subtle">Active</p>
+              <h3>Running Runs</h3>
+              <p class="summary-copy">Runs that are still in flight right now.</p>
+              <div class="summary-value" id="auditRunningRuns">0</div>
+            </article>
+            <article class="summary-card">
+              <p class="eyebrow subtle">Attention</p>
+              <h3>Failed / Rejected</h3>
+              <p class="summary-copy">Runs that need follow-up or were rejected by policy.</p>
+              <div class="summary-value" id="auditFailedRuns">0</div>
+            </article>
+            <article class="summary-card">
+              <p class="eyebrow subtle">Event Volume</p>
+              <h3>Total Events</h3>
+              <p class="summary-copy">Sanitized audit events captured across all pipeline stages.</p>
+              <div class="summary-value" id="auditEventTotal">0</div>
+              <div class="summary-meta" id="auditPhaseMeta"></div>
+            </article>
+            <article class="summary-card">
+              <p class="eyebrow subtle">Warnings</p>
+              <h3>Warning Events</h3>
+              <p class="summary-copy">Events captured with warning status.</p>
+              <div class="summary-value" id="auditWarningTotal">0</div>
+            </article>
+            <article class="summary-card">
+              <p class="eyebrow subtle">Errors</p>
+              <h3>Error Events</h3>
+              <p class="summary-copy">Events captured with failed or error status.</p>
+              <div class="summary-value" id="auditErrorTotal">0</div>
+            </article>
+          </section>
+
+          <section class="surface-card">
+            <div class="section-head">
+              <div>
+                <p class="eyebrow subtle">Audit Filters</p>
+                <h2>Run Selection</h2>
+                <p class="section-copy">
+                  Filter audit runs by audience, brand, day window, and run status.
+                </p>
+              </div>
+              <button id="auditRefresh" class="primary-button">Refresh Audit</button>
+            </div>
+
+            <div class="control-grid">
+              <label class="field">
+                <span class="field-label">Audience</span>
+                <select id="auditAudience">
+                  <option value="marketer">marketer</option>
+                  <option value="admin">admin</option>
+                </select>
+              </label>
+              <label class="field">
+                <span class="field-label">Brand Scope</span>
+                <select id="auditBrand">
+                  <option value="">All brands / global</option>
+                </select>
+              </label>
+              <label class="field">
+                <span class="field-label">Days</span>
+                <select id="auditDays">
+                  <option value="1">1 day</option>
+                  <option value="7" selected>7 days</option>
+                  <option value="30">30 days</option>
+                </select>
+              </label>
+              <label class="field">
+                <span class="field-label">Status</span>
+                <select id="auditStatus">
+                  <option value="all" selected>all</option>
+                  <option value="running">running</option>
+                  <option value="completed">completed</option>
+                  <option value="failed">failed</option>
+                  <option value="rejected">rejected</option>
+                </select>
+              </label>
+            </div>
+          </section>
+
+          <section class="surface-card">
+            <div class="section-head">
+              <div>
+                <p class="eyebrow subtle">Audit Runs</p>
+                <h2>Captured Pipeline Runs</h2>
+                <p class="section-copy">
+                  Inspect a run to open its grouped phase timeline and raw sanitized payload.
+                </p>
+              </div>
+              <div id="auditRunsCount" class="section-pill">0 runs</div>
+            </div>
+
+            <div class="table-shell">
+              <div class="table-scroll">
+                <table class="route-table">
+                  <thead>
+                    <tr>
+                      <th>Pipeline Run</th>
+                      <th>Status</th>
+                      <th>Audience</th>
+                      <th>Brand</th>
+                      <th>Events</th>
+                      <th>Warnings</th>
+                      <th>Errors</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody id="auditRunsTable">
+                    <tr>
+                      <td colspan="8" class="empty-state">No audit runs loaded.</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </section>
+
+          <section class="surface-card">
+            <div class="section-head">
+              <div>
+                <p class="eyebrow subtle">Run Detail</p>
+                <h2 id="auditSelectedTitle">Run Detail</h2>
+                <p class="section-copy" id="auditSelectedMeta">
+                  Choose a run from the list to inspect the sanitized audit trail.
+                </p>
+              </div>
+              <div class="section-pill">Grouped by phase</div>
+            </div>
+
+            <div id="auditRunSummary">
+              <div class="empty-state">Select an audit run to inspect its stage timeline, prompts, tool calls, and results.</div>
+            </div>
+
+            <div id="auditTimeline" class="feed-stack" style="margin-top: 18px;">
+              <div class="empty-state">Timeline will appear here once an audit run is selected.</div>
+            </div>
+
+            <details class="raw-json" style="margin-top: 18px;">
+              <summary>Raw Sanitized Run JSON</summary>
+              <pre id="auditRunRaw">No audit run selected.</pre>
+            </details>
           </section>
         </section>
 

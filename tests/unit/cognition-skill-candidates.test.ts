@@ -39,7 +39,7 @@ describe.sequential("CognitionAgent skill candidate injection", () => {
     writeFileSync(candidatesFile, initialCandidatesFile, "utf-8");
   });
 
-  it("injects persisted skill candidates into system prompt", () => {
+  it("injects persisted skill candidates into system prompt", async () => {
     skillCandidatesStore.upsertCandidate({
       capability: "mapp-monthly-analysis-usage",
       description: "Automate monthly API usage reporting workflow.",
@@ -50,7 +50,7 @@ describe.sequential("CognitionAgent skill candidate injection", () => {
     });
 
     const agent = new CognitionAgent();
-    const context = buildExecutionContext("cognition-skill-candidates-test");
+    const context = await buildExecutionContext("cognition-skill-candidates-test");
     const prompt = agent.buildSystemPrompt(context);
 
     expect(prompt).toContain("Skill Candidates (Persisted from Agency)");

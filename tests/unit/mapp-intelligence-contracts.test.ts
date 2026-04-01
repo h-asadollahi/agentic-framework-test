@@ -12,7 +12,15 @@ const postmanCollectionFile = resolve(
 const learnedRoutesFile = resolve(projectRoot, "knowledge/learned-routes.json");
 
 function parseJsonFile(filePath: string): JsonRecord {
-  return JSON.parse(readFileSync(filePath, "utf-8")) as JsonRecord;
+  const raw = readFileSync(filePath, "utf-8");
+  if (raw.trim().length === 0) {
+    return {
+      version: "1.0.0",
+      lastUpdated: null,
+      routes: [],
+    };
+  }
+  return JSON.parse(raw) as JsonRecord;
 }
 
 function asRecord(value: unknown): JsonRecord {

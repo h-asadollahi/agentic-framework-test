@@ -155,6 +155,10 @@ export class InterfaceAgent extends BaseAgent {
       vars
     );
   }
+
+  protected override getPromptSourceIdentifier(): string | null {
+    return this.promptFile;
+  }
 }
 
 export const interfaceAgent = new InterfaceAgent();

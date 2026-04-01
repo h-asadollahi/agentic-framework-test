@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, gte, ilike, isNotNull, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, ilike, isNotNull, lt, or, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
 import type {
@@ -10,6 +10,8 @@ import type {
 } from "./learned-routes-schema.js";
 import { LearnedRouteSchema } from "./learned-routes-schema.js";
 import {
+  agentAuditEventsTable,
+  agentAuditRunsTable,
   brandsTable,
   learnedRouteEventsTable,
   learnedRoutesTable,
@@ -202,6 +204,125 @@ export interface LlmPromptUsageListOptions {
   offset?: number;
 }
 
+export type AgentAuditRunStatus =
+  | "running"
+  | "completed"
+  | "failed"
+  | "rejected";
+
+export interface AgentAuditRunInput {
+  pipelineRunId: string;
+  sessionId: string;
+  audience: RequestAudience;
+  scope: RequestScope;
+  brandId?: string | null;
+  source: RequestSource;
+  userPrompt: string;
+  status?: AgentAuditRunStatus;
+  startedAt?: string | null;
+}
+
+export interface AgentAuditRunRecord {
+  pipelineRunId: string;
+  sessionId: string;
+  audience: string;
+  scope: string;
+  brandId: string | null;
+  source: string;
+  userPrompt: string;
+  status: string;
+  startedAt: string;
+  finishedAt: string | null;
+  totalEvents: number;
+  totalErrors: number;
+  totalWarnings: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AgentAuditEventInput {
+  pipelineRunId: string;
+  runId?: string | null;
+  sessionId: string;
+  phase: string;
+  componentKind: string;
+  componentId: string;
+  eventType: string;
+  sequence: number;
+  status?: string | null;
+  modelAlias?: string | null;
+  resolvedModelId?: string | null;
+  provider?: string | null;
+  durationMs?: number | null;
+  tokensUsed?: number | null;
+  brandId?: string | null;
+  audience: RequestAudience;
+  scope: RequestScope;
+  payload?: Record<string, unknown>;
+  createdAt?: string | null;
+}
+
+export interface AgentAuditEventRecord {
+  id: number;
+  pipelineRunId: string;
+  runId: string | null;
+  sessionId: string;
+  phase: string;
+  componentKind: string;
+  componentId: string;
+  eventType: string;
+  sequence: number;
+  status: string | null;
+  modelAlias: string | null;
+  resolvedModelId: string | null;
+  provider: string | null;
+  durationMs: number | null;
+  tokensUsed: number | null;
+  brandId: string | null;
+  audience: string;
+  scope: string;
+  payload: Record<string, unknown>;
+  createdAt: string;
+}
+
+export interface AgentAuditRunListOptions {
+  status?: AgentAuditRunStatus | "all";
+  audience?: RequestAudience;
+  brandId?: string | null;
+  componentKind?: string;
+  days?: number;
+  limit?: number;
+  offset?: number;
+}
+
+export interface AgentAuditEventListOptions {
+  pipelineRunId?: string;
+  phase?: string;
+  componentKind?: string;
+  componentId?: string;
+  eventType?: string;
+  status?: string;
+  audience?: RequestAudience;
+  brandId?: string | null;
+  days?: number;
+  limit?: number;
+  offset?: number;
+}
+
+export interface AgentAuditSummaryRecord {
+  totalRuns: number;
+  runningRuns: number;
+  completedRuns: number;
+  failedRuns: number;
+  rejectedRuns: number;
+  totalEvents: number;
+  totalErrors: number;
+  totalWarnings: number;
+  byPhase: Array<{ phase: string; events: number }>;
+  byComponentKind: Array<{ componentKind: string; events: number }>;
+  byStatus: Array<{ status: string; events: number }>;
+}
+
 function toIsoString(value: unknown): string {
   if (value instanceof Date) return value.toISOString();
   if (typeof value === "string") return value;
@@ -244,6 +365,58 @@ function fromLlmPromptUsageRunRow(
     finishedAt: row.finishedAt ? toIsoString(row.finishedAt) : null,
     createdAt: toIsoString(row.createdAt),
     updatedAt: toIsoString(row.updatedAt),
+  };
+}
+
+function fromAgentAuditRunRow(
+  row: typeof agentAuditRunsTable.$inferSelect
+): AgentAuditRunRecord {
+  return {
+    pipelineRunId: row.pipelineRunId,
+    sessionId: row.sessionId,
+    audience: row.audience,
+    scope: row.scope,
+    brandId: normalizeNullableString(row.brandId),
+    source: row.source,
+    userPrompt: row.userPrompt,
+    status: row.status,
+    startedAt: toIsoString(row.startedAt),
+    finishedAt: row.finishedAt ? toIsoString(row.finishedAt) : null,
+    totalEvents: row.totalEvents ?? 0,
+    totalErrors: row.totalErrors ?? 0,
+    totalWarnings: row.totalWarnings ?? 0,
+    createdAt: toIsoString(row.createdAt),
+    updatedAt: toIsoString(row.updatedAt),
+  };
+}
+
+function fromAgentAuditEventRow(
+  row: typeof agentAuditEventsTable.$inferSelect
+): AgentAuditEventRecord {
+  return {
+    id: row.id,
+    pipelineRunId: row.pipelineRunId,
+    runId: row.runId ?? null,
+    sessionId: row.sessionId,
+    phase: row.phase,
+    componentKind: row.componentKind,
+    componentId: row.componentId,
+    eventType: row.eventType,
+    sequence: row.sequence,
+    status: row.status ?? null,
+    modelAlias: row.modelAlias ?? null,
+    resolvedModelId: row.resolvedModelId ?? null,
+    provider: row.provider ?? null,
+    durationMs: row.durationMs ?? null,
+    tokensUsed: row.tokensUsed ?? null,
+    brandId: normalizeNullableString(row.brandId),
+    audience: row.audience,
+    scope: row.scope,
+    payload:
+      row.payload && typeof row.payload === "object"
+        ? (row.payload as Record<string, unknown>)
+        : {},
+    createdAt: toIsoString(row.createdAt),
   };
 }
 
@@ -577,6 +750,86 @@ export class LearnedRoutesDbRepository {
     await this.pool.query(`
       CREATE INDEX IF NOT EXISTS llm_prompt_usage_runs_brand_started_at_idx
       ON llm_prompt_usage_runs (brand_id, started_at DESC);
+    `);
+
+    await this.pool.query(`
+      CREATE TABLE IF NOT EXISTS agent_audit_runs (
+        pipeline_run_id TEXT PRIMARY KEY,
+        session_id TEXT NOT NULL,
+        audience TEXT NOT NULL,
+        scope TEXT NOT NULL,
+        brand_id TEXT,
+        source TEXT NOT NULL,
+        user_prompt TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'running',
+        started_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        finished_at TIMESTAMPTZ,
+        total_events INTEGER NOT NULL DEFAULT 0,
+        total_errors INTEGER NOT NULL DEFAULT 0,
+        total_warnings INTEGER NOT NULL DEFAULT 0,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+    `);
+
+    await this.pool.query(`
+      CREATE INDEX IF NOT EXISTS agent_audit_runs_audience_started_at_idx
+      ON agent_audit_runs (audience, started_at DESC);
+    `);
+
+    await this.pool.query(`
+      CREATE INDEX IF NOT EXISTS agent_audit_runs_brand_started_at_idx
+      ON agent_audit_runs (brand_id, started_at DESC);
+    `);
+
+    await this.pool.query(`
+      CREATE INDEX IF NOT EXISTS agent_audit_runs_status_started_at_idx
+      ON agent_audit_runs (status, started_at DESC);
+    `);
+
+    await this.pool.query(`
+      CREATE TABLE IF NOT EXISTS agent_audit_events (
+        id SERIAL PRIMARY KEY,
+        pipeline_run_id TEXT NOT NULL,
+        run_id TEXT,
+        session_id TEXT NOT NULL,
+        phase TEXT NOT NULL,
+        component_kind TEXT NOT NULL,
+        component_id TEXT NOT NULL,
+        event_type TEXT NOT NULL,
+        sequence INTEGER NOT NULL,
+        status TEXT,
+        model_alias TEXT,
+        resolved_model_id TEXT,
+        provider TEXT,
+        duration_ms INTEGER,
+        tokens_used INTEGER,
+        brand_id TEXT,
+        audience TEXT NOT NULL,
+        scope TEXT NOT NULL,
+        payload JSONB NOT NULL DEFAULT '{}'::jsonb,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+    `);
+
+    await this.pool.query(`
+      CREATE INDEX IF NOT EXISTS agent_audit_events_pipeline_sequence_idx
+      ON agent_audit_events (pipeline_run_id, sequence);
+    `);
+
+    await this.pool.query(`
+      CREATE INDEX IF NOT EXISTS agent_audit_events_phase_created_at_idx
+      ON agent_audit_events (phase, created_at DESC);
+    `);
+
+    await this.pool.query(`
+      CREATE INDEX IF NOT EXISTS agent_audit_events_component_created_at_idx
+      ON agent_audit_events (component_kind, component_id, created_at DESC);
+    `);
+
+    await this.pool.query(`
+      CREATE INDEX IF NOT EXISTS agent_audit_events_status_created_at_idx
+      ON agent_audit_events (status, created_at DESC);
     `);
   }
 
@@ -1223,6 +1476,316 @@ export class LearnedRoutesDbRepository {
       total: countRows[0]?.total ?? 0,
       rows: rows.map(fromLlmPromptUsageRunRow),
     };
+  }
+
+  async createAgentAuditRun(input: AgentAuditRunInput): Promise<void> {
+    await this.db
+      .insert(agentAuditRunsTable)
+      .values({
+        pipelineRunId: input.pipelineRunId,
+        sessionId: input.sessionId,
+        audience: input.audience,
+        scope: input.scope,
+        brandId: normalizeNullableString(input.brandId),
+        source: input.source,
+        userPrompt: input.userPrompt,
+        status: input.status ?? "running",
+        startedAt: input.startedAt ? new Date(input.startedAt) : new Date(),
+        updatedAt: new Date(),
+      })
+      .onConflictDoNothing({
+        target: agentAuditRunsTable.pipelineRunId,
+      });
+  }
+
+  async finalizeAgentAuditRun(
+    pipelineRunId: string,
+    status: AgentAuditRunStatus,
+    finishedAt?: string | null
+  ): Promise<void> {
+    await this.db
+      .update(agentAuditRunsTable)
+      .set({
+        status,
+        finishedAt: finishedAt ? new Date(finishedAt) : new Date(),
+        updatedAt: new Date(),
+      })
+      .where(eq(agentAuditRunsTable.pipelineRunId, pipelineRunId));
+  }
+
+  async recordAgentAuditEvent(event: AgentAuditEventInput): Promise<void> {
+    const normalizedStatus = normalizeNullableString(event.status);
+    await this.db.insert(agentAuditEventsTable).values({
+      pipelineRunId: event.pipelineRunId,
+      runId: normalizeNullableString(event.runId),
+      sessionId: event.sessionId,
+      phase: event.phase,
+      componentKind: event.componentKind,
+      componentId: event.componentId,
+      eventType: event.eventType,
+      sequence: Math.max(0, Math.floor(event.sequence)),
+      status: normalizedStatus,
+      modelAlias: normalizeNullableString(event.modelAlias),
+      resolvedModelId: normalizeNullableString(event.resolvedModelId),
+      provider: normalizeNullableString(event.provider),
+      durationMs:
+        typeof event.durationMs === "number"
+          ? Math.max(0, Math.floor(event.durationMs))
+          : null,
+      tokensUsed:
+        typeof event.tokensUsed === "number"
+          ? Math.max(0, Math.floor(event.tokensUsed))
+          : null,
+      brandId: normalizeNullableString(event.brandId),
+      audience: event.audience,
+      scope: event.scope,
+      payload: event.payload ?? {},
+      createdAt: event.createdAt ? new Date(event.createdAt) : new Date(),
+    });
+
+    const isError =
+      event.eventType === "error" ||
+      normalizedStatus === "error" ||
+      normalizedStatus === "failed";
+    const isWarning = normalizedStatus === "warning";
+
+    await this.db
+      .update(agentAuditRunsTable)
+      .set({
+        totalEvents: sql`${agentAuditRunsTable.totalEvents} + 1`,
+        totalErrors: sql`${agentAuditRunsTable.totalErrors} + ${isError ? 1 : 0}`,
+        totalWarnings: sql`${agentAuditRunsTable.totalWarnings} + ${isWarning ? 1 : 0}`,
+        updatedAt: new Date(),
+      })
+      .where(eq(agentAuditRunsTable.pipelineRunId, event.pipelineRunId));
+  }
+
+  async listAgentAuditRuns(
+    options: AgentAuditRunListOptions = {}
+  ): Promise<{ total: number; rows: AgentAuditRunRecord[] }> {
+    const limit = Math.min(Math.max(options.limit ?? 25, 1), 200);
+    const offset = Math.max(options.offset ?? 0, 0);
+    const days = Math.min(Math.max(options.days ?? 7, 1), 365);
+    const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+    const conditions = [gte(agentAuditRunsTable.startedAt, since)];
+
+    if (options.status && options.status !== "all") {
+      conditions.push(eq(agentAuditRunsTable.status, options.status));
+    }
+    if (options.audience) {
+      conditions.push(eq(agentAuditRunsTable.audience, options.audience));
+    }
+    if (options.brandId) {
+      conditions.push(eq(agentAuditRunsTable.brandId, options.brandId));
+    }
+    if (options.componentKind) {
+      conditions.push(
+        sql`exists (
+          select 1
+          from ${agentAuditEventsTable}
+          where ${agentAuditEventsTable.pipelineRunId} = ${agentAuditRunsTable.pipelineRunId}
+            and ${agentAuditEventsTable.componentKind} = ${options.componentKind}
+        )`
+      );
+    }
+
+    const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+
+    const [countRows, rows] = await Promise.all([
+      this.db
+        .select({ total: sql<number>`count(*)::int` })
+        .from(agentAuditRunsTable)
+        .where(whereClause),
+      this.db
+        .select()
+        .from(agentAuditRunsTable)
+        .where(whereClause)
+        .orderBy(desc(agentAuditRunsTable.startedAt))
+        .limit(limit)
+        .offset(offset),
+    ]);
+
+    return {
+      total: countRows[0]?.total ?? 0,
+      rows: rows.map(fromAgentAuditRunRow),
+    };
+  }
+
+  async getAgentAuditRunByPipelineRunId(
+    pipelineRunId: string
+  ): Promise<AgentAuditRunRecord | null> {
+    const rows = await this.db
+      .select()
+      .from(agentAuditRunsTable)
+      .where(eq(agentAuditRunsTable.pipelineRunId, pipelineRunId))
+      .limit(1);
+
+    if (rows.length === 0) return null;
+    return fromAgentAuditRunRow(rows[0]);
+  }
+
+  async listAgentAuditEvents(
+    options: AgentAuditEventListOptions = {}
+  ): Promise<{ total: number; rows: AgentAuditEventRecord[] }> {
+    const limit = Math.min(Math.max(options.limit ?? 200, 1), 1000);
+    const offset = Math.max(options.offset ?? 0, 0);
+    const days = Math.min(Math.max(options.days ?? 7, 1), 365);
+    const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+    const conditions = [gte(agentAuditEventsTable.createdAt, since)];
+
+    if (options.pipelineRunId) {
+      conditions.push(eq(agentAuditEventsTable.pipelineRunId, options.pipelineRunId));
+    }
+    if (options.phase) {
+      conditions.push(eq(agentAuditEventsTable.phase, options.phase));
+    }
+    if (options.componentKind) {
+      conditions.push(eq(agentAuditEventsTable.componentKind, options.componentKind));
+    }
+    if (options.componentId) {
+      conditions.push(eq(agentAuditEventsTable.componentId, options.componentId));
+    }
+    if (options.eventType) {
+      conditions.push(eq(agentAuditEventsTable.eventType, options.eventType));
+    }
+    if (options.status) {
+      conditions.push(eq(agentAuditEventsTable.status, options.status));
+    }
+    if (options.audience) {
+      conditions.push(eq(agentAuditEventsTable.audience, options.audience));
+    }
+    if (options.brandId) {
+      conditions.push(eq(agentAuditEventsTable.brandId, options.brandId));
+    }
+
+    const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+    const [countRows, rows] = await Promise.all([
+      this.db
+        .select({ total: sql<number>`count(*)::int` })
+        .from(agentAuditEventsTable)
+        .where(whereClause),
+      this.db
+        .select()
+        .from(agentAuditEventsTable)
+        .where(whereClause)
+        .orderBy(
+          asc(agentAuditEventsTable.sequence),
+          asc(agentAuditEventsTable.id)
+        )
+        .limit(limit)
+        .offset(offset),
+    ]);
+
+    return {
+      total: countRows[0]?.total ?? 0,
+      rows: rows.map(fromAgentAuditEventRow),
+    };
+  }
+
+  async getAgentAuditSummary(options: {
+    audience?: RequestAudience;
+    brandId?: string | null;
+    days?: number;
+  } = {}): Promise<AgentAuditSummaryRecord> {
+    const days = Math.min(Math.max(options.days ?? 7, 1), 365);
+    const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+    const runConditions = [gte(agentAuditRunsTable.startedAt, since)];
+    const eventConditions = [gte(agentAuditEventsTable.createdAt, since)];
+
+    if (options.audience) {
+      runConditions.push(eq(agentAuditRunsTable.audience, options.audience));
+      eventConditions.push(eq(agentAuditEventsTable.audience, options.audience));
+    }
+    if (options.brandId) {
+      runConditions.push(eq(agentAuditRunsTable.brandId, options.brandId));
+      eventConditions.push(eq(agentAuditEventsTable.brandId, options.brandId));
+    }
+
+    const runWhereClause = runConditions.length > 0 ? and(...runConditions) : undefined;
+    const eventWhereClause =
+      eventConditions.length > 0 ? and(...eventConditions) : undefined;
+
+    const [runTotals, phaseRows, componentRows, statusRows] = await Promise.all([
+      this.db
+        .select({
+          totalRuns: sql<number>`count(*)::int`,
+          runningRuns:
+            sql<number>`count(*) filter (where ${agentAuditRunsTable.status} = 'running')::int`,
+          completedRuns:
+            sql<number>`count(*) filter (where ${agentAuditRunsTable.status} = 'completed')::int`,
+          failedRuns:
+            sql<number>`count(*) filter (where ${agentAuditRunsTable.status} = 'failed')::int`,
+          rejectedRuns:
+            sql<number>`count(*) filter (where ${agentAuditRunsTable.status} = 'rejected')::int`,
+          totalEvents:
+            sql<number>`coalesce(sum(${agentAuditRunsTable.totalEvents}), 0)::int`,
+          totalErrors:
+            sql<number>`coalesce(sum(${agentAuditRunsTable.totalErrors}), 0)::int`,
+          totalWarnings:
+            sql<number>`coalesce(sum(${agentAuditRunsTable.totalWarnings}), 0)::int`,
+        })
+        .from(agentAuditRunsTable)
+        .where(runWhereClause),
+      this.db
+        .select({
+          phase: agentAuditEventsTable.phase,
+          events: sql<number>`count(*)::int`,
+        })
+        .from(agentAuditEventsTable)
+        .where(eventWhereClause)
+        .groupBy(agentAuditEventsTable.phase)
+        .orderBy(desc(sql`count(*)`)),
+      this.db
+        .select({
+          componentKind: agentAuditEventsTable.componentKind,
+          events: sql<number>`count(*)::int`,
+        })
+        .from(agentAuditEventsTable)
+        .where(eventWhereClause)
+        .groupBy(agentAuditEventsTable.componentKind)
+        .orderBy(desc(sql`count(*)`)),
+      this.db
+        .select({
+          status: sql<string>`coalesce(${agentAuditEventsTable.status}, 'none')`,
+          events: sql<number>`count(*)::int`,
+        })
+        .from(agentAuditEventsTable)
+        .where(eventWhereClause)
+        .groupBy(sql`coalesce(${agentAuditEventsTable.status}, 'none')`)
+        .orderBy(desc(sql`count(*)`)),
+    ]);
+
+    return {
+      totalRuns: runTotals[0]?.totalRuns ?? 0,
+      runningRuns: runTotals[0]?.runningRuns ?? 0,
+      completedRuns: runTotals[0]?.completedRuns ?? 0,
+      failedRuns: runTotals[0]?.failedRuns ?? 0,
+      rejectedRuns: runTotals[0]?.rejectedRuns ?? 0,
+      totalEvents: runTotals[0]?.totalEvents ?? 0,
+      totalErrors: runTotals[0]?.totalErrors ?? 0,
+      totalWarnings: runTotals[0]?.totalWarnings ?? 0,
+      byPhase: phaseRows.map((row) => ({
+        phase: row.phase,
+        events: row.events ?? 0,
+      })),
+      byComponentKind: componentRows.map((row) => ({
+        componentKind: row.componentKind,
+        events: row.events ?? 0,
+      })),
+      byStatus: statusRows.map((row) => ({
+        status: row.status,
+        events: row.events ?? 0,
+      })),
+    };
+  }
+
+  async deleteExpiredAgentAuditEvents(olderThanIso: string): Promise<number> {
+    const cutoff = new Date(olderThanIso);
+    const deleted = await this.db
+      .delete(agentAuditEventsTable)
+      .where(lt(agentAuditEventsTable.createdAt, cutoff))
+      .returning({ id: agentAuditEventsTable.id });
+    return deleted.length;
   }
 
   async close(): Promise<void> {

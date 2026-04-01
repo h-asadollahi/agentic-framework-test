@@ -20,6 +20,7 @@ import {
   enforceCriticalFactsInResponse,
   extractCriticalFacts,
 } from "./delivery-fidelity.js";
+import { agentAuditStore } from "../observability/agent-audit-store.js";
 
 const DETERMINISTIC_ROUTE_AGENT_IDS = new Set([
   "mcp-fetcher",
@@ -49,6 +50,17 @@ export const deliverTask = task({
     context: ExecutionContext;
   }) => {
     logger.info("Starting interface phase");
+    const auditBase = {
+      pipelineRunId: payload.context.requestContext.pipelineRunId ?? payload.context.sessionId,
+      runId: payload.context.requestContext.runId ?? payload.context.sessionId,
+      sessionId: payload.context.sessionId,
+      phase: "interface",
+      componentKind: "task" as const,
+      componentId: "pipeline-deliver",
+      audience: payload.context.requestContext.audience,
+      scope: payload.context.requestContext.scope,
+      brandId: payload.context.requestContext.brandId,
+    };
 
     const criticalFacts = extractCriticalFacts(payload.agencyResult);
     const renderRequirements = buildHumanReadableRenderRequirements(
@@ -59,6 +71,15 @@ export const deliverTask = task({
     let deliveryResult: DeliveryResult;
 
     if (shouldUseDeterministicDeliverFastPath(payload.agencyResult)) {
+      await agentAuditStore.record({
+        ...auditBase,
+        eventType: "decision",
+        status: "completed",
+        payload: {
+          decision: "deterministic-deliver-fast-path",
+          criticalFacts,
+        },
+      });
       deliveryResult = buildDeterministicDeliveryFastPath(
         payload.agencyResult,
         criticalFacts
@@ -94,6 +115,15 @@ export const deliverTask = task({
         deliveryResult = parsedDelivery;
       } else {
         logger.warn("Interface agent output wasn't valid JSON, using raw text");
+        await agentAuditStore.record({
+          ...auditBase,
+          eventType: "decision",
+          status: "warning",
+          payload: {
+            decision: "interface-output-fallback",
+            reason: "Interface output was not valid JSON; using raw text response.",
+          },
+        });
         deliveryResult = {
           formattedResponse: result.output as string,
           notifications: [],
@@ -127,6 +157,16 @@ export const deliverTask = task({
       payload.agencyResult,
       deliveryResult.notifications ?? []
     );
+
+    await agentAuditStore.record({
+      ...auditBase,
+      eventType: "result",
+      status: "completed",
+      payload: {
+        notificationCount: deliveryResult.notifications.length,
+        formattedResponsePreview: String(deliveryResult.formattedResponse ?? "").slice(0, 1200),
+      },
+    });
 
     return deliveryResult;
   },

@@ -11,6 +11,7 @@ import {
 import { buildDeterministicAdminObservabilityPlan } from "./admin-observability.js";
 import { parseAgentJson } from "./agent-output-parser.js";
 import { isSynthesisLikeDescription } from "./execute-routing.js";
+import { agentAuditStore } from "../observability/agent-audit-store.js";
 
 /**
  * Think Task (Cognition)
@@ -38,6 +39,26 @@ export const thinkTask = task({
         taskContext.ctx.run.id
       ),
     };
+    const auditBase = {
+      pipelineRunId: context.requestContext.pipelineRunId ?? context.sessionId,
+      runId: taskContext.ctx.run.id,
+      sessionId: context.sessionId,
+      phase: "cognition",
+      componentKind: "task" as const,
+      componentId: "pipeline-think",
+      audience: context.requestContext.audience,
+      scope: context.requestContext.scope,
+      brandId: context.requestContext.brandId,
+    };
+
+    await agentAuditStore.record({
+      ...auditBase,
+      eventType: "invoke",
+      status: "running",
+      payload: {
+        userMessage: payload.userMessage,
+      },
+    });
 
     const deterministicAdminPlan = buildDeterministicAdminObservabilityPlan(
       payload.userMessage,
@@ -47,6 +68,15 @@ export const thinkTask = task({
       logger.info("Cognition admin observability fast path activated", {
         sessionId: context.sessionId,
         subtaskCount: deterministicAdminPlan.subtasks.length,
+      });
+      await agentAuditStore.record({
+        ...auditBase,
+        eventType: "decision",
+        status: "completed",
+        payload: {
+          decision: "deterministic-admin-observability-fast-path",
+          subtaskCount: deterministicAdminPlan.subtasks.length,
+        },
       });
       return deterministicAdminPlan;
     }
@@ -87,6 +117,15 @@ export const thinkTask = task({
         plan: payload.userMessage,
         rejected: false,
       };
+      await agentAuditStore.record({
+        ...auditBase,
+        eventType: "decision",
+        status: "warning",
+        payload: {
+          decision: "cognition-output-fallback",
+          reason: "Could not parse cognition agent output; falling back to single general task.",
+        },
+      });
     }
 
     // Deterministic guardrail fallback in case the model misses rejection policy.
@@ -99,6 +138,15 @@ export const thinkTask = task({
         guardrailDecision.reason ??
           "Request is out of scope for this marketing assistant."
       );
+      await agentAuditStore.record({
+        ...auditBase,
+        eventType: "decision",
+        status: "completed",
+        payload: {
+          decision: "guardrail-rejection",
+          reason: guardrailDecision.reason,
+        },
+      });
     }
 
     if (cognitionResult.rejected === true) {
@@ -109,6 +157,7 @@ export const thinkTask = task({
     }
 
     if (cognitionResult.rejected !== true) {
+      const originalSubtaskCount = cognitionResult.subtasks.length;
       cognitionResult = applyAutonomousSkillCreation(
         cognitionResult,
         payload.userMessage,
@@ -117,9 +166,34 @@ export const thinkTask = task({
       cognitionResult = constrainDeterministicSingleRouteSynthesis(
         cognitionResult
       );
+      if (cognitionResult.subtasks.length !== originalSubtaskCount) {
+        await agentAuditStore.record({
+          ...auditBase,
+          eventType: "decision",
+          status: "completed",
+          payload: {
+            decision: "cognition-plan-adjusted",
+            originalSubtaskCount,
+            finalSubtaskCount: cognitionResult.subtasks.length,
+          },
+        });
+      }
     }
 
     logger.info(`Cognition produced ${cognitionResult.subtasks.length} subtasks`);
+    await agentAuditStore.record({
+      ...auditBase,
+      eventType: "result",
+      status: cognitionResult.rejected === true ? "rejected" : "completed",
+      payload: {
+        subtaskCount: cognitionResult.subtasks.length,
+        reasoning: cognitionResult.reasoning,
+        plan: cognitionResult.plan,
+        rejected: cognitionResult.rejected === true,
+        rejectionReason: cognitionResult.rejectionReason ?? null,
+        subtasks: cognitionResult.subtasks,
+      },
+    });
     return cognitionResult;
   },
 });

@@ -6,10 +6,12 @@ import { deliverTask } from "./deliver.js";
 import { skillLearnerTask } from "./skill-learner.js";
 import { notifyTask } from "./notify.js";
 import { escalateTask } from "./escalate.js";
+import { auditCleanupTask } from "./audit-cleanup.js";
 import { shortTermMemory } from "../memory/short-term.js";
 import { learnedRoutesStore } from "../routing/learned-routes-store.js";
 import { skillCandidatesStore } from "../routing/skill-candidates-store.js";
 import { llmUsageStore } from "../observability/llm-usage-store.js";
+import { agentAuditStore } from "../observability/agent-audit-store.js";
 import { withPipelineRunId } from "../core/request-context.js";
 import type {
   CognitionResult,
@@ -26,6 +28,29 @@ type QueueSkillLearnerInput = {
   context: ExecutionContext;
   skillSuggestions: SkillSuggestion[];
 };
+
+let lastAuditCleanupScheduleKey: string | null = null;
+
+function getAuditRetentionDays(): number {
+  const parsed = Number(process.env.AGENT_AUDIT_RETENTION_DAYS ?? "7");
+  if (!Number.isFinite(parsed)) return 7;
+  return Math.max(1, Math.floor(parsed));
+}
+
+function queueAuditCleanupInBackground(
+  triggerFn: typeof auditCleanupTask.trigger = auditCleanupTask.trigger
+): void {
+  const todayKey = new Date().toISOString().slice(0, 10);
+  if (lastAuditCleanupScheduleKey === todayKey) return;
+  lastAuditCleanupScheduleKey = todayKey;
+
+  void triggerFn({ retentionDays: getAuditRetentionDays() }).catch((error) => {
+    lastAuditCleanupScheduleKey = null;
+    logger.warn("Failed to queue audit cleanup task", {
+      error: error instanceof Error ? error.message : String(error),
+    });
+  });
+}
 
 export function queueSkillLearnerInBackground(
   payload: QueueSkillLearnerInput,
@@ -88,6 +113,35 @@ export const orchestrateTask = task({
       });
     }
 
+    await agentAuditStore.createRun({
+      pipelineRunId,
+      audience: requestContext.audience,
+      scope: requestContext.scope,
+      brandId: requestContext.brandId,
+      source: requestContext.source,
+      sessionId: payload.sessionId,
+      userPrompt: payload.userMessage,
+      startedAt: new Date().toISOString(),
+    });
+    await agentAuditStore.record({
+      pipelineRunId,
+      runId: taskContext.ctx.run.id,
+      sessionId: payload.sessionId,
+      phase: "orchestration",
+      componentKind: "pipeline",
+      componentId: "orchestrate-pipeline",
+      eventType: "pipeline_started",
+      status: "running",
+      audience: requestContext.audience,
+      scope: requestContext.scope,
+      brandId: requestContext.brandId,
+      payload: {
+        source: requestContext.source,
+        userPrompt: payload.userMessage,
+      },
+    });
+    queueAuditCleanupInBackground();
+
     logger.info("Pipeline started", {
       sessionId: payload.sessionId,
       message: payload.userMessage.slice(0, 100),
@@ -140,6 +194,19 @@ export const orchestrateTask = task({
       // ── Stage 1: Grounding ─────────────────────────────────
       logger.info("Stage 1/4: Grounding");
       const groundingStart = Date.now();
+      await agentAuditStore.record({
+        pipelineRunId,
+        runId: taskContext.ctx.run.id,
+        sessionId: payload.sessionId,
+        phase: "grounding",
+        componentKind: "task",
+        componentId: "pipeline-ground",
+        eventType: "stage_started",
+        status: "running",
+        audience: requestContext.audience,
+        scope: requestContext.scope,
+        brandId: requestContext.brandId,
+      });
 
       const groundingRun = await groundTask.triggerAndWait({
         userMessage: payload.userMessage,
@@ -159,10 +226,37 @@ export const orchestrateTask = task({
         action: "Established brand context and guardrails",
         durationMs: Date.now() - groundingStart,
       });
+      await agentAuditStore.record({
+        pipelineRunId,
+        runId: taskContext.ctx.run.id,
+        sessionId: payload.sessionId,
+        phase: "grounding",
+        componentKind: "task",
+        componentId: "pipeline-ground",
+        eventType: "stage_completed",
+        status: "completed",
+        durationMs: Date.now() - groundingStart,
+        audience: requestContext.audience,
+        scope: requestContext.scope,
+        brandId: requestContext.brandId,
+      });
 
       // ── Stage 2: Cognition ─────────────────────────────────
       logger.info("Stage 2/4: Cognition");
       const cognitionStart = Date.now();
+      await agentAuditStore.record({
+        pipelineRunId,
+        runId: taskContext.ctx.run.id,
+        sessionId: payload.sessionId,
+        phase: "cognition",
+        componentKind: "task",
+        componentId: "pipeline-think",
+        eventType: "stage_started",
+        status: "running",
+        audience: requestContext.audience,
+        scope: requestContext.scope,
+        brandId: requestContext.brandId,
+      });
 
       const thinkRun = await thinkTask.triggerAndWait({
         userMessage: payload.userMessage,
@@ -181,6 +275,24 @@ export const orchestrateTask = task({
         action: `Decomposed into ${thinkRun.output.subtasks.length} subtasks`,
         reasoning: thinkRun.output.reasoning,
         durationMs: Date.now() - cognitionStart,
+      });
+      await agentAuditStore.record({
+        pipelineRunId,
+        runId: taskContext.ctx.run.id,
+        sessionId: payload.sessionId,
+        phase: "cognition",
+        componentKind: "task",
+        componentId: "pipeline-think",
+        eventType: "stage_completed",
+        status: "completed",
+        durationMs: Date.now() - cognitionStart,
+        audience: requestContext.audience,
+        scope: requestContext.scope,
+        brandId: requestContext.brandId,
+        payload: {
+          subtaskCount: thinkRun.output.subtasks.length,
+          rejected: thinkRun.output.rejected === true,
+        },
       });
 
       if (thinkRun.output.rejected === true) {
@@ -201,6 +313,23 @@ export const orchestrateTask = task({
             error: error instanceof Error ? error.message : String(error),
           });
         }
+        await agentAuditStore.record({
+          pipelineRunId,
+          runId: taskContext.ctx.run.id,
+          sessionId: payload.sessionId,
+          phase: "orchestration",
+          componentKind: "pipeline",
+          componentId: "orchestrate-pipeline",
+          eventType: "pipeline_completed",
+          status: "rejected",
+          audience: requestContext.audience,
+          scope: requestContext.scope,
+          brandId: requestContext.brandId,
+          payload: {
+            rejectionReason: rejectionMessage,
+          },
+        });
+        await agentAuditStore.finalizeRun(pipelineRunId, "rejected");
 
         return {
           formattedResponse: rejectionMessage,
@@ -214,6 +343,22 @@ export const orchestrateTask = task({
         subtasks: thinkRun.output.subtasks.length,
       });
       const agencyStart = Date.now();
+      await agentAuditStore.record({
+        pipelineRunId,
+        runId: taskContext.ctx.run.id,
+        sessionId: payload.sessionId,
+        phase: "agency",
+        componentKind: "task",
+        componentId: "pipeline-execute",
+        eventType: "stage_started",
+        status: "running",
+        audience: requestContext.audience,
+        scope: requestContext.scope,
+        brandId: requestContext.brandId,
+        payload: {
+          plannedSubtasks: thinkRun.output.subtasks.length,
+        },
+      });
 
       const executeRun = await executeTask.triggerAndWait({
         cognitionResult: thinkRun.output,
@@ -232,6 +377,25 @@ export const orchestrateTask = task({
         action: executeRun.output.summary,
         durationMs: Date.now() - agencyStart,
       });
+      await agentAuditStore.record({
+        pipelineRunId,
+        runId: taskContext.ctx.run.id,
+        sessionId: payload.sessionId,
+        phase: "agency",
+        componentKind: "task",
+        componentId: "pipeline-execute",
+        eventType: "stage_completed",
+        status: "completed",
+        durationMs: Date.now() - agencyStart,
+        audience: requestContext.audience,
+        scope: requestContext.scope,
+        brandId: requestContext.brandId,
+        payload: {
+          summary: executeRun.output.summary,
+          issues: executeRun.output.issues ?? [],
+          needsHumanReview: executeRun.output.needsHumanReview ?? false,
+        },
+      });
 
       const skillSuggestions = executeRun.output.skillSuggestions ?? [];
       if (skillSuggestions.length > 0) {
@@ -245,6 +409,22 @@ export const orchestrateTask = task({
           agent: "skill-learner",
           action: `Queued asynchronous skill-learning for ${skillSuggestions.length} suggestion(s)`,
         });
+        await agentAuditStore.record({
+          pipelineRunId,
+          runId: taskContext.ctx.run.id,
+          sessionId: payload.sessionId,
+          phase: "sub-agent",
+          componentKind: "task",
+          componentId: "pipeline-skill-learner",
+          eventType: "decision",
+          status: "queued",
+          audience: requestContext.audience,
+          scope: requestContext.scope,
+          brandId: requestContext.brandId,
+          payload: {
+            skillSuggestionCount: skillSuggestions.length,
+          },
+        });
 
         queueSkillLearnerInBackground({
           sessionId: payload.sessionId,
@@ -257,6 +437,19 @@ export const orchestrateTask = task({
       // ── Stage 4: Interface ─────────────────────────────────
       logger.info("Stage 4/4: Interface");
       const interfaceStart = Date.now();
+      await agentAuditStore.record({
+        pipelineRunId,
+        runId: taskContext.ctx.run.id,
+        sessionId: payload.sessionId,
+        phase: "interface",
+        componentKind: "task",
+        componentId: "pipeline-deliver",
+        eventType: "stage_started",
+        status: "running",
+        audience: requestContext.audience,
+        scope: requestContext.scope,
+        brandId: requestContext.brandId,
+      });
 
       const deliverRun = await deliverTask.triggerAndWait({
         agencyResult: executeRun.output,
@@ -276,12 +469,47 @@ export const orchestrateTask = task({
         action: "Formatted response and determined notifications",
         durationMs: Date.now() - interfaceStart,
       });
+      await agentAuditStore.record({
+        pipelineRunId,
+        runId: taskContext.ctx.run.id,
+        sessionId: payload.sessionId,
+        phase: "interface",
+        componentKind: "task",
+        componentId: "pipeline-deliver",
+        eventType: "stage_completed",
+        status: "completed",
+        durationMs: Date.now() - interfaceStart,
+        audience: requestContext.audience,
+        scope: requestContext.scope,
+        brandId: requestContext.brandId,
+        payload: {
+          notificationCount: deliverRun.output.notifications?.length ?? 0,
+        },
+      });
 
       // ── Send Notifications ─────────────────────────────────
       const notifications = deliverRun.output.notifications ?? [];
       if (notifications.length > 0) {
         logger.info(`Sending ${notifications.length} notification(s)`);
         for (const notification of notifications) {
+          await agentAuditStore.record({
+            pipelineRunId,
+            runId: taskContext.ctx.run.id,
+            sessionId: payload.sessionId,
+            phase: "notification",
+            componentKind: "notification",
+            componentId: notification.channel,
+            eventType: "notification_queued",
+            status: "queued",
+            audience: requestContext.audience,
+            scope: requestContext.scope,
+            brandId: requestContext.brandId,
+            payload: {
+              recipient: notification.recipient,
+              subject: notification.subject,
+              priority: notification.priority,
+            },
+          });
           // Fire-and-forget — don't block the pipeline response
           await notifyTask.trigger({
             notification: {
@@ -313,6 +541,25 @@ export const orchestrateTask = task({
           error: error instanceof Error ? error.message : String(error),
         });
       }
+      await agentAuditStore.record({
+        pipelineRunId,
+        runId: taskContext.ctx.run.id,
+        sessionId: payload.sessionId,
+        phase: "orchestration",
+        componentKind: "pipeline",
+        componentId: "orchestrate-pipeline",
+        eventType: "pipeline_completed",
+        status: "completed",
+        durationMs: totalMs,
+        audience: requestContext.audience,
+        scope: requestContext.scope,
+        brandId: requestContext.brandId,
+        payload: {
+          notifications: notifications.length,
+          traceEntries: trace.length,
+        },
+      });
+      await agentAuditStore.finalizeRun(pipelineRunId, "completed");
 
       return {
         formattedResponse: deliverRun.output.formattedResponse,
@@ -331,6 +578,23 @@ export const orchestrateTask = task({
               : String(finalizeError),
         });
       }
+      await agentAuditStore.record({
+        pipelineRunId,
+        runId: taskContext.ctx.run.id,
+        sessionId: payload.sessionId,
+        phase: "orchestration",
+        componentKind: "pipeline",
+        componentId: "orchestrate-pipeline",
+        eventType: "error",
+        status: "failed",
+        audience: requestContext.audience,
+        scope: requestContext.scope,
+        brandId: requestContext.brandId,
+        payload: {
+          message: error instanceof Error ? error.message : String(error),
+        },
+      });
+      await agentAuditStore.finalizeRun(pipelineRunId, "failed");
       throw error;
     }
   },

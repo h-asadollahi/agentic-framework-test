@@ -159,6 +159,10 @@ export class CognitionAgent extends BaseAgent {
     );
   }
 
+  protected override getPromptSourceIdentifier(): string | null {
+    return this.promptFile;
+  }
+
   /**
    * Build a prompt section listing learned routes so the cognition agent
    * can assign subtasks to the exact target agent for known capabilities.

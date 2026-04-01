@@ -193,3 +193,83 @@ export const llmPromptUsageRunsTable = pgTable(
     ),
   })
 );
+
+export const agentAuditRunsTable = pgTable(
+  "agent_audit_runs",
+  {
+    pipelineRunId: text("pipeline_run_id").primaryKey(),
+    sessionId: text("session_id").notNull(),
+    audience: text("audience").notNull(),
+    scope: text("scope").notNull(),
+    brandId: text("brand_id"),
+    source: text("source").notNull(),
+    userPrompt: text("user_prompt").notNull(),
+    status: text("status").notNull().default("running"),
+    startedAt: timestamp("started_at", { withTimezone: true }).notNull().defaultNow(),
+    finishedAt: timestamp("finished_at", { withTimezone: true }),
+    totalEvents: integer("total_events").notNull().default(0),
+    totalErrors: integer("total_errors").notNull().default(0),
+    totalWarnings: integer("total_warnings").notNull().default(0),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    audienceStartedAtIdx: index("agent_audit_runs_audience_started_at_idx").on(
+      table.audience,
+      table.startedAt
+    ),
+    brandStartedAtIdx: index("agent_audit_runs_brand_started_at_idx").on(
+      table.brandId,
+      table.startedAt
+    ),
+    statusStartedAtIdx: index("agent_audit_runs_status_started_at_idx").on(
+      table.status,
+      table.startedAt
+    ),
+  })
+);
+
+export const agentAuditEventsTable = pgTable(
+  "agent_audit_events",
+  {
+    id: serial("id").primaryKey(),
+    pipelineRunId: text("pipeline_run_id").notNull(),
+    runId: text("run_id"),
+    sessionId: text("session_id").notNull(),
+    phase: text("phase").notNull(),
+    componentKind: text("component_kind").notNull(),
+    componentId: text("component_id").notNull(),
+    eventType: text("event_type").notNull(),
+    sequence: integer("sequence").notNull(),
+    status: text("status"),
+    modelAlias: text("model_alias"),
+    resolvedModelId: text("resolved_model_id"),
+    provider: text("provider"),
+    durationMs: integer("duration_ms"),
+    tokensUsed: integer("tokens_used"),
+    brandId: text("brand_id"),
+    audience: text("audience").notNull(),
+    scope: text("scope").notNull(),
+    payload: jsonb("payload").$type<Record<string, unknown>>().notNull().default({}),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    pipelineSequenceIdx: index("agent_audit_events_pipeline_sequence_idx").on(
+      table.pipelineRunId,
+      table.sequence
+    ),
+    phaseCreatedAtIdx: index("agent_audit_events_phase_created_at_idx").on(
+      table.phase,
+      table.createdAt
+    ),
+    componentCreatedAtIdx: index("agent_audit_events_component_created_at_idx").on(
+      table.componentKind,
+      table.componentId,
+      table.createdAt
+    ),
+    statusCreatedAtIdx: index("agent_audit_events_status_created_at_idx").on(
+      table.status,
+      table.createdAt
+    ),
+  })
+);

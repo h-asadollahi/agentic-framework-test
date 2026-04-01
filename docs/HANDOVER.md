@@ -1,6 +1,6 @@
 # Development Handover — Continue from Here
 
-> **Last updated:** 2026-03-17
+> **Last updated:** 2026-04-01
 > **Previous AI:** Claude Opus 4.6 via Claude Code
 > **Next AI:** OpenAI Codex (or any agent picking this up)
 
@@ -46,6 +46,115 @@ src/
 ---
 
 ## Post-Handover Progress (2026-03-10, Codex)
+
+### Plan 95: Deep agent audit trail for admin visibility
+
+Status: Implemented in code, admin UI/API, cleanup task, and tests on 2026-04-01.
+
+Problem addressed:
+- Trigger.dev already showed run-level logs, but the product itself did not persist a structured, queryable deep audit trail for agents and sub-agents.
+- Admins had no first-class way to inspect rendered prompts, model retries, decomposition decisions, tool calls, sanitized outputs, skip reasons, or deterministic fast-path decisions inside the project UI.
+- Existing observability (`trace`, `llm_usage_events`, prompt usage telemetry) was useful but too shallow for debugging route/routing/agent behavior end-to-end.
+
+What changed:
+- Added DB-backed audit persistence:
+  - `agent_audit_runs`
+  - `agent_audit_events`
+- Extended `src/routing/learned-routes-db-repository.ts` with:
+  - create/finalize run helpers
+  - event persistence
+  - filtered run/event listing
+  - aggregate summary queries
+  - retention cleanup for expired detailed events
+- Added sanitized audit helpers:
+  - `src/observability/agent-audit-sanitizer.ts`
+  - `src/observability/agent-audit-store.ts`
+- Instrumented main LLM agents (`BaseAgent`) and LLM-backed sub-agents (`BaseSubAgent`) to persist:
+  - `invoke`
+  - `prompt_snapshot`
+  - `model_attempt`
+  - `result`
+  - `error`
+- Instrumented deterministic sub-agents and trigger tasks to persist:
+  - routing decisions
+  - route hydration
+  - synthesis skips / deterministic fast paths
+  - MCP / API tool-call previews
+  - notification queueing
+  - skill-learner decisions/materialization results
+- Added audit-aware Trigger task cleanup:
+  - `src/trigger/audit-cleanup.ts`
+  - opportunistically queued by orchestrator, best-effort, with 7-day event retention
+- Added admin APIs:
+  - `GET /admin/audit/summary`
+  - `GET /admin/audit/runs`
+  - `GET /admin/audit/runs/:pipelineRunId`
+  - `GET /admin/audit/events`
+- Added admin UI `Audit` page with:
+  - summary cards
+  - filtered run list
+  - run detail timeline
+  - expandable raw sanitized payloads
+
+Behavioral outcome:
+- Admin operators can inspect a pipeline run from inside the admin UI without depending only on Trigger logs.
+- Audit persistence is best-effort and does not fail marketer/admin pipeline delivery when DB/audit writes fail.
+- The marketer-facing `/message` contract and lightweight `trace` remain unchanged.
+- Sanitization is now explicit:
+  - secrets/auth headers/tokens/cookies/passwords are redacted
+  - long prompts/payloads are truncated into readable previews
+  - only framework-controlled reasoning artifacts are stored (plans, outputs, decisions, tool calls), not hidden provider chain-of-thought
+
+Additional stability work completed during this implementation:
+- Fixed async unit tests that still treated `buildExecutionContext()` as synchronous.
+- Hardened learned-route JSON fallback handling:
+  - `knowledge/learned-routes.json` can now be represented as a valid empty catalog without parse noise
+  - `src/routing/learned-routes-store.ts` treats a blank fallback file as an empty route catalog instead of crashing
+- Fixed migration ordering in `src/routing/learned-routes-migration.ts` so DB configuration errors surface before JSON parse errors.
+- Backward-compatible helper improvement in `src/trigger/skill-learning.ts` so older call sites/tests that pass options in the third argument still resolve correctly.
+
+Important files added:
+- `src/observability/agent-audit-sanitizer.ts`
+- `src/observability/agent-audit-store.ts`
+- `src/trigger/audit-cleanup.ts`
+- `docs/ai-coding-plans/codex-plan-95.md`
+
+Important files changed:
+- `src/routing/learned-routes-db-schema.ts`
+- `src/routing/learned-routes-db-repository.ts`
+- `src/admin/routes.ts`
+- `admin/public/index.html`
+- `admin/public/app.js`
+- `src/agents/base-agent.ts`
+- `src/trigger/sub-agents/base-sub-agent.ts`
+- `src/trigger/orchestrate.ts`
+- `src/trigger/ground.ts`
+- `src/trigger/think.ts`
+- `src/trigger/execute.ts`
+- `src/trigger/deliver.ts`
+- `src/trigger/notify.ts`
+- `src/trigger/skill-learner.ts`
+- deterministic plugin files under `src/trigger/sub-agents/plugins/`
+
+Validation:
+- `npm run build`
+- `npm test`
+- Final result at handoff time: `46/46` test files, `206/206` tests passing
+
+Operational notes for the next assistant:
+- The admin audit feature expects the same platform DB used by learned routes / telemetry (`DATABASE_URL`).
+- The admin UI now exposes three observability surfaces:
+  - `Admin Chat`
+  - `Token Usage`
+  - `Audit`
+- If local working tree noise appears in `knowledge/skill-candidates.json`, treat it as user/test-local unless explicitly asked to commit it.
+- `knowledge/learned-routes.json` is currently safe as a minimal valid empty fallback catalog when DB is the primary route source.
+
+Recommended first verification steps after pulling this state:
+1. Start the admin UI and open the new `Audit` page.
+2. Run one marketer prompt end-to-end and confirm an audit run appears with stage + sub-agent events.
+3. Open a run detail and verify prompt snapshots / tool-call previews are redacted and truncated correctly.
+4. Confirm the marketer-facing response shape is unchanged and still only exposes the lightweight `trace`.
 
 ### Plan 94: Prompt-centric token telemetry and dedicated admin token usage page
 
