@@ -1397,6 +1397,146 @@
           padding: 12px 10px;
         }
       }
+
+      /* ── Audit workspace (plan-107) ─────────────────────────── */
+      .audit-workspace {
+        display: flex !important;
+        gap: 0 !important;
+        padding: 0 !important;
+        overflow: hidden;
+        min-height: 560px;
+        align-items: stretch;
+      }
+      .audit-left {
+        width: 300px;
+        min-width: 240px;
+        flex-shrink: 0;
+        border-right: 1.5px solid var(--panel-border);
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+      }
+      .audit-left-top {
+        flex-shrink: 0;
+        border-bottom: 1.5px solid var(--panel-border);
+        display: flex;
+        flex-direction: column;
+      }
+      .audit-left-tree {
+        flex: 1;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+      }
+      .audit-panel-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 8px 14px;
+        background: rgba(142, 126, 255, 0.04);
+        border-bottom: 1.5px solid var(--panel-border);
+        flex-shrink: 0;
+      }
+      .audit-runs-list {
+        overflow-y: auto;
+        max-height: 210px;
+        padding: 4px 0;
+      }
+      .audit-run-item {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 10px;
+        cursor: pointer;
+        font-size: 0.78rem;
+        transition: background 0.1s;
+      }
+      .audit-run-item:hover { background: rgba(142, 126, 255, 0.06); }
+      .audit-run-item.selected { background: var(--accent-soft); color: var(--accent-deep); }
+      .audit-run-id {
+        flex: 1;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        font-family: "IBM Plex Mono", ui-monospace, monospace;
+        font-size: 0.7rem;
+        opacity: 0.85;
+      }
+      .audit-run-status-icon { flex-shrink: 0; font-size: 0.8rem; }
+      .audit-inspect-btn {
+        background: none;
+        border: 1px solid var(--panel-border);
+        border-radius: 4px;
+        padding: 2px 7px;
+        font-size: 0.68rem;
+        cursor: pointer;
+        color: var(--accent-deep);
+        flex-shrink: 0;
+      }
+      .audit-inspect-btn:hover { background: var(--accent-soft); }
+      .audit-tree-scroll { flex: 1; overflow-y: auto; padding: 6px 4px; }
+      .audit-tree-node { display: flex; flex-direction: column; }
+      .audit-tree-row {
+        display: flex;
+        align-items: center;
+        gap: 3px;
+        padding: 4px 8px;
+        border-radius: 5px;
+        cursor: pointer;
+        font-size: 0.77rem;
+        color: var(--text);
+        user-select: none;
+        white-space: nowrap;
+        overflow: hidden;
+        transition: background 0.1s;
+      }
+      .audit-tree-row:hover { background: rgba(142, 126, 255, 0.06); }
+      .audit-tree-row.active { background: var(--accent-soft); color: var(--accent-deep); }
+      .audit-toggle {
+        width: 14px;
+        flex-shrink: 0;
+        font-size: 0.62rem;
+        opacity: 0.55;
+        text-align: center;
+      }
+      .audit-node-icon { flex-shrink: 0; }
+      .audit-node-label { flex: 1; overflow: hidden; text-overflow: ellipsis; font-size: 0.76rem; }
+      .audit-node-badge { flex-shrink: 0; font-size: 0.66rem; opacity: 0.65; }
+      .audit-tree-children { padding-left: 14px; }
+      .audit-tree-children.collapsed { display: none; }
+      .audit-detail-pane { flex: 1; overflow-y: auto; padding: 18px 22px; min-width: 0; }
+      .audit-detail-heading {
+        font-size: 0.7rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.07em;
+        color: var(--accent-deep);
+        margin: 0 0 10px;
+        padding-bottom: 8px;
+        border-bottom: 1.5px solid var(--panel-border);
+      }
+      .audit-kv {
+        display: grid;
+        grid-template-columns: max-content 1fr;
+        gap: 5px 14px;
+        font-size: 0.8rem;
+        margin-bottom: 16px;
+      }
+      .audit-kv dt { color: var(--muted); font-weight: 500; margin: 0; }
+      .audit-kv dd {
+        margin: 0;
+        font-family: "IBM Plex Mono", ui-monospace, monospace;
+        font-size: 0.73rem;
+        word-break: break-all;
+      }
+      .audit-payload-label {
+        font-size: 0.7rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: var(--muted);
+        margin: 14px 0 6px;
+      }
     </style>
   </head>
   <body>
@@ -2124,67 +2264,31 @@
             </div>
           </section>
 
-          <section class="surface-card">
-            <div class="section-head">
-              <div>
-                <p class="eyebrow subtle">Audit Runs</p>
-                <h2>Captured Pipeline Runs</h2>
-                <p class="section-copy">
-                  Inspect a run to open its grouped phase timeline and raw sanitized payload.
-                </p>
+          <section class="surface-card audit-workspace">
+            <!-- Left panel: compact runs list + tree -->
+            <div class="audit-left">
+              <div class="audit-left-top">
+                <div class="audit-panel-head">
+                  <p class="eyebrow subtle" style="margin:0">Runs</p>
+                  <span id="auditRunsCount" class="section-pill">0 runs</span>
+                </div>
+                <div id="auditRunsList" class="audit-runs-list">
+                  <div class="empty-state" style="padding:12px 14px;font-size:0.8rem">No runs loaded.</div>
+                </div>
               </div>
-              <div id="auditRunsCount" class="section-pill">0 runs</div>
-            </div>
-
-            <div class="table-shell">
-              <div class="table-scroll">
-                <table class="route-table">
-                  <thead>
-                    <tr>
-                      <th>Pipeline Run</th>
-                      <th>Status</th>
-                      <th>Audience</th>
-                      <th>Brand</th>
-                      <th>Events</th>
-                      <th>Warnings</th>
-                      <th>Errors</th>
-                      <th>Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody id="auditRunsTable">
-                    <tr>
-                      <td colspan="8" class="empty-state">No audit runs loaded.</td>
-                    </tr>
-                  </tbody>
-                </table>
+              <div class="audit-left-tree">
+                <div class="audit-panel-head">
+                  <p class="eyebrow subtle" style="margin:0">Run Tree</p>
+                </div>
+                <div id="auditTreeContainer" class="audit-tree-scroll">
+                  <div class="empty-state" style="padding:12px;font-size:0.8rem">Select a run to view its tree.</div>
+                </div>
               </div>
             </div>
-          </section>
-
-          <section class="surface-card">
-            <div class="section-head">
-              <div>
-                <p class="eyebrow subtle">Run Detail</p>
-                <h2 id="auditSelectedTitle">Run Detail</h2>
-                <p class="section-copy" id="auditSelectedMeta">
-                  Choose a run from the list to inspect the sanitized audit trail.
-                </p>
-              </div>
-              <div class="section-pill">Grouped by phase</div>
+            <!-- Right panel: detail pane -->
+            <div id="auditDetailPanel" class="audit-detail-pane">
+              <div class="empty-state">Select a node to view details.</div>
             </div>
-
-            <div id="auditRunSummary">
-              <div class="empty-state">Select an audit run to inspect its stage timeline, prompts, tool calls, and results.</div>
-            </div>
-
-            <div id="auditTimeline" class="feed-stack" style="margin-top: 18px;">
-              <div class="empty-state">Timeline will appear here once an audit run is selected.</div>
-            </div>
-
-            <details class="raw-json" style="margin-top: 18px;">
-              <summary>Raw Sanitized Run JSON</summary>
-              <pre id="auditRunRaw">No audit run selected.</pre>
-            </details>
           </section>
         </section>
 
@@ -2236,6 +2340,7 @@
               </p>
               <div class="summary-value" id="slackApprovedCount">0</div>
               <div class="summary-meta">
+                <span class="mini-pill">Dismissed <span id="slackDismissedCount">0</span></span>
                 <span class="mini-pill">Rejected <span id="slackRejectedCount">0</span></span>
                 <span class="mini-pill">Timed Out <span id="slackTimedOutCount">0</span></span>
               </div>

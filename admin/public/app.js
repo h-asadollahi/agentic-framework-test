@@ -19,6 +19,8 @@ const state = {
     selectedPipelineRunId: null,
     selectedRun: null,
     selectedEvents: [],
+    selectedNodeId: null,
+    currentTree: null,
   },
   llmUsageSummary: null,
   tokenUsage: {
@@ -1201,6 +1203,7 @@ function formatSlackStatusTone(statusValue) {
   const value = String(statusValue || "").toLowerCase();
   if (value === "approved" || value === "route_added") return "success";
   if (value === "rejected") return "error";
+  if (value === "dismissed") return "info";
   if (value === "timed_out" || value === "sent" || value === "responded") return "warning";
   return "info";
 }
@@ -1221,6 +1224,7 @@ function renderSlackHitl(summaryPayload, messages) {
   setText("slackRespondedThreads", String(summary.responded ?? 0));
   setText("slackRouteAddedCount", String(summary.routeAdded ?? 0));
   setText("slackApprovedCount", String(summary.approved ?? 0));
+  setText("slackDismissedCount", String(summary.dismissed ?? 0));
   setText("slackPendingCount", String(summary.pending ?? 0));
   setText("slackRejectedCount", String(summary.rejected ?? 0));
   setText("slackTimedOutCount", String(summary.timedOut ?? 0));
@@ -1338,192 +1342,355 @@ function renderAuditSummary(payload, errorMessage = null) {
   }
 }
 
+// ── Audit tree helpers ────────────────────────────────────────────────────────
+
+function auditStatusBadge(status) {
+  const s = String(status || "").toLowerCase();
+  if (s === "completed" || s === "success") return "✓";
+  if (s === "failed" || s === "error") return "✗";
+  if (s === "warning") return "⚠";
+  if (s === "running") return "⟳";
+  return "ℹ";
+}
+
+function auditNodeIcon(node) {
+  if (node.type === "run") return "🔵";
+  if (node.type === "phase") return "🟣";
+  if (node.type === "component") {
+    return String(node.componentKind || "").toLowerCase().includes("agent") ? "🤖" : "⚡";
+  }
+  const s = String(node.status || "").toLowerCase();
+  if (s === "completed" || s === "success") return "✓";
+  if (s === "failed" || s === "error") return "✗";
+  if (s === "warning") return "⚠";
+  return "ℹ";
+}
+
+function buildAuditTree(run, events) {
+  const eventsArr = Array.isArray(events) ? events : [];
+
+  const phaseMap = new Map();
+  eventsArr.forEach((ev) => {
+    const phase = ev.phase || "unknown";
+    if (!phaseMap.has(phase)) phaseMap.set(phase, new Map());
+    const compKey = `${ev.componentKind || ""}::${ev.componentId || ""}`;
+    if (!phaseMap.get(phase).has(compKey)) phaseMap.get(phase).set(compKey, []);
+    phaseMap.get(phase).get(compKey).push(ev);
+  });
+
+  function statusFromEvents(evs) {
+    const ss = evs.map((e) => String(e.status || "").toLowerCase());
+    if (ss.some((s) => s === "failed" || s === "error")) return "failed";
+    if (ss.some((s) => s === "warning")) return "warning";
+    if (ss.length > 0 && ss.every((s) => s === "completed" || s === "success")) return "completed";
+    return "info";
+  }
+
+  const runNode = {
+    type: "run",
+    id: `run::${run.pipelineRunId}`,
+    label: run.pipelineRunId,
+    run,
+    status: run.status,
+    expanded: true,
+    children: [],
+  };
+
+  phaseMap.forEach((compMap, phase) => {
+    const phaseEvs = Array.from(compMap.values()).flat();
+    const phaseNode = {
+      type: "phase",
+      id: `phase::${phase}`,
+      label: formatAuditPhaseLabel(phase),
+      phase,
+      events: phaseEvs,
+      status: statusFromEvents(phaseEvs),
+      expanded: true,
+      children: [],
+    };
+
+    compMap.forEach((compEvs, compKey) => {
+      const [componentKind, componentId] = compKey.split("::");
+      const compNode = {
+        type: "component",
+        id: `comp::${phase}::${compKey}`,
+        label: componentId || componentKind || "component",
+        componentKind: componentKind || null,
+        componentId: componentId || null,
+        events: compEvs,
+        status: statusFromEvents(compEvs),
+        expanded: false,
+        children: compEvs.map((ev, idx) => ({
+          type: "event",
+          id: `event::${ev.id || idx}::${ev.eventType}`,
+          label: humanizeToken(ev.eventType || "event"),
+          event: ev,
+          status: ev.status || "info",
+          expanded: false,
+          children: [],
+        })),
+      };
+      phaseNode.children.push(compNode);
+    });
+
+    runNode.children.push(phaseNode);
+  });
+
+  return runNode;
+}
+
+function renderAuditTreeNode(node) {
+  const wrap = document.createElement("div");
+  wrap.className = "audit-tree-node";
+
+  const row = document.createElement("div");
+  row.className = "audit-tree-row" + (node.id === state.audit.selectedNodeId ? " active" : "");
+  row.dataset.nodeId = node.id;
+
+  const toggle = document.createElement("span");
+  toggle.className = "audit-toggle";
+  toggle.textContent = node.children.length ? (node.expanded ? "▾" : "▸") : "";
+  row.appendChild(toggle);
+
+  const icon = document.createElement("span");
+  icon.className = "audit-node-icon";
+  icon.textContent = auditNodeIcon(node);
+  row.appendChild(icon);
+
+  const label = document.createElement("span");
+  label.className = "audit-node-label";
+  label.textContent = node.label;
+  row.appendChild(label);
+
+  const badge = document.createElement("span");
+  badge.className = "audit-node-badge";
+  badge.textContent = auditStatusBadge(node.status);
+  row.appendChild(badge);
+
+  wrap.appendChild(row);
+
+  let childrenWrap = null;
+  if (node.children.length) {
+    childrenWrap = document.createElement("div");
+    childrenWrap.className = "audit-tree-children" + (node.expanded ? "" : " collapsed");
+    node.children.forEach((child) => childrenWrap.appendChild(renderAuditTreeNode(child)));
+    wrap.appendChild(childrenWrap);
+  }
+
+  row.addEventListener("click", (e) => {
+    e.stopPropagation();
+    if (node.children.length) {
+      node.expanded = !node.expanded;
+      toggle.textContent = node.expanded ? "▾" : "▸";
+      childrenWrap.classList.toggle("collapsed", !node.expanded);
+    }
+    selectAuditNode(node);
+  });
+
+  return wrap;
+}
+
+function selectAuditNode(node) {
+  state.audit.selectedNodeId = node.id;
+  const container = $("auditTreeContainer");
+  if (container) {
+    container.querySelectorAll(".audit-tree-row").forEach((row) => {
+      row.classList.toggle("active", row.dataset.nodeId === node.id);
+    });
+  }
+  renderAuditNodeDetail(node);
+}
+
+function renderAuditNodeDetail(node) {
+  const pane = $("auditDetailPanel");
+  if (!pane) return;
+  pane.innerHTML = "";
+
+  const heading = document.createElement("p");
+  heading.className = "audit-detail-heading";
+
+  if (node.type === "run") {
+    const run = node.run;
+    heading.textContent = "Pipeline Run";
+    pane.appendChild(heading);
+
+    const dl = document.createElement("dl");
+    dl.className = "audit-kv";
+    dl.innerHTML = `
+      <dt>Run ID</dt><dd>${escapeHtml(run.pipelineRunId)}</dd>
+      <dt>Session</dt><dd>${escapeHtml(run.sessionId || "—")}</dd>
+      <dt>Brand</dt><dd>${escapeHtml(run.brandId || "global")}</dd>
+      <dt>Audience</dt><dd>${escapeHtml(run.audience || "—")}</dd>
+      <dt>Scope</dt><dd>${escapeHtml(run.scope || "—")}</dd>
+      <dt>Source</dt><dd>${escapeHtml(run.source || "—")}</dd>
+      <dt>Status</dt><dd>${escapeHtml(humanizeToken(run.status || "—"))}</dd>
+      <dt>Started</dt><dd>${escapeHtml(formatTimestamp(run.startedAt))}</dd>
+      <dt>Finished</dt><dd>${escapeHtml(run.finishedAt ? formatTimestamp(run.finishedAt) : "Running…")}</dd>
+      <dt>Events</dt><dd>${escapeHtml(humanizeCount(run.totalEvents || 0))}</dd>
+      <dt>Warnings</dt><dd>${escapeHtml(humanizeCount(run.totalWarnings || 0))}</dd>
+      <dt>Errors</dt><dd>${escapeHtml(humanizeCount(run.totalErrors || 0))}</dd>
+    `;
+    pane.appendChild(dl);
+
+    if (run.userPrompt) {
+      const lbl = document.createElement("p");
+      lbl.className = "audit-payload-label";
+      lbl.textContent = "User Prompt";
+      pane.appendChild(lbl);
+      const pre = document.createElement("pre");
+      pre.style.cssText =
+        "font-size:0.78rem;white-space:pre-wrap;word-break:break-word;margin:0;background:rgba(0,0,0,0.03);padding:10px 12px;border-radius:8px;";
+      pre.textContent = run.userPrompt;
+      pane.appendChild(pre);
+    }
+  } else if (node.type === "phase") {
+    heading.textContent = `Phase — ${node.label}`;
+    pane.appendChild(heading);
+
+    const firstTs = node.events.length ? formatTimestamp(node.events[0]?.createdAt) : "—";
+    const lastTs =
+      node.events.length > 1
+        ? formatTimestamp(node.events[node.events.length - 1]?.createdAt)
+        : firstTs;
+    const warnings = node.events.filter((e) => String(e.status || "").toLowerCase() === "warning");
+    const errors = node.events.filter((e) => {
+      const s = String(e.status || "").toLowerCase();
+      return s === "failed" || s === "error";
+    });
+
+    const dl = document.createElement("dl");
+    dl.className = "audit-kv";
+    dl.innerHTML = `
+      <dt>Phase</dt><dd>${escapeHtml(node.label)}</dd>
+      <dt>Events</dt><dd>${escapeHtml(humanizeCount(node.events.length))}</dd>
+      <dt>Warnings</dt><dd>${escapeHtml(humanizeCount(warnings.length))}</dd>
+      <dt>Errors</dt><dd>${escapeHtml(humanizeCount(errors.length))}</dd>
+      <dt>First event</dt><dd>${escapeHtml(firstTs)}</dd>
+      <dt>Last event</dt><dd>${escapeHtml(lastTs)}</dd>
+    `;
+    pane.appendChild(dl);
+  } else if (node.type === "component") {
+    heading.textContent = `Component — ${node.label}`;
+    pane.appendChild(heading);
+
+    const modelAlias = node.events.map((e) => e.modelAlias).find(Boolean);
+    const resolvedModelId = node.events.map((e) => e.resolvedModelId).find(Boolean);
+    const provider = node.events.map((e) => e.provider).find(Boolean);
+    const totalTokens = node.events.reduce((sum, e) => sum + (e.tokensUsed || 0), 0);
+    const totalDuration = node.events.reduce((sum, e) => sum + (e.durationMs || 0), 0);
+
+    const dl = document.createElement("dl");
+    dl.className = "audit-kv";
+    dl.innerHTML = `
+      <dt>Kind</dt><dd>${escapeHtml(node.componentKind || "—")}</dd>
+      <dt>ID</dt><dd>${escapeHtml(node.componentId || "—")}</dd>
+      ${modelAlias ? `<dt>Model alias</dt><dd>${escapeHtml(modelAlias)}</dd>` : ""}
+      ${resolvedModelId ? `<dt>Model</dt><dd>${escapeHtml(resolvedModelId)}</dd>` : ""}
+      ${provider ? `<dt>Provider</dt><dd>${escapeHtml(provider)}</dd>` : ""}
+      <dt>Events</dt><dd>${escapeHtml(humanizeCount(node.events.length))}</dd>
+      ${totalTokens > 0 ? `<dt>Tokens (total)</dt><dd>${escapeHtml(humanizeCount(totalTokens))}</dd>` : ""}
+      ${totalDuration > 0 ? `<dt>Duration (total)</dt><dd>${escapeHtml(String(totalDuration) + " ms")}</dd>` : ""}
+      <dt>Status</dt><dd>${escapeHtml(humanizeToken(node.status || "—"))}</dd>
+    `;
+    pane.appendChild(dl);
+  } else if (node.type === "event") {
+    const ev = node.event;
+    heading.textContent = `Event — ${humanizeToken(ev.eventType || "")}`;
+    pane.appendChild(heading);
+
+    const dl = document.createElement("dl");
+    dl.className = "audit-kv";
+    dl.innerHTML = `
+      <dt>Event type</dt><dd>${escapeHtml(ev.eventType || "—")}</dd>
+      <dt>Status</dt><dd>${escapeHtml(humanizeToken(ev.status || "—"))}</dd>
+      ${ev.sequence != null ? `<dt>Sequence</dt><dd>${escapeHtml(String(ev.sequence))}</dd>` : ""}
+      ${ev.componentKind ? `<dt>Component kind</dt><dd>${escapeHtml(ev.componentKind)}</dd>` : ""}
+      ${ev.componentId ? `<dt>Component ID</dt><dd>${escapeHtml(ev.componentId)}</dd>` : ""}
+      ${ev.durationMs != null ? `<dt>Duration</dt><dd>${escapeHtml(String(ev.durationMs) + " ms")}</dd>` : ""}
+      ${ev.tokensUsed != null ? `<dt>Tokens used</dt><dd>${escapeHtml(humanizeCount(ev.tokensUsed))}</dd>` : ""}
+      ${ev.createdAt ? `<dt>Timestamp</dt><dd>${escapeHtml(formatTimestamp(ev.createdAt))}</dd>` : ""}
+    `;
+    pane.appendChild(dl);
+
+    if (ev.payload) {
+      const lbl = document.createElement("p");
+      lbl.className = "audit-payload-label";
+      lbl.textContent = "Payload";
+      pane.appendChild(lbl);
+      pane.appendChild(renderAuditPayloadInspector(ev.payload));
+    }
+  }
+}
+
 function renderAuditRuns(payload) {
-  const tbody = $("auditRunsTable");
-  if (!tbody) return;
+  const list = $("auditRunsList");
+  if (!list) return;
 
   const runs = Array.isArray(payload?.runs) ? payload.runs : [];
   setText("auditRunsCount", `${humanizeCount(payload?.total || 0)} runs`);
-  tbody.innerHTML = "";
+  list.innerHTML = "";
 
   if (!runs.length) {
-    tbody.innerHTML =
-      '<tr><td colspan="8" class="empty-state">No audit runs matched the current filters.</td></tr>';
+    list.innerHTML =
+      '<div class="empty-state" style="padding:12px 14px;font-size:0.8rem">No runs matched.</div>';
     return;
   }
 
   runs.forEach((run) => {
-    const tr = document.createElement("tr");
-    if (run.pipelineRunId === state.audit.selectedPipelineRunId) {
-      tr.classList.add("selected");
-    }
-    tr.innerHTML = `
-      <td><code>${escapeHtml(run.pipelineRunId)}</code></td>
-      <td>${escapeHtml(humanizeToken(run.status || "-"))}</td>
-      <td>${escapeHtml(run.audience || "-")}</td>
-      <td>${escapeHtml(run.brandId || "global")}</td>
-      <td>${escapeHtml(humanizeCount(run.totalEvents || 0))}</td>
-      <td>${escapeHtml(humanizeCount(run.totalWarnings || 0))}</td>
-      <td>${escapeHtml(humanizeCount(run.totalErrors || 0))}</td>
-      <td>
-        <button class="secondary-button table-action" data-audit-view="${escapeHtml(
-          run.pipelineRunId
-        )}">Inspect</button>
-      </td>
-    `;
-    tbody.appendChild(tr);
-  });
+    const item = document.createElement("div");
+    item.className =
+      "audit-run-item" +
+      (run.pipelineRunId === state.audit.selectedPipelineRunId ? " selected" : "");
 
-  tbody.querySelectorAll("button[data-audit-view]").forEach((button) => {
-    button.addEventListener("click", async () => {
-      const pipelineRunId = button.getAttribute("data-audit-view");
-      if (!pipelineRunId) return;
-      await loadAuditRunDetails(pipelineRunId);
+    const statusIcon = document.createElement("span");
+    statusIcon.className = "audit-run-status-icon";
+    statusIcon.textContent = auditStatusBadge(run.status);
+
+    const idSpan = document.createElement("span");
+    idSpan.className = "audit-run-id";
+    idSpan.title = run.pipelineRunId;
+    idSpan.textContent = run.pipelineRunId;
+
+    const btn = document.createElement("button");
+    btn.className = "audit-inspect-btn";
+    btn.textContent = "Inspect ▶";
+    btn.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      await loadAuditRunDetails(run.pipelineRunId);
     });
+
+    item.appendChild(statusIcon);
+    item.appendChild(idSpan);
+    item.appendChild(btn);
+    item.addEventListener("click", async () => {
+      await loadAuditRunDetails(run.pipelineRunId);
+    });
+    list.appendChild(item);
   });
 }
 
 function renderAuditRunDetails(run, events) {
-  const summary = $("auditRunSummary");
-  const timeline = $("auditTimeline");
-  const raw = $("auditRunRaw");
-  if (!summary || !timeline || !raw) return;
+  const treeContainer = $("auditTreeContainer");
+  const detailPanel = $("auditDetailPanel");
+  if (!treeContainer || !detailPanel) return;
 
   if (!run) {
-    summary.innerHTML =
-      '<div class="empty-state">Select an audit run to inspect its stage timeline, prompts, tool calls, and results.</div>';
-    timeline.innerHTML =
-      '<div class="empty-state">Timeline will appear here once an audit run is selected.</div>';
-    raw.textContent = "No audit run selected.";
-    setText("auditSelectedTitle", "Run Detail");
-    setText("auditSelectedMeta", "Choose a run from the list to inspect the sanitized audit trail.");
+    treeContainer.innerHTML =
+      '<div class="empty-state" style="padding:12px;font-size:0.8rem">Select a run to view its tree.</div>';
+    detailPanel.innerHTML = '<div class="empty-state">Select a node to view details.</div>';
+    state.audit.currentTree = null;
+    state.audit.selectedNodeId = null;
     return;
   }
 
-  setText("auditSelectedTitle", run.pipelineRunId);
-  setText(
-    "auditSelectedMeta",
-    `${humanizeToken(run.status)} · ${formatTimestamp(run.startedAt)} · ${humanizeCount(
-      run.totalEvents || 0
-    )} events`
-  );
+  const tree = buildAuditTree(run, events);
+  state.audit.currentTree = tree;
+  state.audit.selectedNodeId = tree.id;
 
-  summary.innerHTML = `
-    <div class="detail-grid">
-      <div class="detail-card">
-        <h4>Run</h4>
-        <dl>
-          <dt>Pipeline Run</dt>
-          <dd>${escapeHtml(run.pipelineRunId)}</dd>
-          <dt>Session</dt>
-          <dd>${escapeHtml(run.sessionId)}</dd>
-          <dt>Status</dt>
-          <dd>${escapeHtml(humanizeToken(run.status))}</dd>
-          <dt>Source</dt>
-          <dd>${escapeHtml(run.source)}</dd>
-        </dl>
-      </div>
-      <div class="detail-card">
-        <h4>Scope</h4>
-        <dl>
-          <dt>Audience</dt>
-          <dd>${escapeHtml(run.audience)}</dd>
-          <dt>Scope</dt>
-          <dd>${escapeHtml(run.scope)}</dd>
-          <dt>Brand</dt>
-          <dd>${escapeHtml(run.brandId || "global")}</dd>
-          <dt>Finished</dt>
-          <dd>${escapeHtml(run.finishedAt ? formatTimestamp(run.finishedAt) : "Running")}</dd>
-        </dl>
-      </div>
-      <div class="detail-card">
-        <h4>Prompt</h4>
-        <pre>${escapeHtml(run.userPrompt || "")}</pre>
-      </div>
-    </div>
-  `;
+  treeContainer.innerHTML = "";
+  treeContainer.appendChild(renderAuditTreeNode(tree));
 
-  const grouped = new Map();
-  (Array.isArray(events) ? events : []).forEach((event) => {
-    const phase = formatAuditPhaseLabel(event.phase);
-    if (!grouped.has(phase)) grouped.set(phase, []);
-    grouped.get(phase).push(event);
-  });
-
-  if (grouped.size === 0) {
-    timeline.innerHTML = '<div class="empty-state">No audit events were recorded for this run.</div>';
-  } else {
-    timeline.innerHTML = "";
-    Array.from(grouped.entries()).forEach(([phase, phaseEvents]) => {
-      const section = document.createElement("section");
-      section.className = "surface-card";
-      section.style.padding = "20px 22px";
-
-      const head = document.createElement("div");
-      head.className = "section-head";
-      head.style.marginBottom = "16px";
-
-      const headCopy = document.createElement("div");
-      const eyebrow = document.createElement("p");
-      eyebrow.className = "eyebrow subtle";
-      eyebrow.textContent = "Phase";
-      const title = document.createElement("h2");
-      title.textContent = phase;
-      headCopy.appendChild(eyebrow);
-      headCopy.appendChild(title);
-
-      const pill = document.createElement("div");
-      pill.className = "section-pill";
-      pill.textContent = `${humanizeCount(phaseEvents.length)} events`;
-
-      head.appendChild(headCopy);
-      head.appendChild(pill);
-      section.appendChild(head);
-
-      const feed = document.createElement("div");
-      feed.className = "feed-stack";
-
-      phaseEvents.forEach((event) => {
-        const article = document.createElement("article");
-        article.className = "activity-item";
-
-        const top = document.createElement("div");
-        top.className = "activity-top";
-
-        const activityTitle = document.createElement("div");
-        activityTitle.className = "activity-title";
-        activityTitle.textContent = humanizeToken(event.eventType);
-
-        const statusTag = document.createElement("span");
-        statusTag.className = `status-tag ${formatRunTone(event.status || "info")}`;
-        statusTag.textContent = humanizeToken(event.status || "info");
-
-        top.appendChild(activityTitle);
-        top.appendChild(statusTag);
-
-        const meta = document.createElement("div");
-        meta.className = "activity-meta";
-        meta.textContent = [
-          humanizeToken(event.eventType),
-          event.componentKind,
-          event.componentId,
-          formatTimestamp(event.createdAt),
-        ]
-          .filter(Boolean)
-          .join(" • ");
-
-        article.appendChild(top);
-        article.appendChild(meta);
-        article.appendChild(renderAuditPayloadInspector(event.payload || {}));
-        feed.appendChild(article);
-      });
-
-      section.appendChild(feed);
-      timeline.appendChild(section);
-    });
-  }
-
-  raw.textContent = prettyJson({ run, events });
+  selectAuditNode(tree);
 }
 
 async function loadAuditRunDetails(pipelineRunId) {
@@ -2344,6 +2511,7 @@ async function bootstrap() {
         pending: 0,
         routeAdded: 0,
         approved: 0,
+        dismissed: 0,
         rejected: 0,
         timedOut: 0,
         escalations: 0,
