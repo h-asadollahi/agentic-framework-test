@@ -20,6 +20,7 @@ A step-by-step guide to setting up, running, using, and extending the platform.
 12. [Production Considerations](#12-production-considerations)
 13. [Prompt Examples](#13-prompt-examples)
 14. [Agent Specs in Knowledge](#14-agent-specs-in-knowledge)
+15. [Repo Guidelines](#15-repo-guidelines)
 
 ---
 
@@ -930,6 +931,17 @@ These prompts map to the current notification-policy tests and help verify the n
 ---
 
 ## 14. Agent Specs in Knowledge
+
+## 15. Repo Guidelines
+
+Repo workflow expectations for future contributors and coding assistants are documented in [docs/repo-guidelines.md](./repo-guidelines.md).
+
+The most important rule for ongoing implementation work is:
+
+- after implementing a change, run the relevant automated checks
+- then test the actual feature or workflow you changed when feasible
+- include short `How to test` steps for each implemented plan so another person can verify it quickly
+
 
 Grounding, Cognition, Agency, and Interface agent prompt/specs are runtime-loaded from the `knowledge` folder.
 Sub-agent specs are now also being migrated there (starting with `cohort-monitor`).

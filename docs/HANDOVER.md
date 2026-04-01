@@ -156,6 +156,28 @@ Recommended first verification steps after pulling this state:
 3. Open a run detail and verify prompt snapshots / tool-call previews are redacted and truncated correctly.
 4. Confirm the marketer-facing response shape is unchanged and still only exposes the lightweight `trace`.
 
+### Plan 97: Repo guideline for post-implementation testing
+
+Status: Implemented locally on 2026-04-01.
+
+What changed:
+- Added [docs/repo-guidelines.md](./repo-guidelines.md) as the repo-level workflow guideline for future contributors and coding assistants.
+- Documented a new standing rule:
+  - after implementation, run relevant automated validation
+  - then test the actual feature/workflow that was changed when feasible
+  - include a short `How to test` checklist for each implemented plan when possible
+- Added a pointer to the new guideline in [docs/usage-guide.md](./usage-guide.md).
+
+Why this was added:
+- It reduces the gap between code-level completion and actual feature verification.
+- It makes future handoffs easier because each plan should now include reproducible validation steps, not just implementation notes.
+
+Recommended default format going forward:
+- `Automated validation:` commands that were run
+- `Manual verification:` user-facing checks that were performed
+- `Not tested:` explicit gaps
+- `How to test:` short reproducible steps
+
 ### Plan 96: Audit event sequence overflow hotfix
 
 Status: Implemented locally on 2026-04-01 after the first live audit-enabled run exposed a DB type mismatch.
