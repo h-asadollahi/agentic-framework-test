@@ -9,20 +9,24 @@
   <body>
     <div class="app-shell">
 
-      <!-- ── Sidebar ─────────────────────────────────────────────────────── -->
+      <!-- ── Sidebar ───────────────────────────────────────────────── -->
       <aside class="sidebar">
         <div class="sidebar-brand">
           <p class="eyebrow">Marketer Workspace</p>
-          <div class="brand-selector-wrap">
-            <label for="brandId" class="sr-only">Brand</label>
-            <select id="brandId" class="brand-select"></select>
-          </div>
+          <select id="brandId" class="brand-select"></select>
           <p id="brandDescription" class="brand-desc"></p>
         </div>
 
         <nav class="nav-group" aria-label="Sections">
           <div class="nav-section-label">Workspace</div>
-          <a class="nav-link active" href="#chat">
+          <a class="nav-link" href="#dashboard">
+            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M3 11.5 12 4l9 7.5"></path>
+              <path d="M6.5 10.5V20h11V10.5"></path>
+            </svg>
+            <span class="nav-label">Dashboard</span>
+          </a>
+          <a class="nav-link" href="#chat">
             <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
               <path d="M5 6.5A2.5 2.5 0 0 1 7.5 4h9A2.5 2.5 0 0 1 19 6.5v6A2.5 2.5 0 0 1 16.5 15H10l-4 4v-4H7.5A2.5 2.5 0 0 1 5 12.5z"></path>
             </svg>
@@ -32,8 +36,7 @@
             <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
               <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
               <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
-              <path d="M8 10h8"></path>
-              <path d="M8 14h5"></path>
+              <path d="M8 10h8"></path><path d="M8 14h5"></path>
             </svg>
             <span class="nav-label">Knowledge Editor</span>
           </a>
@@ -45,83 +48,12 @@
         </div>
       </aside>
 
-      <!-- ── Main ───────────────────────────────────────────────────────── -->
+      <!-- ── View outlet (views mount here) ───────────────────────── -->
       <main class="main">
-
-        <!-- Chat page -->
-        <section class="page" id="chatPage">
-          <section class="surface-card page-header-card">
-            <div class="page-head">
-              <div>
-                <p class="eyebrow subtle">Chat</p>
-                <h2 id="chatPageTitle">Marketing Assistant</h2>
-                <p>Ask questions, generate campaign ideas, or explore your brand strategy.</p>
-              </div>
-              <span id="sessionInfo" class="mini-pill">Session: not started</span>
-            </div>
-          </section>
-
-          <section class="surface-card chat-card">
-            <div id="chatLog" class="chat-log"></div>
-            <div class="composer">
-              <textarea id="promptInput" rows="3" placeholder="Ask a marketing question… (Cmd+Enter to send)"></textarea>
-              <div class="composer-actions">
-                <button id="sendBtn" class="btn-primary" type="button">Send</button>
-              </div>
-            </div>
-          </section>
-        </section>
-
-        <!-- Knowledge Editor page -->
-        <section class="page" id="knowledgeEditorPage" hidden>
-          <section class="surface-card page-header-card">
-            <div class="page-head">
-              <div>
-                <p class="eyebrow subtle">Knowledge Editor</p>
-                <h2 id="knowledgePageTitle">Brand Knowledge</h2>
-                <p>View and edit your brand's <code>.md</code> knowledge files. Changes are picked up by agents on their next run.</p>
-              </div>
-              <button class="btn-primary" id="knowledgeSaveBtn" disabled>Save</button>
-            </div>
-          </section>
-
-          <div class="knowledge-layout">
-            <section class="surface-card knowledge-tree-card">
-              <p class="eyebrow subtle tree-label">Files</p>
-              <div id="knowledgeFileList">
-                <div class="empty-state">Select a brand to view files.</div>
-              </div>
-            </section>
-
-            <section class="surface-card knowledge-editor-card">
-              <div id="knowledgeEditorMeta" class="editor-meta">
-                <span class="eyebrow subtle">No file selected</span>
-              </div>
-              <textarea
-                id="knowledgeEditorTextarea"
-                class="editor-textarea"
-                spellcheck="false"
-                disabled
-                placeholder="Select a file from the tree to start editing."
-              ></textarea>
-              <p id="knowledgeEditorStatus" class="editor-status"></p>
-            </section>
-          </div>
-        </section>
-
+        <div id="view-outlet"></div>
       </main>
+
     </div>
-
-    <template id="messageTemplate">
-      <article class="message">
-        <div class="message-head">
-          <span class="role"></span>
-          <span class="stamp"></span>
-        </div>
-        <div class="message-body"></div>
-      </article>
-    </template>
-
     <script type="module" src="./app.js"></script>
   </body>
 </html>

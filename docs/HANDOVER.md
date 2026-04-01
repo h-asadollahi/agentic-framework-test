@@ -2508,6 +2508,25 @@ Key interfaces: `PipelinePayload`, `PipelineResult`, `SubTask`, `AgentResult`, `
 
 ---
 
+## Plan 105 — Demo: extract each page into its own view module (Claude, 2026-04-01)
+
+**Deliverable:** Demo refactored into a proper module-based SPA. Each nav item is a self-contained ES module; adding a new page = one new file in `demo/views/`.
+
+**What was built:**
+- `demo/index.html` — shell only: sidebar + `<div id="view-outlet">`
+- `demo/app.js` — router + shared state/utilities (brand, API base, auto-detect); each route is a dynamic `import()`
+- `demo/views/chat.js` — full chat page (HTML generation, all chat/markdown/JSON logic, `mount`/`unmount`/`onBrandChange`)
+- `demo/views/knowledge-editor.js` — full knowledge editor (VS Code tree, file I/O, `mount`/`unmount`/`onBrandChange`/`onApiBaseChange`)
+- `demo/views/dashboard.js` — placeholder with welcome card and quick-links
+
+**View contract:** `mount(outlet, ctx)` / `unmount()` / optional `onBrandChange()` / `onApiBaseChange()`
+
+**Automated validation:** None.
+**Manual verification:** Not yet run.
+**How to test:** See [plan-105-claude.md](ai-coding-plans/plan-105-claude.md).
+
+---
+
 ## Plan 102 — Prevent Creative `general` Task Route Hijack (Codex, 2026-04-01)
 
 **Deliverable:** `pipeline-execute` no longer lets stale broad learned API routes override creative/copy `general` subtasks unless the task actually looks like external data retrieval.
