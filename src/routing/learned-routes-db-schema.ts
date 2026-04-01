@@ -1,4 +1,5 @@
 import {
+  bigint,
   boolean,
   integer,
   index,
@@ -240,7 +241,7 @@ export const agentAuditEventsTable = pgTable(
     componentKind: text("component_kind").notNull(),
     componentId: text("component_id").notNull(),
     eventType: text("event_type").notNull(),
-    sequence: integer("sequence").notNull(),
+    sequence: bigint("sequence", { mode: "number" }).notNull(),
     status: text("status"),
     modelAlias: text("model_alias"),
     resolvedModelId: text("resolved_model_id"),

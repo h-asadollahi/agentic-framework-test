@@ -156,6 +156,29 @@ Recommended first verification steps after pulling this state:
 3. Open a run detail and verify prompt snapshots / tool-call previews are redacted and truncated correctly.
 4. Confirm the marketer-facing response shape is unchanged and still only exposes the lightweight `trace`.
 
+### Plan 96: Audit event sequence overflow hotfix
+
+Status: Implemented locally on 2026-04-01 after the first live audit-enabled run exposed a DB type mismatch.
+
+Problem observed:
+- Live run `run_cmnfwu6dw00163ann8mnsnueu` logged `Agent audit event write failed` during grounding.
+- The failing insert targeted `agent_audit_events.sequence`.
+- Runtime-generated sequence values use `Date.now() * 1000 + counter`, which produces values around `1.7e15`.
+- The DB column had been created as `INTEGER`, so PostgreSQL rejected those inserts.
+
+Fix applied:
+- Widened `agent_audit_events.sequence` from `INTEGER` to `BIGINT` in the schema.
+- Added automatic repository startup migration:
+  - `ALTER TABLE agent_audit_events ALTER COLUMN sequence TYPE BIGINT`
+- Kept sequence generation unchanged so event ordering semantics stay stable.
+
+Validation:
+- `npm run build`
+- `npm test -- tests/unit/agent-audit-store.test.ts tests/unit/admin-routes.test.ts`
+
+Operational note:
+- Existing local DBs should self-heal on the next app/worker startup because repository `init()` now widens the column automatically.
+
 ### Plan 94: Prompt-centric token telemetry and dedicated admin token usage page
 
 Status: Implemented in code, tests, and docs on 2026-03-17.

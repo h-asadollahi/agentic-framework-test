@@ -797,7 +797,7 @@ export class LearnedRoutesDbRepository {
         component_kind TEXT NOT NULL,
         component_id TEXT NOT NULL,
         event_type TEXT NOT NULL,
-        sequence INTEGER NOT NULL,
+        sequence BIGINT NOT NULL,
         status TEXT,
         model_alias TEXT,
         resolved_model_id TEXT,
@@ -810,6 +810,11 @@ export class LearnedRoutesDbRepository {
         payload JSONB NOT NULL DEFAULT '{}'::jsonb,
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
       );
+    `);
+
+    await this.pool.query(`
+      ALTER TABLE agent_audit_events
+      ALTER COLUMN sequence TYPE BIGINT;
     `);
 
     await this.pool.query(`
