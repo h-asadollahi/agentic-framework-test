@@ -97,6 +97,11 @@ const pageConfig = {
     scrollTarget: "slackPage",
     navHash: "#slack-hitl",
   },
+  "#knowledge-editor": {
+    page: "knowledge",
+    scrollTarget: "knowledgeEditorPage",
+    navHash: "#knowledge-editor",
+  },
 };
 
 function setText(id, value) {
@@ -168,6 +173,7 @@ function setActivePage(page) {
     runs: "runsPage",
     audit: "auditPage",
     slack: "slackPage",
+    knowledge: "knowledgeEditorPage",
   };
 
   Object.entries(pageIds).forEach(([pageName, elementId]) => {
@@ -2005,5 +2011,164 @@ async function bootstrap() {
   await loadAll();
   await loadAdminChatHistory();
 }
+
+// ── Knowledge Editor ──────────────────────────────────────────────────────────
+
+function escHtml(str) {
+  return String(str)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+const knowledgeState = {
+  files: [],        // KnowledgeFile[]
+  selectedPath: null,
+  originalContent: null,
+  dirty: false,
+};
+
+function knowledgeEditorStatus(msg) {
+  const el = $("knowledgeEditorStatus");
+  if (el) el.textContent = msg;
+}
+
+function renderKnowledgeFileList() {
+  const container = $("knowledgeFileList");
+  if (!container) return;
+
+  if (!knowledgeState.files.length) {
+    container.innerHTML = '<div class="empty-state" style="padding:1rem;">No .md files found.</div>';
+    return;
+  }
+
+  // Group by top-level folder
+  const groups = {};
+  for (const f of knowledgeState.files) {
+    const parts = f.path.split("/");
+    const group = parts.length > 1 ? parts[0] : "(root)";
+    (groups[group] = groups[group] || []).push(f);
+  }
+
+  let html = "";
+  for (const [group, files] of Object.entries(groups)) {
+    html += `<div style="padding:0.3rem 1rem 0.1rem;font-size:0.7rem;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--soft-muted);">${escHtml(group)}</div>`;
+    for (const f of files) {
+      const active = f.path === knowledgeState.selectedPath;
+      html += `
+        <button
+          class="knowledge-file-item${active ? " active" : ""}"
+          data-path="${escHtml(f.path)}"
+          style="
+            display:block;width:100%;text-align:left;
+            padding:0.4rem 1rem 0.4rem 1.4rem;
+            background:${active ? "var(--accent-soft)" : "transparent"};
+            color:${active ? "var(--accent-deep)" : "var(--text)"};
+            font-weight:${active ? "600" : "400"};
+            border-bottom:none;
+            border-radius:0;
+            font-size:0.82rem;
+            cursor:pointer;
+            transition:background 0.12s;
+          "
+          title="${escHtml(f.path)}"
+        >${escHtml(f.name)}.md</button>`;
+    }
+  }
+  container.innerHTML = html;
+
+  container.querySelectorAll(".knowledge-file-item").forEach((btn) => {
+    btn.addEventListener("click", () => selectKnowledgeFile(btn.dataset.path));
+  });
+}
+
+async function selectKnowledgeFile(filePath) {
+  if (knowledgeState.dirty) {
+    const ok = confirm("You have unsaved changes. Discard them and open a new file?");
+    if (!ok) return;
+  }
+
+  knowledgeState.selectedPath = filePath;
+  knowledgeState.dirty = false;
+  renderKnowledgeFileList();
+
+  const textarea = $("knowledgeEditorTextarea");
+  const meta = $("knowledgeEditorMeta");
+  const saveBtn = $("knowledgeSaveBtn");
+
+  textarea.disabled = true;
+  textarea.value = "";
+  if (saveBtn) saveBtn.disabled = true;
+  if (meta) meta.innerHTML = `<span class="eyebrow subtle">Loading <code>${escHtml(filePath)}</code>…</span>`;
+  knowledgeEditorStatus("");
+
+  try {
+    const data = await api(`/admin/knowledge/file?path=${encodeURIComponent(filePath)}`);
+    textarea.value = data.content;
+    knowledgeState.originalContent = data.content;
+    textarea.disabled = false;
+    if (meta) meta.innerHTML = `<code style="font-size:0.8rem;color:var(--accent-deep)">${escHtml(filePath)}</code>`;
+    knowledgeEditorStatus("Loaded — edit and press Save to persist.");
+  } catch (err) {
+    knowledgeEditorStatus(`Error loading file: ${err.message}`);
+    if (meta) meta.innerHTML = `<span class="eyebrow subtle" style="color:var(--danger)">Failed to load</span>`;
+  }
+}
+
+async function saveKnowledgeFile() {
+  const filePath = knowledgeState.selectedPath;
+  const textarea = $("knowledgeEditorTextarea");
+  const saveBtn = $("knowledgeSaveBtn");
+  if (!filePath || !textarea) return;
+
+  saveBtn.disabled = true;
+  knowledgeEditorStatus("Saving…");
+
+  try {
+    await api("/admin/knowledge/file", {
+      method: "PUT",
+      body: JSON.stringify({ path: filePath, content: textarea.value }),
+    });
+    knowledgeState.originalContent = textarea.value;
+    knowledgeState.dirty = false;
+    saveBtn.disabled = true;
+    knowledgeEditorStatus("Saved successfully.");
+  } catch (err) {
+    knowledgeEditorStatus(`Save failed: ${err.message}`);
+    saveBtn.disabled = false;
+  }
+}
+
+async function loadKnowledgeFiles() {
+  const container = $("knowledgeFileList");
+  if (container) container.innerHTML = '<div class="empty-state" style="padding:1rem;">Loading…</div>';
+  try {
+    const data = await api("/admin/knowledge/files");
+    knowledgeState.files = data.files || [];
+    renderKnowledgeFileList();
+  } catch (err) {
+    if (container) container.innerHTML = `<div class="empty-state" style="padding:1rem;color:var(--danger)">Error: ${escHtml(err.message)}</div>`;
+  }
+}
+
+// Wire up save button
+$("knowledgeSaveBtn")?.addEventListener("click", saveKnowledgeFile);
+
+// Mark dirty on any edits
+$("knowledgeEditorTextarea")?.addEventListener("input", () => {
+  const saveBtn = $("knowledgeSaveBtn");
+  const isDirty = $("knowledgeEditorTextarea").value !== knowledgeState.originalContent;
+  knowledgeState.dirty = isDirty;
+  if (saveBtn) saveBtn.disabled = !isDirty;
+});
+
+// Load files when switching to the knowledge page
+// Auto-load knowledge files when navigating to the page
+window.addEventListener("hashchange", () => {
+  if (window.location.hash === "#knowledge-editor" && !knowledgeState.files.length) {
+    loadKnowledgeFiles();
+  }
+});
 
 bootstrap().catch((err) => status(err.message));

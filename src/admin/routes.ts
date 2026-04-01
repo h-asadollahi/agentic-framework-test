@@ -18,6 +18,11 @@ import {
 } from "../routing/learned-routes-migration.js";
 import { brandStore, DEFAULT_SEEDED_BRAND_ID } from "../tenancy/brand-store.js";
 import { createAdminAuthMiddleware } from "./auth.js";
+import {
+  listKnowledgeFiles,
+  readKnowledgeFile,
+  writeKnowledgeFile,
+} from "./knowledge-fs.js";
 
 const CreateRouteSchema = z
   .object({
@@ -667,6 +672,59 @@ export function registerAdminRoutes(app: Hono): void {
         },
         500
       );
+    }
+  });
+
+  // ── Knowledge Editor ──────────────────────────────────────────────────────
+  // List all .md files in the knowledge/ folder (recursive)
+  admin.get("/knowledge/files", async (c) => {
+    try {
+      const files = await listKnowledgeFiles();
+      return c.json({ files });
+    } catch (error) {
+      return c.json(
+        { error: "Failed to list knowledge files", detail: String(error) },
+        500
+      );
+    }
+  });
+
+  // Read a single .md file — ?path=brands/acme/soul.md
+  admin.get("/knowledge/file", async (c) => {
+    const filePath = c.req.query("path");
+    if (!filePath) {
+      return c.json({ error: "Missing required query param: path" }, 400);
+    }
+    try {
+      const content = await readKnowledgeFile(filePath);
+      return c.json({ path: filePath, content });
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      const isNotFound = msg.includes("not found") || msg.includes("ENOENT");
+      return c.json({ error: msg }, isNotFound ? 404 : 400);
+    }
+  });
+
+  // Overwrite an existing .md file — body: { path, content }
+  admin.put("/knowledge/file", async (c) => {
+    const body = await c.req.json().catch(() => null);
+    if (
+      !body ||
+      typeof body.path !== "string" ||
+      typeof body.content !== "string"
+    ) {
+      return c.json(
+        { error: "Request body must be { path: string, content: string }" },
+        400
+      );
+    }
+    try {
+      await writeKnowledgeFile(body.path, body.content);
+      return c.json({ ok: true, path: body.path });
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      const isNotFound = msg.includes("not found") || msg.includes("ENOENT");
+      return c.json({ error: msg }, isNotFound ? 404 : 400);
     }
   });
 

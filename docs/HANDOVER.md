@@ -1,7 +1,7 @@
 # Development Handover — Continue from Here
 
 > **Last updated:** 2026-04-01
-> **Previous AI:** Claude Opus 4.6 via Claude Code
+> **Previous AI:** Claude Sonnet 4.6 via Claude Code (plan-100-claude)
 > **Next AI:** OpenAI Codex (or any agent picking this up)
 
 ---
@@ -2429,3 +2429,22 @@ Key interfaces: `PipelinePayload`, `PipelineResult`, `SubTask`, `AgentResult`, `
     - `knowledge/brands/<brandId>/agents/...`
     - `knowledge/brands/<brandId>/sub-agents/...`
   - Keep brand prompts/guardrails repo-backed unless there is a deliberate later decision to introduce DB overrides.
+
+---
+
+## Plan 100 — Knowledge Editor in Admin UI (Claude, 2026-04-01)
+
+**Deliverable:** Admins can browse and edit all `.md` files in `knowledge/` directly from the Admin UI — no SSH or IDE access needed.
+
+**What was built:**
+- `src/admin/knowledge-fs.ts` — safe file-access layer (path traversal protection, `.md`-only, 512 KB cap, no file creation)
+- Three new routes on the existing admin router: `GET /admin/knowledge/files`, `GET /admin/knowledge/file`, `PUT /admin/knowledge/file`
+- Knowledge Editor page in Admin UI: file tree sidebar + textarea editor with dirty-tracking and Save button
+
+**Automated validation:** None (no unit tests exist for admin routes).
+
+**Manual verification:** Not yet run — requires the admin server and main API to be running.
+
+**Not tested:** Live agent picking up an edited file after save (needs a full pipeline trigger).
+
+**How to test:** See [plan-100-claude.md](ai-coding-plans/plan-100-claude.md).

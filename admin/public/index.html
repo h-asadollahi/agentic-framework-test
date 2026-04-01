@@ -1326,6 +1326,15 @@
             </svg>
             <span class="nav-label">Slack HITL</span>
           </a>
+          <a class="nav-link" href="#knowledge-editor">
+            <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+              <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+              <path d="M8 10h8"></path>
+              <path d="M8 14h5"></path>
+            </svg>
+            <span class="nav-label">Knowledge Editor</span>
+          </a>
         </nav>
 
         <div class="sidebar-note">
@@ -2142,6 +2151,57 @@
             </div>
           </div>
         </div>
+        <!-- ── Knowledge Editor page ──────────────────────────────── -->
+        <section class="page page-stack" id="knowledgeEditorPage" hidden>
+          <section class="surface-card page-header-card">
+            <div class="page-head">
+              <div>
+                <p class="eyebrow subtle">Knowledge Editor</p>
+                <h2>Edit Knowledge Files</h2>
+                <p>Browse and edit the <code>.md</code> files in the <code>knowledge/</code> folder. Changes are written directly to disk and picked up by agents on their next run.</p>
+              </div>
+              <button class="btn-primary" id="knowledgeSaveBtn" disabled>Save</button>
+            </div>
+          </section>
+
+          <div style="display:grid;grid-template-columns:260px minmax(0,1fr);gap:1.25rem;align-items:start;">
+            <!-- File tree -->
+            <section class="surface-card" style="padding:1rem 0;">
+              <p class="eyebrow subtle" style="padding:0 1rem 0.5rem;">Files</p>
+              <div id="knowledgeFileList" style="font-size:0.82rem;">
+                <div class="empty-state" style="padding:1rem;">Loading…</div>
+              </div>
+            </section>
+
+            <!-- Editor panel -->
+            <section class="surface-card" style="padding:1.25rem;">
+              <div id="knowledgeEditorMeta" style="margin-bottom:0.75rem;display:flex;align-items:center;gap:0.6rem;">
+                <span class="eyebrow subtle">No file selected</span>
+              </div>
+              <textarea
+                id="knowledgeEditorTextarea"
+                spellcheck="false"
+                disabled
+                style="
+                  width:100%;
+                  min-height:520px;
+                  resize:vertical;
+                  font-family:'IBM Plex Mono',ui-monospace,monospace;
+                  font-size:0.82rem;
+                  line-height:1.6;
+                  padding:0.9rem 1rem;
+                  border:1.5px solid var(--panel-border);
+                  border-radius:var(--radius-sm);
+                  background:rgba(255,255,255,0.6);
+                  color:var(--text);
+                  outline:none;
+                  box-sizing:border-box;
+                "
+              ></textarea>
+              <p id="knowledgeEditorStatus" style="margin-top:0.5rem;font-size:0.78rem;color:var(--muted);min-height:1.2em;"></p>
+            </section>
+          </div>
+        </section>
       </main>
     </div>
 
