@@ -2552,3 +2552,44 @@ Key interfaces: `PipelinePayload`, `PipelineResult`, `SubTask`, `AgentResult`, `
 5. Confirm the Mapp prompt still uses the MCP learned route and is unaffected
 
 **Reference plan:** [plan-102-codex.md](ai-coding-plans/plan-102-codex.md)
+
+---
+
+## Plan 105 — Human-Readable Audit Payload Inspector in Admin UI (Codex, 2026-04-01)
+
+**Deliverable:** Audit event payloads in the Admin UI now render as a structured inspector first, with raw JSON moved to a secondary collapsible section.
+
+**What was built:**
+- Added a structured audit payload renderer in `admin/public/app.js`
+- Long and multiline strings now render as readable expandable text blocks instead of escaped JSON blobs
+- Nested objects render as labeled field groups
+- Arrays render as chips or expandable indexed lists depending on content shape
+- Added specific handling for `text-preview` audit payload objects so prompt previews/system prompt previews read cleanly
+- Kept `Raw JSON` available below the structured view for exact debugging/copying
+- Added supporting styles in `admin/public/index.html`
+
+**Automated validation:**
+- `node --check admin/public/app.js`
+- `npm run build`
+
+**Manual verification:**
+- Not run in a live browser inside this sandbox
+
+**Not tested:**
+- Visual browser pass on the Admin UI Audit page
+- Full interaction against multiple real audit event types in a running local admin server
+
+**How to test:**
+1. Start the main API and the Admin UI.
+2. Open the Audit page in the Admin UI.
+3. Load a run that contains:
+   - `prompt_snapshot`
+   - `result`
+   - `tool_call`
+4. Confirm payloads now show:
+   - readable labeled fields
+   - expandable text blocks for prompts/system prompts
+   - nested object/array inspection without a single giant JSON blob
+5. Expand `Raw JSON` and confirm the exact payload is still available underneath.
+
+**Reference plan:** [plan-105-codex.md](ai-coding-plans/plan-105-codex.md)

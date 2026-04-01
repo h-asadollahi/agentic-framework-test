@@ -263,7 +263,7 @@ function escapeHtml(value) {
     .replaceAll("'", "&#39;");
 }
 
-function tryParseJsonString(value) {
+function tryParseStructuredJsonString(value) {
   if (typeof value !== "string") return null;
   const trimmed = value.trim();
   if (!trimmed) return null;
@@ -485,6 +485,324 @@ function prettyJson(value) {
   } catch {
     return String(value ?? "");
   }
+}
+
+function isPlainObject(value) {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function tryParseJsonString(value) {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  if (
+    !(
+      (trimmed.startsWith("{") && trimmed.endsWith("}")) ||
+      (trimmed.startsWith("[") && trimmed.endsWith("]"))
+    )
+  ) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(trimmed);
+  } catch {
+    return null;
+  }
+}
+
+function formatTextStats(value) {
+  const lines = String(value || "").split(/\r?\n/).length;
+  const chars = String(value || "").length;
+  return `${humanizeCount(lines)} lines · ${humanizeCount(chars)} chars`;
+}
+
+function looksLikeCodeishText(key, value) {
+  if (typeof value !== "string") return false;
+  const lowerKey = String(key || "").toLowerCase();
+  if (
+    lowerKey.includes("id") ||
+    lowerKey.includes("source") ||
+    lowerKey.includes("path") ||
+    lowerKey.includes("model") ||
+    lowerKey.includes("route") ||
+    lowerKey.includes("recipient")
+  ) {
+    return true;
+  }
+
+  return /[/_.:-]/.test(value) && value.length < 140 && !/\s{2,}/.test(value);
+}
+
+function renderInlineScalar(value, key = "") {
+  if (value === null) {
+    const el = document.createElement("span");
+    el.className = "payload-empty";
+    el.textContent = "null";
+    return el;
+  }
+
+  if (value === undefined) {
+    const el = document.createElement("span");
+    el.className = "payload-empty";
+    el.textContent = "undefined";
+    return el;
+  }
+
+  if (typeof value === "boolean" || typeof value === "number") {
+    const el = document.createElement("code");
+    el.className = "payload-inline-code";
+    el.textContent = String(value);
+    return el;
+  }
+
+  if (looksLikeCodeishText(key, value)) {
+    const el = document.createElement("code");
+    el.className = "payload-inline-code";
+    el.textContent = String(value);
+    return el;
+  }
+
+  const el = document.createElement("span");
+  el.className = "payload-inline";
+  el.textContent = String(value);
+  return el;
+}
+
+function renderTextBlock(value, options = {}) {
+  const text = String(value ?? "");
+  const details = document.createElement("details");
+  details.className = "payload-block";
+
+  if (options.depth <= 0 || text.length < 600) {
+    details.open = true;
+  }
+
+  const summary = document.createElement("summary");
+  summary.textContent = options.summaryLabel || "Text";
+
+  const meta = document.createElement("span");
+  meta.className = "payload-block-meta";
+  meta.textContent = formatTextStats(text);
+  summary.appendChild(meta);
+
+  const pre = document.createElement("pre");
+  pre.className = "payload-text";
+  pre.textContent = text;
+
+  details.appendChild(summary);
+  details.appendChild(pre);
+  return details;
+}
+
+function renderTextPreviewObject(value, depth) {
+  const wrapper = document.createElement("div");
+  wrapper.className = "payload-object";
+
+  const metaRow = document.createElement("div");
+  metaRow.className = "payload-meta-row";
+
+  const typeChip = document.createElement("span");
+  typeChip.className = "payload-badge";
+  typeChip.textContent = humanizeToken(value.type || "text-preview");
+  metaRow.appendChild(typeChip);
+
+  if (value.truncated) {
+    const truncatedChip = document.createElement("span");
+    truncatedChip.className = "payload-badge warning";
+    truncatedChip.textContent = `Truncated · ${humanizeCount(value.originalLength || 0)} chars`;
+    metaRow.appendChild(truncatedChip);
+  }
+
+  wrapper.appendChild(metaRow);
+  wrapper.appendChild(
+    renderTextBlock(value.preview || "", {
+      depth,
+      summaryLabel: "Preview",
+    })
+  );
+  return wrapper;
+}
+
+function renderPayloadField(key, value, depth = 0) {
+  const row = document.createElement("div");
+  row.className = "payload-field";
+
+  const label = document.createElement("div");
+  label.className = "payload-key";
+  label.textContent = humanizeToken(key);
+
+  const content = document.createElement("div");
+  content.className = "payload-value";
+  content.appendChild(renderPayloadValue(value, { key, depth }));
+
+  row.appendChild(label);
+  row.appendChild(content);
+  return row;
+}
+
+function renderPrimitiveArray(values) {
+  const wrapper = document.createElement("div");
+  wrapper.className = "chip-list";
+  values.forEach((value) => {
+    const chip = document.createElement("span");
+    chip.className = "chip";
+    chip.textContent = String(value);
+    wrapper.appendChild(chip);
+  });
+  return wrapper;
+}
+
+function renderArrayValue(values, depth = 0) {
+  if (values.length === 0) {
+    const empty = document.createElement("span");
+    empty.className = "payload-empty";
+    empty.textContent = "Empty array";
+    return empty;
+  }
+
+  const primitiveArray = values.every(
+    (item) =>
+      item === null ||
+      item === undefined ||
+      typeof item === "string" ||
+      typeof item === "number" ||
+      typeof item === "boolean"
+  );
+
+  if (primitiveArray && values.every((item) => String(item ?? "").length < 72)) {
+    return renderPrimitiveArray(values);
+  }
+
+  const details = document.createElement("details");
+  details.className = "payload-block";
+  details.open = depth <= 0;
+
+  const summary = document.createElement("summary");
+  summary.textContent = `Array`;
+
+  const meta = document.createElement("span");
+  meta.className = "payload-block-meta";
+  meta.textContent = `${humanizeCount(values.length)} items`;
+  summary.appendChild(meta);
+  details.appendChild(summary);
+
+  const list = document.createElement("div");
+  list.className = "payload-array-items";
+
+  values.forEach((item, index) => {
+    const row = document.createElement("div");
+    row.className = "payload-array-item";
+
+    const indexLabel = document.createElement("div");
+    indexLabel.className = "payload-array-index";
+    indexLabel.textContent = `Item ${index + 1}`;
+
+    const valueWrap = document.createElement("div");
+    valueWrap.className = "payload-array-value";
+    valueWrap.appendChild(renderPayloadValue(item, { depth: depth + 1 }));
+
+    row.appendChild(indexLabel);
+    row.appendChild(valueWrap);
+    list.appendChild(row);
+  });
+
+  details.appendChild(list);
+  return details;
+}
+
+function renderObjectValue(value, depth = 0) {
+  const entries = Object.entries(value || {});
+  if (entries.length === 0) {
+    const empty = document.createElement("span");
+    empty.className = "payload-empty";
+    empty.textContent = "Empty object";
+    return empty;
+  }
+
+  if (value.type === "text-preview" && typeof value.preview === "string") {
+    return renderTextPreviewObject(value, depth);
+  }
+
+  const wrapper = document.createElement("div");
+  wrapper.className = "payload-fields";
+  entries.forEach(([key, entry]) => {
+    wrapper.appendChild(renderPayloadField(key, entry, depth + 1));
+  });
+  return wrapper;
+}
+
+function renderPayloadValue(value, options = {}) {
+  const depth = options.depth || 0;
+  const key = options.key || "";
+
+  if (Array.isArray(value)) {
+    return renderArrayValue(value, depth);
+  }
+
+  if (isPlainObject(value)) {
+    return renderObjectValue(value, depth);
+  }
+
+  const parsedJson = tryParseStructuredJsonString(value);
+  if (parsedJson !== null) {
+    const details = document.createElement("details");
+    details.className = "payload-block";
+    details.open = depth <= 0;
+
+    const summary = document.createElement("summary");
+    summary.textContent = "Structured JSON String";
+
+    const meta = document.createElement("span");
+    meta.className = "payload-block-meta";
+    meta.textContent = formatTextStats(String(value));
+    summary.appendChild(meta);
+
+    details.appendChild(summary);
+    details.appendChild(renderPayloadValue(parsedJson, { depth: depth + 1 }));
+    return details;
+  }
+
+  if (typeof value === "string" && (value.includes("\n") || value.length > 140)) {
+    return renderTextBlock(value, {
+      depth,
+      summaryLabel: key ? humanizeToken(key) : "Text",
+    });
+  }
+
+  return renderInlineScalar(value, key);
+}
+
+function renderAuditPayloadInspector(payload) {
+  const root = document.createElement("div");
+  root.className = "audit-payload-shell";
+
+  if (!payload || (isPlainObject(payload) && Object.keys(payload).length === 0)) {
+    const empty = document.createElement("div");
+    empty.className = "payload-empty";
+    empty.textContent = "No payload recorded.";
+    root.appendChild(empty);
+    return root;
+  }
+
+  const structured = document.createElement("div");
+  structured.className = "payload-inspector";
+  structured.appendChild(renderPayloadValue(payload, { depth: 0 }));
+  root.appendChild(structured);
+
+  const raw = document.createElement("details");
+  raw.className = "raw-json";
+
+  const summary = document.createElement("summary");
+  summary.textContent = "Raw JSON";
+  raw.appendChild(summary);
+
+  const pre = document.createElement("pre");
+  pre.textContent = prettyJson(payload);
+  raw.appendChild(pre);
+
+  root.appendChild(raw);
+  return root;
 }
 
 function formatTimestamp(value) {
@@ -1135,48 +1453,74 @@ function renderAuditRunDetails(run, events) {
   if (grouped.size === 0) {
     timeline.innerHTML = '<div class="empty-state">No audit events were recorded for this run.</div>';
   } else {
-    timeline.innerHTML = Array.from(grouped.entries())
-      .map(([phase, phaseEvents]) => {
-        const eventMarkup = phaseEvents
-          .map((event) => {
-            const meta = [
-              humanizeToken(event.eventType),
-              event.componentKind,
-              event.componentId,
-              formatTimestamp(event.createdAt),
-            ].filter(Boolean);
-            return `
-              <article class="activity-item">
-                <div class="activity-top">
-                  <div class="activity-title">${escapeHtml(humanizeToken(event.eventType))}</div>
-                  <span class="status-tag ${formatRunTone(event.status || "info")}">${escapeHtml(
-                    humanizeToken(event.status || "info")
-                  )}</span>
-                </div>
-                <div class="activity-meta">${escapeHtml(meta.join(" • "))}</div>
-                <details class="raw-json">
-                  <summary>Payload</summary>
-                  <pre>${escapeHtml(prettyJson(event.payload || {}))}</pre>
-                </details>
-              </article>
-            `;
-          })
-          .join("");
+    timeline.innerHTML = "";
+    Array.from(grouped.entries()).forEach(([phase, phaseEvents]) => {
+      const section = document.createElement("section");
+      section.className = "surface-card";
+      section.style.padding = "20px 22px";
 
-        return `
-          <section class="surface-card" style="padding: 20px 22px;">
-            <div class="section-head" style="margin-bottom: 16px;">
-              <div>
-                <p class="eyebrow subtle">Phase</p>
-                <h2>${escapeHtml(phase)}</h2>
-              </div>
-              <div class="section-pill">${escapeHtml(humanizeCount(phaseEvents.length))} events</div>
-            </div>
-            <div class="feed-stack">${eventMarkup}</div>
-          </section>
-        `;
-      })
-      .join("");
+      const head = document.createElement("div");
+      head.className = "section-head";
+      head.style.marginBottom = "16px";
+
+      const headCopy = document.createElement("div");
+      const eyebrow = document.createElement("p");
+      eyebrow.className = "eyebrow subtle";
+      eyebrow.textContent = "Phase";
+      const title = document.createElement("h2");
+      title.textContent = phase;
+      headCopy.appendChild(eyebrow);
+      headCopy.appendChild(title);
+
+      const pill = document.createElement("div");
+      pill.className = "section-pill";
+      pill.textContent = `${humanizeCount(phaseEvents.length)} events`;
+
+      head.appendChild(headCopy);
+      head.appendChild(pill);
+      section.appendChild(head);
+
+      const feed = document.createElement("div");
+      feed.className = "feed-stack";
+
+      phaseEvents.forEach((event) => {
+        const article = document.createElement("article");
+        article.className = "activity-item";
+
+        const top = document.createElement("div");
+        top.className = "activity-top";
+
+        const activityTitle = document.createElement("div");
+        activityTitle.className = "activity-title";
+        activityTitle.textContent = humanizeToken(event.eventType);
+
+        const statusTag = document.createElement("span");
+        statusTag.className = `status-tag ${formatRunTone(event.status || "info")}`;
+        statusTag.textContent = humanizeToken(event.status || "info");
+
+        top.appendChild(activityTitle);
+        top.appendChild(statusTag);
+
+        const meta = document.createElement("div");
+        meta.className = "activity-meta";
+        meta.textContent = [
+          humanizeToken(event.eventType),
+          event.componentKind,
+          event.componentId,
+          formatTimestamp(event.createdAt),
+        ]
+          .filter(Boolean)
+          .join(" • ");
+
+        article.appendChild(top);
+        article.appendChild(meta);
+        article.appendChild(renderAuditPayloadInspector(event.payload || {}));
+        feed.appendChild(article);
+      });
+
+      section.appendChild(feed);
+      timeline.appendChild(section);
+    });
   }
 
   raw.textContent = prettyJson({ run, events });
