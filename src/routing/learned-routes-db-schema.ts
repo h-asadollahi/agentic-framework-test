@@ -274,3 +274,34 @@ export const agentAuditEventsTable = pgTable(
     ),
   })
 );
+
+export const skillCandidatesTable = pgTable(
+  "skill_candidates",
+  {
+    id: text("id").primaryKey(),
+    capability: text("capability").notNull(),
+    description: text("description").notNull(),
+    audience: text("audience").notNull().default("marketer"),
+    scope: text("scope").notNull().default("global"),
+    brandId: text("brand_id"),
+    suggestedSkillFile: text("suggested_skill_file").notNull(),
+    triggerPatterns: jsonb("trigger_patterns").$type<string[]>().notNull().default([]),
+    confidence: text("confidence").notNull().default("medium"),
+    requiresApproval: boolean("requires_approval").notNull().default(false),
+    source: text("source").notNull().default("agency"),
+    addedAt: timestamp("added_at", { withTimezone: true }).notNull(),
+    lastUsedAt: timestamp("last_used_at", { withTimezone: true }),
+    usageCount: integer("usage_count").notNull().default(0),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    capabilityIdx: index("skill_candidates_capability_idx").on(table.capability),
+    audienceScopeIdx: index("skill_candidates_audience_scope_idx").on(
+      table.audience,
+      table.scope
+    ),
+    brandScopeIdx: index("skill_candidates_brand_scope_idx").on(table.brandId, table.scope),
+    usageCountIdx: index("skill_candidates_usage_count_idx").on(table.usageCount),
+  })
+);

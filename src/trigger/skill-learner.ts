@@ -46,7 +46,7 @@ export const skillLearnerTask = task({
       },
     });
 
-    skillCandidatesStore.load();
+    await skillCandidatesStore.load();
 
     const receivedCount = payload.skillSuggestions.length;
     if (receivedCount === 0) {
@@ -137,7 +137,7 @@ export const skillLearnerTask = task({
       };
     }
 
-    const { materializations, issues } = persistAndMaterializeSkillSuggestions(
+    const { materializations, issues } = await persistAndMaterializeSkillSuggestions(
       prepared.suggestions,
       payload.context
     );

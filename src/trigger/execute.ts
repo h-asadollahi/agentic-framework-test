@@ -685,7 +685,7 @@ export const executeTask = task({
 
 export async function preloadExecutionStores(): Promise<void> {
   await learnedRoutesStore.load();
-  skillCandidatesStore.load();
+  await skillCandidatesStore.load();
 }
 
 // ── Helpers ───────────────────────────────────────────────────

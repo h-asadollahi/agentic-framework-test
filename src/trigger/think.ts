@@ -200,7 +200,7 @@ export const thinkTask = task({
 
 export async function preloadCognitionStores(): Promise<void> {
   await learnedRoutesStore.load();
-  skillCandidatesStore.load();
+  await skillCandidatesStore.load();
 }
 
 export function applyAutonomousSkillCreation(
@@ -214,7 +214,7 @@ export function applyAutonomousSkillCreation(
   );
   if (!matchedCandidate) return cognitionResult;
 
-  skillCandidatesStore.incrementUsage(matchedCandidate.id);
+  void skillCandidatesStore.incrementUsage(matchedCandidate.id);
 
   const alreadyHasSkillCreatorTask = cognitionResult.subtasks.some((subtask) => {
     if (!isSkillCreatorAgent(subtask.agentId)) return false;

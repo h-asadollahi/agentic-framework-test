@@ -216,13 +216,13 @@ export function prepareAutonomousSkillSuggestionsForPersistence(
   };
 }
 
-export function persistAndMaterializeSkillSuggestions(
+export async function persistAndMaterializeSkillSuggestions(
   suggestions: SkillSuggestion[],
   context: ExecutionContext
-): {
+): Promise<{
   materializations: NonNullable<AgencyResult["skillMaterializations"]>;
   issues: string[];
-} {
+}> {
   const materializations: NonNullable<AgencyResult["skillMaterializations"]> = [];
   const issues: string[] = [];
 
@@ -238,7 +238,7 @@ export function persistAndMaterializeSkillSuggestions(
       "autonomous"
     );
 
-    const persisted = skillCandidatesStore.upsertCandidate({
+    const persisted = await skillCandidatesStore.upsertCandidate({
       capability: suggestion.capability,
       description: suggestion.description,
       audience: context.requestContext.audience,

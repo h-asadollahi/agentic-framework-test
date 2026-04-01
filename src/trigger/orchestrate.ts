@@ -85,7 +85,7 @@ export const orchestrateTask = task({
     // Reload learned routes from disk (picks up manual edits)
     await learnedRoutesStore.load();
     // Reload skill candidates from disk (picks up manual edits / admin curation)
-    skillCandidatesStore.load();
+    await skillCandidatesStore.load();
 
     const trace: TraceEntry[] = [];
     const startTime = Date.now();

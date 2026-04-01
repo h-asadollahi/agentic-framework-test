@@ -9,6 +9,7 @@ import {
   type SkillCandidate,
   type SkillCandidatesFile,
 } from "./skill-candidates-schema.js";
+import { getSkillCandidatesDbRepository } from "../platform/db-repository.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -133,11 +134,42 @@ function nextCandidateId(candidates: SkillCandidate[]): string {
   return `skill-${String(candidates.length + 1).padStart(3, "0")}`;
 }
 
+function isDualWriteJsonEnabled(): boolean {
+  return ["1", "true", "yes"].includes(
+    (process.env.SKILL_CANDIDATES_DUAL_WRITE_JSON ?? "").toLowerCase()
+  );
+}
+
 class SkillCandidatesStoreImpl {
   private candidates: SkillCandidate[] = [];
   private loaded = false;
+  private dbEnabled = false;
 
-  load(): void {
+  async load(): Promise<void> {
+    const repo = getSkillCandidatesDbRepository();
+    if (!repo) {
+      this.loadFromJsonSync();
+      return;
+    }
+
+    try {
+      await repo.init();
+      this.candidates = await repo.getAll();
+      this.loaded = true;
+      this.dbEnabled = true;
+      logger.info(`Loaded ${this.candidates.length} skill candidate(s) from DB`);
+      if (isDualWriteJsonEnabled()) {
+        this.saveToJsonSync();
+      }
+    } catch (error) {
+      logger.error("Skill candidates DB load failed, falling back to JSON", {
+        error: error instanceof Error ? error.message : String(error),
+      });
+      this.loadFromJsonSync();
+    }
+  }
+
+  private loadFromJsonSync(): void {
     if (!existsSync(SKILL_CANDIDATES_FILE)) {
       this.candidates = [];
       this.loaded = true;
@@ -161,7 +193,7 @@ class SkillCandidatesStoreImpl {
     }
   }
 
-  private save(): void {
+  private saveToJsonSync(): void {
     const file: SkillCandidatesFile = {
       version: "1.0.0",
       lastUpdated: new Date().toISOString(),
@@ -184,12 +216,26 @@ class SkillCandidatesStoreImpl {
   }
 
   private ensureLoaded(): void {
-    if (!this.loaded) {
-      this.load();
+    if (this.loaded) return;
+    if (process.env.DATABASE_URL?.trim()) {
+      throw new Error(
+        "skillCandidatesStore.load() must be awaited before use when DATABASE_URL is set"
+      );
+    }
+    this.loadFromJsonSync();
+  }
+
+  private async persistCandidate(candidate: SkillCandidate): Promise<void> {
+    const repo = this.dbEnabled ? getSkillCandidatesDbRepository() : null;
+    if (repo) {
+      await repo.upsertSkill(candidate);
+    }
+    if (!repo || isDualWriteJsonEnabled()) {
+      this.saveToJsonSync();
     }
   }
 
-  upsertCandidate(data: {
+  async upsertCandidate(data: {
     capability: string;
     description: string;
     audience?: CapabilityAudience;
@@ -200,7 +246,7 @@ class SkillCandidatesStoreImpl {
     confidence?: SkillCandidate["confidence"];
     requiresApproval?: boolean;
     source?: SkillCandidate["source"];
-  }): SkillCandidate {
+  }): Promise<SkillCandidate> {
     this.ensureLoaded();
 
     const capability = data.capability.trim();
@@ -232,7 +278,7 @@ class SkillCandidatesStoreImpl {
       if (CONFIDENCE_RANK[confidence] > CONFIDENCE_RANK[existing.confidence]) {
         existing.confidence = confidence;
       }
-      this.save();
+      await this.persistCandidate(existing);
       return existing;
     }
 
@@ -278,7 +324,7 @@ class SkillCandidatesStoreImpl {
       ) {
         fuzzyExisting.confidence = confidence;
       }
-      this.save();
+      await this.persistCandidate(fuzzyExisting);
       return fuzzyExisting;
     }
 
@@ -300,17 +346,24 @@ class SkillCandidatesStoreImpl {
     };
 
     this.candidates.push(candidate);
-    this.save();
+    await this.persistCandidate(candidate);
     return candidate;
   }
 
-  incrementUsage(candidateId: string): void {
+  async incrementUsage(candidateId: string): Promise<void> {
     this.ensureLoaded();
     const candidate = this.candidates.find((item) => item.id === candidateId);
     if (!candidate) return;
     candidate.usageCount += 1;
     candidate.lastUsedAt = new Date().toISOString();
-    this.save();
+
+    const repo = this.dbEnabled ? getSkillCandidatesDbRepository() : null;
+    if (repo) {
+      await repo.incrementUsage(candidateId);
+    }
+    if (!repo || isDualWriteJsonEnabled()) {
+      this.saveToJsonSync();
+    }
   }
 
   getSummary(requestContext?: RequestContext): Array<{
