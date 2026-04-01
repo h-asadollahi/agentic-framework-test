@@ -1837,6 +1837,7 @@ async function loadAll() {
     loadSlackHitl(),
     loadAdminUsageSummary(),
     loadTokenUsagePage(),
+    loadKnowledgeFiles(),
   ]);
   status("Admin workspace loaded");
 }
