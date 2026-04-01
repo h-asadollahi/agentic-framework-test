@@ -5,6 +5,13 @@
 - **Git workflow**: Push plans/docs to remote before starting implementation
 - **Phase explanations go to `./docs/`**: For each implementation phase, save the chat explanation to `./docs/` and push to git
 
+## Plan Naming Convention
+Plans are numbered sequentially across all AI coding assistants:
+- `docs/ai-coding-plans/plan-{N}-claude.md` — plans authored by Claude
+- `docs/ai-coding-plans/plan-{N}-codex.md` — plans authored by Codex
+- Numbers are shared/sequential: Codex had plans up to 97, Claude starts at 98
+- When starting a new plan, check the highest existing number and increment by 1
+
 ## Project: Multi-Agent Marketing Platform
 - **Repo**: `git@github.com:h-asadollahi/agentic-framework-test.git` (branch: main)
 - **Stack**: Trigger.dev (orchestration) + Vercel AI SDK v6 (AI layer) + TypeScript
