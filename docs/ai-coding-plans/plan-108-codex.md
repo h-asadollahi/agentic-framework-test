@@ -1,4 +1,4 @@
-# Plan 106 — Ignore / Reject False-Alarm HITL Threads
+# Plan 108 — Ignore / Reject False-Alarm HITL Threads
 
 **Assistant:** Codex  
 **Date:** 2026-04-01  

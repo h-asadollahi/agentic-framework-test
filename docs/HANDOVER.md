@@ -77,7 +77,7 @@ Validation:
 - Click any node → right pane shows type-specific fields (run: prompt + session; phase: event count + timing; component: model + tokens; event: eventType + payload).
 - Clicking a component expands/collapses its events; clicking a phase expands/collapses its components.
 
-### Plan 106: Dismiss false-alarm Slack HITL threads immediately
+### Plan 108: Dismiss false-alarm Slack HITL threads immediately
 
 Status: Implemented in code, admin UI summary counters, tests, and docs on 2026-04-01.
 
@@ -132,7 +132,7 @@ Important files changed:
 - `tests/unit/slack-escalation-parser.test.ts`
 - `tests/unit/admin-routes.test.ts`
 - `docs/usage-guide.md`
-- `docs/ai-coding-plans/plan-106-codex.md`
+- `docs/ai-coding-plans/plan-108-codex.md`
 
 Validation:
 - `npm test -- tests/unit/route-learning-parser.test.ts tests/unit/slack-escalation-parser.test.ts tests/unit/admin-routes.test.ts`
