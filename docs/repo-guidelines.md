@@ -4,7 +4,7 @@ These guidelines apply to future implementation work in this repository, regardl
 
 ## Planning
 
-- Save implementation plans in `docs/ai-coding-plans/` using numbered filenames such as `codex-plan-97.md`.
+- Save implementation plans in `docs/ai-coding-plans/` using numbered filenames with a suffix identifying the coding assistant: `plan-{N}-codex.md` for Codex, `plan-{N}-claude.md` for Claude. Numbers are sequential across all assistants (e.g. if Codex wrote plan 97, Claude's next plan is 98).
 - Keep plans short, concrete, and scoped to one deliverable.
 - When a plan is implemented, update `docs/HANDOVER.md` with the result, important decisions, validation, and next steps.
 
