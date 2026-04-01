@@ -2023,15 +2023,108 @@ function escHtml(str) {
 }
 
 const knowledgeState = {
-  files: [],        // KnowledgeFile[]
+  files: [],
   selectedPath: null,
   originalContent: null,
   dirty: false,
+  collapsedFolders: new Set(),
 };
 
 function knowledgeEditorStatus(msg) {
   const el = $("knowledgeEditorStatus");
   if (el) el.textContent = msg;
+}
+
+// Build a nested tree object from a flat file list.
+// Each node: { name, type:'folder'|'file', filePath?, children:{} }
+function buildKnowledgeTree(files) {
+  const root = { children: {} };
+  for (const f of files) {
+    const parts = f.path.split("/");
+    let node = root;
+    for (let i = 0; i < parts.length - 1; i++) {
+      const part = parts[i];
+      if (!node.children[part]) {
+        node.children[part] = { name: part, type: "folder", children: {} };
+      }
+      node = node.children[part];
+    }
+    const last = parts[parts.length - 1];
+    node.children[last] = { name: f.name + ".md", type: "file", filePath: f.path };
+  }
+  return root;
+}
+
+// SVG icons (VS Code-ish)
+const ICON_CHEVRON_RIGHT = `<svg width="12" height="12" viewBox="0 0 16 16" fill="none" style="flex-shrink:0;transition:transform .15s" aria-hidden="true"><path d="M6 4l4 4-4 4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+const ICON_CHEVRON_DOWN  = `<svg width="12" height="12" viewBox="0 0 16 16" fill="none" style="flex-shrink:0" aria-hidden="true"><path d="M4 6l4 4 4-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+const ICON_FOLDER_CLOSED = `<svg width="13" height="13" viewBox="0 0 16 16" fill="none" style="flex-shrink:0;color:var(--warning)" aria-hidden="true"><path d="M2 4.5A1.5 1.5 0 0 1 3.5 3h3l1.5 1.5H12.5A1.5 1.5 0 0 1 14 6v5a1.5 1.5 0 0 1-1.5 1.5h-9A1.5 1.5 0 0 1 2 11V4.5z" stroke="currentColor" stroke-width="1.4" fill="var(--warning-soft)"/></svg>`;
+const ICON_FOLDER_OPEN   = `<svg width="13" height="13" viewBox="0 0 16 16" fill="none" style="flex-shrink:0;color:var(--warning)" aria-hidden="true"><path d="M2 5A1.5 1.5 0 0 1 3.5 3.5h3L8 5h4.5A1.5 1.5 0 0 1 14 6.5v1H2V5z" stroke="currentColor" stroke-width="1.4" fill="var(--warning-soft)"/><path d="M2 7.5h12l-1.5 5H3.5L2 7.5z" stroke="currentColor" stroke-width="1.4" fill="var(--warning-soft)"/></svg>`;
+const ICON_FILE          = `<svg width="12" height="12" viewBox="0 0 16 16" fill="none" style="flex-shrink:0;color:var(--soft-muted)" aria-hidden="true"><path d="M4 2h5.5L12 4.5V14H4V2z" stroke="currentColor" stroke-width="1.4" fill="rgba(142,126,255,.12)"/><path d="M9.5 2v2.5H12" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>`;
+
+// Recursively render tree nodes into an HTML string.
+// folderPath is the slash-joined path used as the collapse key.
+function renderTreeNode(node, depth, folderPath) {
+  const indent = depth * 12;
+  let html = "";
+
+  const sorted = Object.values(node.children).sort((a, b) => {
+    if (a.type !== b.type) return a.type === "folder" ? -1 : 1;
+    return a.name.localeCompare(b.name);
+  });
+
+  for (const child of sorted) {
+    if (child.type === "folder") {
+      const childPath = folderPath ? `${folderPath}/${child.name}` : child.name;
+      const collapsed = knowledgeState.collapsedFolders.has(childPath);
+      html += `
+        <button
+          class="ktree-folder"
+          data-folder="${escHtml(childPath)}"
+          style="
+            display:flex;align-items:center;gap:5px;
+            width:100%;text-align:left;
+            padding:3px 8px 3px ${indent + 6}px;
+            background:transparent;border:none;border-radius:4px;
+            font-size:0.81rem;font-weight:500;
+            color:var(--text);cursor:pointer;
+            transition:background .1s;
+          "
+          title="${escHtml(childPath)}"
+        >
+          ${collapsed ? ICON_CHEVRON_RIGHT : ICON_CHEVRON_DOWN}
+          ${collapsed ? ICON_FOLDER_CLOSED : ICON_FOLDER_OPEN}
+          <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(child.name)}</span>
+        </button>`;
+      if (!collapsed) {
+        html += renderTreeNode(child, depth + 1, childPath);
+      }
+    } else {
+      const active = child.filePath === knowledgeState.selectedPath;
+      html += `
+        <button
+          class="ktree-file${active ? " active" : ""}"
+          data-path="${escHtml(child.filePath)}"
+          style="
+            display:flex;align-items:center;gap:5px;
+            width:100%;text-align:left;
+            padding:3px 8px 3px ${indent + 18}px;
+            background:${active ? "var(--accent-soft)" : "transparent"};
+            border:none;border-radius:4px;
+            font-size:0.81rem;
+            color:${active ? "var(--accent-deep)" : "var(--text)"};
+            font-weight:${active ? "600" : "400"};
+            cursor:pointer;
+            transition:background .1s;
+          "
+          title="${escHtml(child.filePath)}"
+        >
+          ${ICON_FILE}
+          <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(child.name)}</span>
+        </button>`;
+    }
+  }
+  return html;
 }
 
 function renderKnowledgeFileList() {
@@ -2043,42 +2136,38 @@ function renderKnowledgeFileList() {
     return;
   }
 
-  // Group by top-level folder
-  const groups = {};
-  for (const f of knowledgeState.files) {
-    const parts = f.path.split("/");
-    const group = parts.length > 1 ? parts[0] : "(root)";
-    (groups[group] = groups[group] || []).push(f);
-  }
+  const tree = buildKnowledgeTree(knowledgeState.files);
+  container.innerHTML = `<div style="padding:4px 0">${renderTreeNode(tree, 0, "")}</div>`;
 
-  let html = "";
-  for (const [group, files] of Object.entries(groups)) {
-    html += `<div style="padding:0.3rem 1rem 0.1rem;font-size:0.7rem;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--soft-muted);">${escHtml(group)}</div>`;
-    for (const f of files) {
-      const active = f.path === knowledgeState.selectedPath;
-      html += `
-        <button
-          class="knowledge-file-item${active ? " active" : ""}"
-          data-path="${escHtml(f.path)}"
-          style="
-            display:block;width:100%;text-align:left;
-            padding:0.4rem 1rem 0.4rem 1.4rem;
-            background:${active ? "var(--accent-soft)" : "transparent"};
-            color:${active ? "var(--accent-deep)" : "var(--text)"};
-            font-weight:${active ? "600" : "400"};
-            border-bottom:none;
-            border-radius:0;
-            font-size:0.82rem;
-            cursor:pointer;
-            transition:background 0.12s;
-          "
-          title="${escHtml(f.path)}"
-        >${escHtml(f.name)}.md</button>`;
-    }
-  }
-  container.innerHTML = html;
+  // Folder toggle
+  container.querySelectorAll(".ktree-folder").forEach((btn) => {
+    btn.addEventListener("mouseenter", () => { btn.style.background = "var(--accent-soft)"; });
+    btn.addEventListener("mouseleave", () => { btn.style.background = "transparent"; });
+    btn.addEventListener("click", () => {
+      const fp = btn.dataset.folder;
+      if (knowledgeState.collapsedFolders.has(fp)) {
+        knowledgeState.collapsedFolders.delete(fp);
+      } else {
+        knowledgeState.collapsedFolders.add(fp);
+      }
+      renderKnowledgeFileList();
+    });
+  });
 
-  container.querySelectorAll(".knowledge-file-item").forEach((btn) => {
+  // File select
+  container.querySelectorAll(".ktree-file").forEach((btn) => {
+    btn.addEventListener("mouseenter", () => {
+      if (btn.dataset.path !== knowledgeState.selectedPath) {
+        btn.style.background = "var(--accent-soft)";
+        btn.style.opacity = "0.7";
+      }
+    });
+    btn.addEventListener("mouseleave", () => {
+      if (btn.dataset.path !== knowledgeState.selectedPath) {
+        btn.style.background = "transparent";
+        btn.style.opacity = "1";
+      }
+    });
     btn.addEventListener("click", () => selectKnowledgeFile(btn.dataset.path));
   });
 }

@@ -2448,3 +2448,23 @@ Key interfaces: `PipelinePayload`, `PipelineResult`, `SubTask`, `AgentResult`, `
 **Not tested:** Live agent picking up an edited file after save (needs a full pipeline trigger).
 
 **How to test:** See [plan-100-claude.md](ai-coding-plans/plan-100-claude.md).
+
+---
+
+## Plan 101 — VS Code-style collapsible tree for Knowledge Editor (Claude, 2026-04-01)
+
+**Deliverable:** Knowledge Editor file panel now renders a recursive, collapsible/expandable folder tree (VS Code Explorer style) instead of a flat grouped list.
+
+**What was built:**
+- `buildKnowledgeTree()` — converts flat `KnowledgeFile[]` into a nested tree
+- `renderTreeNode()` — recursive HTML renderer with depth-based indentation, chevron icons, folder/file icons, and collapse state
+- `knowledgeState.collapsedFolders` — `Set` tracking which folders are collapsed (in-memory)
+- Folders sort before files; both sort alphabetically within their group
+
+**Automated validation:** None.
+
+**Manual verification:** Not yet run.
+
+**Not tested:** Collapse state persistence across page reloads (intentionally in-memory only).
+
+**How to test:** See [plan-101-claude.md](ai-coding-plans/plan-101-claude.md).
