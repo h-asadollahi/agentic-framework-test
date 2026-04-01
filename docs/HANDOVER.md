@@ -218,6 +218,52 @@ Manual verification recommended:
    - node detail appears on the right
    - close button, backdrop click, and `Esc` all close the modal
 
+### Plan 111: Audit Trail corrected to table-first list plus modal tree
+
+Status: Implemented in admin UI code and handover docs on 2026-04-01.
+
+Why this follow-up was needed:
+- Plan 110 improved the run inspector but still kept too much of the custom audit workspace pattern.
+- The requested UX was closer to `Learned Routes`:
+  - full run list on the page
+  - popup modal for the tree inspection
+
+What changed:
+- Replaced the inline audit workspace with a full run table on the Audit Trail page.
+- The page now lists run metadata directly in columns:
+  - run id
+  - brand
+  - status
+  - audience
+  - scope
+  - source
+  - events
+  - warnings
+  - errors
+  - started
+  - finished
+- Clicking a run row or `Inspect` now opens the Run Tree inspector modal.
+- The modal remains the place where:
+  - the tree is shown on the left
+  - node detail is shown on the right
+
+Files changed:
+- `admin/public/app.js`
+- `admin/public/index.html`
+- `docs/ai-coding-plans/plan-111-codex.md`
+- `docs/HANDOVER.md`
+
+Validation:
+- `node --check admin/public/app.js`
+- `npm run build`
+
+Manual verification recommended:
+1. Open Admin UI → Audit Trail.
+2. Confirm the page shows a run table, not the previous left-rail audit workspace.
+3. Click `Inspect` on any run.
+4. Confirm the modal opens with the Run Tree on the left and detail pane on the right.
+5. Confirm row click also opens the same modal.
+
 ### Plan 95: Deep agent audit trail for admin visibility
 
 Status: Implemented in code, admin UI/API, cleanup task, and tests on 2026-04-01.

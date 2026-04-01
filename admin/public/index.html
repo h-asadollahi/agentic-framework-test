@@ -1588,6 +1588,17 @@
       .audit-modal-detail {
         min-width: 0;
       }
+      .audit-run-row {
+        cursor: pointer;
+      }
+      .audit-run-row.selected {
+        background: var(--accent-soft);
+      }
+      .audit-status-cell {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+      }
       @media (max-width: 1180px) {
         .audit-left {
           width: 360px;
@@ -2329,30 +2340,44 @@
             </div>
           </section>
 
-          <section class="surface-card audit-workspace">
-            <!-- Left panel: compact runs list + tree -->
-            <div class="audit-left">
-              <div class="audit-left-top">
-                <div class="audit-panel-head">
-                  <p class="eyebrow subtle" style="margin:0">Runs</p>
-                  <span id="auditRunsCount" class="section-pill">0 runs</span>
-                </div>
-                <div id="auditRunsList" class="audit-runs-list">
-                  <div class="empty-state" style="padding:12px 14px;font-size:0.8rem">No runs loaded.</div>
-                </div>
+          <section class="surface-card">
+            <div class="section-head">
+              <div>
+                <p class="eyebrow subtle">Run Explorer</p>
+                <h2>Audit Run Inventory</h2>
+                <p class="section-copy">
+                  Browse the full list of audited runs here, then open any run in a dedicated tree inspector modal.
+                </p>
               </div>
-              <div class="audit-left-tree">
-                <div class="audit-panel-head">
-                  <p class="eyebrow subtle" style="margin:0">Run Tree</p>
-                </div>
-                <div id="auditTreeContainer" class="audit-tree-scroll">
-                  <div class="empty-state" style="padding:12px;font-size:0.8rem">Select a run to view its tree.</div>
-                </div>
-              </div>
+              <div id="auditRunsCount" class="section-pill">0 runs</div>
             </div>
-            <!-- Right panel: detail pane -->
-            <div id="auditDetailPanel" class="audit-detail-pane">
-              <div class="empty-state">Select a node to view details.</div>
+
+            <div class="table-shell">
+              <div class="table-scroll">
+                <table class="route-table">
+                  <thead>
+                    <tr>
+                      <th>Run ID</th>
+                      <th>Brand</th>
+                      <th>Status</th>
+                      <th>Audience</th>
+                      <th>Scope</th>
+                      <th>Source</th>
+                      <th>Events</th>
+                      <th>Warnings</th>
+                      <th>Errors</th>
+                      <th>Started</th>
+                      <th>Finished</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody id="auditRunsTable">
+                    <tr>
+                      <td colspan="12" class="empty-state">No audit runs loaded.</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
             </div>
           </section>
         </section>

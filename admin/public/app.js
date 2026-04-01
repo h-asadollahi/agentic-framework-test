@@ -1665,88 +1665,56 @@ function renderAuditNodeDetail(node, view = auditViewConfig()) {
 }
 
 function renderAuditRuns(payload) {
-  const list = $("auditRunsList");
-  if (!list) return;
+  const tbody = $("auditRunsTable");
+  if (!tbody) return;
 
   const runs = Array.isArray(payload?.runs) ? payload.runs : [];
   setText("auditRunsCount", `${humanizeCount(payload?.total || 0)} runs`);
-  list.innerHTML = "";
+  tbody.innerHTML = "";
 
   if (!runs.length) {
-    list.innerHTML =
-      '<div class="empty-state" style="padding:12px 14px;font-size:0.8rem">No runs matched.</div>';
+    tbody.innerHTML =
+      '<tr><td colspan="12" class="empty-state">No runs matched.</td></tr>';
     return;
   }
 
   runs.forEach((run) => {
-    const item = document.createElement("div");
-    item.className =
-      "audit-run-item" +
+    const tr = document.createElement("tr");
+    tr.className =
+      "audit-run-row" +
       (run.pipelineRunId === state.audit.selectedPipelineRunId ? " selected" : "");
 
-    const main = document.createElement("div");
-    main.className = "audit-run-main";
-
-    const header = document.createElement("div");
-    header.className = "audit-run-header";
-
-    const statusIcon = document.createElement("span");
-    statusIcon.className = "audit-run-status-icon";
-    statusIcon.textContent = auditStatusBadge(run.status);
-
-    const idSpan = document.createElement("span");
-    idSpan.className = "audit-run-id";
-    idSpan.title = run.pipelineRunId;
-    idSpan.textContent = run.pipelineRunId;
-
-    header.appendChild(statusIcon);
-    header.appendChild(idSpan);
-
-    const meta = document.createElement("div");
-    meta.className = "audit-run-meta";
-
-    const chips = [
-      `Brand: ${run.brandId || "global"}`,
-      `Status: ${humanizeToken(run.status || "unknown")}`,
-      `Audience: ${run.audience || "—"}`,
-      `Events: ${humanizeCount(run.totalEvents || 0)}`,
-    ];
-
-    chips.forEach((text) => {
-      const chip = document.createElement("span");
-      chip.className = "mini-pill";
-      chip.textContent = text;
-      meta.appendChild(chip);
-    });
-
-    const submeta = document.createElement("div");
-    submeta.className = "audit-run-submeta";
-    submeta.textContent = [
-      `Scope ${run.scope || "—"}`,
-      `Source ${run.source || "—"}`,
-      run.startedAt ? `Started ${formatTimestamp(run.startedAt)}` : null,
-    ]
-      .filter(Boolean)
-      .join(" • ");
-
-    main.appendChild(header);
-    main.appendChild(meta);
-    main.appendChild(submeta);
-
     const btn = document.createElement("button");
-    btn.className = "audit-inspect-btn";
+    btn.className = "secondary-button table-action";
     btn.textContent = "Inspect";
     btn.addEventListener("click", async (e) => {
       e.stopPropagation();
       await loadAuditRunDetails(run.pipelineRunId, { openModal: true });
     });
 
-    item.appendChild(main);
-    item.appendChild(btn);
-    item.addEventListener("click", async () => {
-      await loadAuditRunDetails(run.pipelineRunId);
+    tr.innerHTML = `
+      <td><code>${escapeHtml(run.pipelineRunId)}</code></td>
+      <td>${escapeHtml(run.brandId || "global")}</td>
+      <td><span class="audit-status-cell">${escapeHtml(auditStatusBadge(run.status))} ${escapeHtml(
+        humanizeToken(run.status || "unknown")
+      )}</span></td>
+      <td>${escapeHtml(run.audience || "—")}</td>
+      <td>${escapeHtml(run.scope || "—")}</td>
+      <td>${escapeHtml(run.source || "—")}</td>
+      <td>${escapeHtml(humanizeCount(run.totalEvents || 0))}</td>
+      <td>${escapeHtml(humanizeCount(run.totalWarnings || 0))}</td>
+      <td>${escapeHtml(humanizeCount(run.totalErrors || 0))}</td>
+      <td>${escapeHtml(formatTimestamp(run.startedAt))}</td>
+      <td>${escapeHtml(run.finishedAt ? formatTimestamp(run.finishedAt) : "Running…")}</td>
+      <td></td>
+    `;
+    tr.lastElementChild?.appendChild(btn);
+
+    tr.addEventListener("click", async (event) => {
+      if (event.target.closest("button")) return;
+      await loadAuditRunDetails(run.pipelineRunId, { openModal: true });
     });
-    list.appendChild(item);
+    tbody.appendChild(tr);
   });
 }
 
@@ -1794,7 +1762,6 @@ async function loadAuditRunDetails(pipelineRunId, options = {}) {
   state.audit.selectedRun = payload.run || null;
   state.audit.selectedEvents = payload.events || [];
   renderAuditRuns({ runs: state.audit.runs, total: state.audit.total });
-  renderAuditRunDetails(state.audit.selectedRun, state.audit.selectedEvents);
   if (options.openModal) {
     renderAuditModalRun(state.audit.selectedRun, state.audit.selectedEvents);
     openAuditModal();
@@ -1833,12 +1800,12 @@ async function loadAudit() {
     state.audit.selectedPipelineRunId = null;
     state.audit.selectedRun = null;
     state.audit.selectedEvents = [];
-    renderAuditRunDetails(null, []);
     renderAuditModalRun(null, []);
     return;
   }
 
-  await loadAuditRunDetails(selected);
+  state.audit.selectedPipelineRunId = selected;
+  renderAuditRuns(runsData);
 }
 
 function getSelectedAdminChatBrandId() {
