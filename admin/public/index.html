@@ -1408,8 +1408,8 @@
         align-items: stretch;
       }
       .audit-left {
-        width: 300px;
-        min-width: 240px;
+        width: 420px;
+        min-width: 340px;
         flex-shrink: 0;
         border-right: 1.5px solid var(--panel-border);
         display: flex;
@@ -1439,36 +1439,67 @@
       }
       .audit-runs-list {
         overflow-y: auto;
-        max-height: 210px;
-        padding: 4px 0;
+        max-height: 290px;
+        padding: 8px;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
       }
       .audit-run-item {
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        padding: 6px 10px;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        align-items: start;
+        gap: 10px;
+        padding: 10px 12px;
         cursor: pointer;
         font-size: 0.78rem;
         transition: background 0.1s;
+        border: 1px solid var(--panel-border);
+        border-radius: 10px;
+        background: rgba(255, 255, 255, 0.72);
       }
       .audit-run-item:hover { background: rgba(142, 126, 255, 0.06); }
       .audit-run-item.selected { background: var(--accent-soft); color: var(--accent-deep); }
+      .audit-run-main {
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 7px;
+      }
+      .audit-run-header {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        min-width: 0;
+      }
       .audit-run-id {
         flex: 1;
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
         font-family: "IBM Plex Mono", ui-monospace, monospace;
-        font-size: 0.7rem;
-        opacity: 0.85;
+        font-size: 0.72rem;
+        opacity: 0.92;
       }
       .audit-run-status-icon { flex-shrink: 0; font-size: 0.8rem; }
+      .audit-run-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+      }
+      .audit-run-submeta {
+        font-size: 0.7rem;
+        color: var(--muted);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
       .audit-inspect-btn {
         background: none;
         border: 1px solid var(--panel-border);
         border-radius: 4px;
-        padding: 2px 7px;
-        font-size: 0.68rem;
+        padding: 4px 9px;
+        font-size: 0.7rem;
         cursor: pointer;
         color: var(--accent-deep);
         flex-shrink: 0;
@@ -1536,6 +1567,40 @@
         letter-spacing: 0.06em;
         color: var(--muted);
         margin: 14px 0 6px;
+      }
+      .audit-modal-card {
+        width: min(1280px, calc(100vw - 48px));
+      }
+      .audit-modal-body {
+        padding: 0;
+      }
+      .audit-modal-layout {
+        display: grid;
+        grid-template-columns: 360px minmax(0, 1fr);
+        min-height: 620px;
+      }
+      .audit-modal-tree {
+        border-right: 1.5px solid var(--panel-border);
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+      }
+      .audit-modal-detail {
+        min-width: 0;
+      }
+      @media (max-width: 1180px) {
+        .audit-left {
+          width: 360px;
+          min-width: 300px;
+        }
+        .audit-modal-layout {
+          grid-template-columns: 1fr;
+        }
+        .audit-modal-tree {
+          border-right: 0;
+          border-bottom: 1.5px solid var(--panel-border);
+          min-height: 260px;
+        }
       }
     </style>
   </head>
@@ -2377,6 +2442,41 @@
             </div>
           </section>
         </section>
+
+        <div id="auditRunModal" class="modal-shell" hidden>
+          <div id="auditRunModalBackdrop" class="modal-backdrop"></div>
+          <div class="modal-card audit-modal-card" role="dialog" aria-modal="true" aria-labelledby="auditModalTitle">
+            <div class="modal-head">
+              <div>
+                <p class="eyebrow subtle">Inspection</p>
+                <h2 id="auditModalTitle">Run Tree</h2>
+                <p id="auditModalMeta" class="section-copy">
+                  Select a run from Audit Trail to inspect the full run tree.
+                </p>
+              </div>
+              <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                <div id="auditModalPill" class="section-pill">No run selected</div>
+                <button id="auditRunModalClose" class="ghost-button">Close</button>
+              </div>
+            </div>
+
+            <div class="modal-body audit-modal-body">
+              <div class="audit-modal-layout">
+                <div class="audit-modal-tree">
+                  <div class="audit-panel-head">
+                    <p class="eyebrow subtle" style="margin:0">Run Tree</p>
+                  </div>
+                  <div id="auditModalTreeContainer" class="audit-tree-scroll">
+                    <div class="empty-state" style="padding:12px;font-size:0.8rem">Select a run to view its tree.</div>
+                  </div>
+                </div>
+                <div id="auditModalDetailPanel" class="audit-detail-pane audit-modal-detail">
+                  <div class="empty-state">Select a node to view details.</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
 
         <div id="routeModal" class="modal-shell" hidden>
           <div id="routeModalBackdrop" class="modal-backdrop"></div>

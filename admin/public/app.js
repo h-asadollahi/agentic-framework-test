@@ -21,6 +21,8 @@ const state = {
     selectedEvents: [],
     selectedNodeId: null,
     currentTree: null,
+    modalSelectedNodeId: null,
+    modalCurrentTree: null,
   },
   llmUsageSummary: null,
   tokenUsage: {
@@ -207,14 +209,51 @@ function openRouteModal() {
   const modal = $("routeModal");
   if (!modal) return;
   modal.hidden = false;
-  document.body.classList.add("modal-open");
+  syncModalOpenState();
 }
 
 function closeRouteModal() {
   const modal = $("routeModal");
   if (!modal) return;
   modal.hidden = true;
-  document.body.classList.remove("modal-open");
+  syncModalOpenState();
+}
+
+function openAuditModal() {
+  const modal = $("auditRunModal");
+  if (!modal) return;
+  modal.hidden = false;
+  syncModalOpenState();
+}
+
+function closeAuditModal() {
+  const modal = $("auditRunModal");
+  if (!modal) return;
+  modal.hidden = true;
+  syncModalOpenState();
+}
+
+function syncModalOpenState() {
+  const hasOpenModal =
+    ($("routeModal") && !$("routeModal").hidden) ||
+    ($("auditRunModal") && !$("auditRunModal").hidden);
+  document.body.classList.toggle("modal-open", Boolean(hasOpenModal));
+}
+
+function auditViewConfig(mode = "inline") {
+  return mode === "modal"
+    ? {
+        containerId: "auditModalTreeContainer",
+        detailId: "auditModalDetailPanel",
+        selectionKey: "modalSelectedNodeId",
+        treeKey: "modalCurrentTree",
+      }
+    : {
+        containerId: "auditTreeContainer",
+        detailId: "auditDetailPanel",
+        selectionKey: "selectedNodeId",
+        treeKey: "currentTree",
+      };
 }
 
 function getHeaders() {
@@ -1439,12 +1478,13 @@ function buildAuditTree(run, events) {
   return runNode;
 }
 
-function renderAuditTreeNode(node) {
+function renderAuditTreeNode(node, view = auditViewConfig()) {
   const wrap = document.createElement("div");
   wrap.className = "audit-tree-node";
 
   const row = document.createElement("div");
-  row.className = "audit-tree-row" + (node.id === state.audit.selectedNodeId ? " active" : "");
+  row.className =
+    "audit-tree-row" + (node.id === state.audit[view.selectionKey] ? " active" : "");
   row.dataset.nodeId = node.id;
 
   const toggle = document.createElement("span");
@@ -1473,7 +1513,9 @@ function renderAuditTreeNode(node) {
   if (node.children.length) {
     childrenWrap = document.createElement("div");
     childrenWrap.className = "audit-tree-children" + (node.expanded ? "" : " collapsed");
-    node.children.forEach((child) => childrenWrap.appendChild(renderAuditTreeNode(child)));
+    node.children.forEach((child) =>
+      childrenWrap.appendChild(renderAuditTreeNode(child, view))
+    );
     wrap.appendChild(childrenWrap);
   }
 
@@ -1484,25 +1526,25 @@ function renderAuditTreeNode(node) {
       toggle.textContent = node.expanded ? "▾" : "▸";
       childrenWrap.classList.toggle("collapsed", !node.expanded);
     }
-    selectAuditNode(node);
+    selectAuditNode(node, view);
   });
 
   return wrap;
 }
 
-function selectAuditNode(node) {
-  state.audit.selectedNodeId = node.id;
-  const container = $("auditTreeContainer");
+function selectAuditNode(node, view = auditViewConfig()) {
+  state.audit[view.selectionKey] = node.id;
+  const container = $(view.containerId);
   if (container) {
     container.querySelectorAll(".audit-tree-row").forEach((row) => {
       row.classList.toggle("active", row.dataset.nodeId === node.id);
     });
   }
-  renderAuditNodeDetail(node);
+  renderAuditNodeDetail(node, view);
 }
 
-function renderAuditNodeDetail(node) {
-  const pane = $("auditDetailPanel");
+function renderAuditNodeDetail(node, view = auditViewConfig()) {
+  const pane = $(view.detailId);
   if (!pane) return;
   pane.innerHTML = "";
 
@@ -1642,6 +1684,12 @@ function renderAuditRuns(payload) {
       "audit-run-item" +
       (run.pipelineRunId === state.audit.selectedPipelineRunId ? " selected" : "");
 
+    const main = document.createElement("div");
+    main.className = "audit-run-main";
+
+    const header = document.createElement("div");
+    header.className = "audit-run-header";
+
     const statusIcon = document.createElement("span");
     statusIcon.className = "audit-run-status-icon";
     statusIcon.textContent = auditStatusBadge(run.status);
@@ -1651,16 +1699,49 @@ function renderAuditRuns(payload) {
     idSpan.title = run.pipelineRunId;
     idSpan.textContent = run.pipelineRunId;
 
-    const btn = document.createElement("button");
-    btn.className = "audit-inspect-btn";
-    btn.textContent = "Inspect ▶";
-    btn.addEventListener("click", async (e) => {
-      e.stopPropagation();
-      await loadAuditRunDetails(run.pipelineRunId);
+    header.appendChild(statusIcon);
+    header.appendChild(idSpan);
+
+    const meta = document.createElement("div");
+    meta.className = "audit-run-meta";
+
+    const chips = [
+      `Brand: ${run.brandId || "global"}`,
+      `Status: ${humanizeToken(run.status || "unknown")}`,
+      `Audience: ${run.audience || "—"}`,
+      `Events: ${humanizeCount(run.totalEvents || 0)}`,
+    ];
+
+    chips.forEach((text) => {
+      const chip = document.createElement("span");
+      chip.className = "mini-pill";
+      chip.textContent = text;
+      meta.appendChild(chip);
     });
 
-    item.appendChild(statusIcon);
-    item.appendChild(idSpan);
+    const submeta = document.createElement("div");
+    submeta.className = "audit-run-submeta";
+    submeta.textContent = [
+      `Scope ${run.scope || "—"}`,
+      `Source ${run.source || "—"}`,
+      run.startedAt ? `Started ${formatTimestamp(run.startedAt)}` : null,
+    ]
+      .filter(Boolean)
+      .join(" • ");
+
+    main.appendChild(header);
+    main.appendChild(meta);
+    main.appendChild(submeta);
+
+    const btn = document.createElement("button");
+    btn.className = "audit-inspect-btn";
+    btn.textContent = "Inspect";
+    btn.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      await loadAuditRunDetails(run.pipelineRunId, { openModal: true });
+    });
+
+    item.appendChild(main);
     item.appendChild(btn);
     item.addEventListener("click", async () => {
       await loadAuditRunDetails(run.pipelineRunId);
@@ -1669,37 +1750,55 @@ function renderAuditRuns(payload) {
   });
 }
 
-function renderAuditRunDetails(run, events) {
-  const treeContainer = $("auditTreeContainer");
-  const detailPanel = $("auditDetailPanel");
+function renderAuditRunDetails(run, events, view = auditViewConfig()) {
+  const treeContainer = $(view.containerId);
+  const detailPanel = $(view.detailId);
   if (!treeContainer || !detailPanel) return;
 
   if (!run) {
     treeContainer.innerHTML =
       '<div class="empty-state" style="padding:12px;font-size:0.8rem">Select a run to view its tree.</div>';
     detailPanel.innerHTML = '<div class="empty-state">Select a node to view details.</div>';
-    state.audit.currentTree = null;
-    state.audit.selectedNodeId = null;
+    state.audit[view.treeKey] = null;
+    state.audit[view.selectionKey] = null;
     return;
   }
 
   const tree = buildAuditTree(run, events);
-  state.audit.currentTree = tree;
-  state.audit.selectedNodeId = tree.id;
+  state.audit[view.treeKey] = tree;
+  state.audit[view.selectionKey] = tree.id;
 
   treeContainer.innerHTML = "";
-  treeContainer.appendChild(renderAuditTreeNode(tree));
+  treeContainer.appendChild(renderAuditTreeNode(tree, view));
 
-  selectAuditNode(tree);
+  selectAuditNode(tree, view);
 }
 
-async function loadAuditRunDetails(pipelineRunId) {
+function renderAuditModalRun(run, events) {
+  setText("auditModalTitle", run?.pipelineRunId || "Run Tree");
+  setText(
+    "auditModalMeta",
+    run
+      ? `${run.brandId || "global"} • ${humanizeToken(run.status || "unknown")} • ${
+          run.audience || "—"
+        } • ${humanizeCount(run.totalEvents || 0)} events`
+      : "Select a run to inspect the audit tree."
+  );
+  setText("auditModalPill", run?.pipelineRunId || "No run selected");
+  renderAuditRunDetails(run, events, auditViewConfig("modal"));
+}
+
+async function loadAuditRunDetails(pipelineRunId, options = {}) {
   state.audit.selectedPipelineRunId = pipelineRunId;
   const payload = await api(`/admin/audit/runs/${pipelineRunId}`);
   state.audit.selectedRun = payload.run || null;
   state.audit.selectedEvents = payload.events || [];
   renderAuditRuns({ runs: state.audit.runs, total: state.audit.total });
   renderAuditRunDetails(state.audit.selectedRun, state.audit.selectedEvents);
+  if (options.openModal) {
+    renderAuditModalRun(state.audit.selectedRun, state.audit.selectedEvents);
+    openAuditModal();
+  }
 }
 
 async function loadAudit() {
@@ -1735,6 +1834,7 @@ async function loadAudit() {
     state.audit.selectedRun = null;
     state.audit.selectedEvents = [];
     renderAuditRunDetails(null, []);
+    renderAuditModalRun(null, []);
     return;
   }
 
@@ -2357,6 +2457,8 @@ $("loadAll")?.addEventListener("click", () => loadAll().catch((err) => status(er
 $("search")?.addEventListener("click", () => loadRoutes().catch((err) => status(err.message)));
 $("routeModalClose")?.addEventListener("click", closeRouteModal);
 $("routeModalBackdrop")?.addEventListener("click", closeRouteModal);
+$("auditRunModalClose")?.addEventListener("click", closeAuditModal);
+$("auditRunModalBackdrop")?.addEventListener("click", closeAuditModal);
 $("adminChatSend")?.addEventListener("click", () => {
   void sendAdminChatPrompt();
 });
@@ -2425,6 +2527,7 @@ window.addEventListener("hashchange", () => {
 document.addEventListener("keydown", (event) => {
   if (event.key === "Escape") {
     closeRouteModal();
+    closeAuditModal();
   }
 });
 

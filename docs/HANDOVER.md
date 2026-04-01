@@ -178,6 +178,46 @@ Manual verification recommended:
 2. Read the `Git Hygiene` section
 3. Confirm the assistant-scoped commit rule is present
 
+### Plan 110: Audit Trail run-list enrichment and Run Tree modal
+
+Status: Implemented in admin UI code and handover docs on 2026-04-01.
+
+What changed:
+- Enlarged the Audit Trail run list so each row shows more context directly:
+  - pipeline run id
+  - brand id
+  - status
+  - audience
+  - event count
+  - quick sub-meta for scope/source/start time
+- Kept row click behavior for inline selection.
+- Changed `Inspect` so it opens a dedicated modal for the full audit run tree.
+- Reused the existing admin modal pattern instead of inventing a new overlay system.
+- Refactored audit tree/detail rendering so the same tree renderer now supports:
+  - inline Audit page rendering
+  - modal rendering
+- Added safer modal body state handling because the admin UI now has more than one modal surface.
+
+Files changed:
+- `admin/public/app.js`
+- `admin/public/index.html`
+- `docs/ai-coding-plans/plan-110-codex.md`
+- `docs/HANDOVER.md`
+
+Validation:
+- `node --check admin/public/app.js`
+- `npm run build`
+
+Manual verification recommended:
+1. Open Admin UI → Audit Trail.
+2. Confirm the run list is wider and each row now shows brand/status/audience/event count.
+3. Click a run row and confirm inline selection still updates the main audit detail pane.
+4. Click `Inspect` on a run and confirm a modal opens.
+5. In the modal, confirm:
+   - Run Tree appears on the left
+   - node detail appears on the right
+   - close button, backdrop click, and `Esc` all close the modal
+
 ### Plan 95: Deep agent audit trail for admin visibility
 
 Status: Implemented in code, admin UI/API, cleanup task, and tests on 2026-04-01.
