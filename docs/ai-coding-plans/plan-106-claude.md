@@ -1,4 +1,4 @@
-# Plan 105 — Demo: extract each page into its own view module
+# Plan 106 — Demo: extract each page into its own view module
 
 **Assistant:** Claude (claude-sonnet-4-6 via Claude Code)
 **Date:** 2026-04-01

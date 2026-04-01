@@ -2508,7 +2508,7 @@ Key interfaces: `PipelinePayload`, `PipelineResult`, `SubTask`, `AgentResult`, `
 
 ---
 
-## Plan 105 — Demo: extract each page into its own view module (Claude, 2026-04-01)
+## Plan 106 — Demo: extract each page into its own view module (Claude, 2026-04-01)
 
 **Deliverable:** Demo refactored into a proper module-based SPA. Each nav item is a self-contained ES module; adding a new page = one new file in `demo/views/`.
 
@@ -2523,7 +2523,7 @@ Key interfaces: `PipelinePayload`, `PipelineResult`, `SubTask`, `AgentResult`, `
 
 **Automated validation:** None.
 **Manual verification:** Not yet run.
-**How to test:** See [plan-105-claude.md](ai-coding-plans/plan-105-claude.md).
+**How to test:** See [plan-106-claude.md](ai-coding-plans/plan-106-claude.md).
 
 ---
 
