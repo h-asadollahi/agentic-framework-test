@@ -1634,10 +1634,8 @@
       .audit-stats-chevron { transition: transform 0.18s; }
       .audit-stats-trigger[aria-expanded="true"] .audit-stats-chevron { transform: rotate(180deg); }
       .audit-stats-popover {
-        position: absolute;
-        right: 0;
-        top: calc(100% + 8px);
-        z-index: 60;
+        position: fixed;
+        z-index: 200;
         width: 300px;
         background: var(--card-strong);
         border: 1px solid var(--card-border);

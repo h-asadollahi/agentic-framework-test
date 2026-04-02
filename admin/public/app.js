@@ -2428,12 +2428,26 @@ $("auditRunModalClose")?.addEventListener("click", closeAuditModal);
 $("auditRunModalBackdrop")?.addEventListener("click", closeAuditModal);
 
 // ── Audit stats popover toggle ─────────────────────────────────────────────
+function positionAuditStatsPopover() {
+  const popover = $("auditStatsPopover");
+  const trigger = $("auditStatsToggle");
+  if (!popover || !trigger) return;
+  const rect = trigger.getBoundingClientRect();
+  const popoverWidth = 300;
+  // align right edge of popover with right edge of trigger, but clamp to viewport
+  let left = rect.right - popoverWidth;
+  if (left < 8) left = 8;
+  popover.style.top = `${rect.bottom + 8}px`;
+  popover.style.left = `${left}px`;
+}
+
 $("auditStatsToggle")?.addEventListener("click", (e) => {
   e.stopPropagation();
   const popover = $("auditStatsPopover");
   const trigger = $("auditStatsToggle");
   if (!popover || !trigger) return;
   const isOpen = !popover.hidden;
+  if (!isOpen) positionAuditStatsPopover();
   popover.hidden = isOpen;
   trigger.setAttribute("aria-expanded", String(!isOpen));
 });
