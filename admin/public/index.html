@@ -1613,6 +1613,73 @@
           min-height: 260px;
         }
       }
+
+      /* ── Audit stats trigger + popover (plan-112) ───────────── */
+      .audit-stats-trigger {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        cursor: pointer;
+        background: none;
+        border: 1px solid var(--panel-border);
+        font: inherit;
+        color: var(--accent-deep);
+        font-size: 0.78rem;
+        font-weight: 600;
+        padding: 5px 11px;
+        border-radius: 99px;
+        transition: background 0.12s;
+      }
+      .audit-stats-trigger:hover { background: var(--accent-soft); }
+      .audit-stats-chevron { transition: transform 0.18s; }
+      .audit-stats-trigger[aria-expanded="true"] .audit-stats-chevron { transform: rotate(180deg); }
+      .audit-stats-popover {
+        position: absolute;
+        right: 0;
+        top: calc(100% + 8px);
+        z-index: 60;
+        width: 300px;
+        background: var(--card-strong);
+        border: 1px solid var(--card-border);
+        border-radius: var(--radius-md);
+        box-shadow: var(--shadow-md);
+        padding: 14px 16px 12px;
+      }
+      .audit-stats-popover[hidden] { display: none; }
+      .audit-stats-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
+        gap: 10px 8px;
+        margin-bottom: 10px;
+      }
+      .audit-stat-item {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+      }
+      .audit-stat-label {
+        font-size: 0.66rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--muted);
+        font-weight: 600;
+      }
+      .audit-stat-value {
+        font-size: 1.4rem;
+        font-weight: 800;
+        line-height: 1.1;
+        color: var(--text);
+      }
+      .audit-stat-value.warning { color: var(--warning); }
+      .audit-stat-value.error   { color: var(--danger); }
+      .audit-stats-phases {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px;
+        border-top: 1px solid var(--panel-border);
+        padding-top: 8px;
+        margin-top: 2px;
+      }
     </style>
   </head>
   <body>
@@ -2249,48 +2316,43 @@
                   Inspect sanitized prompts, decisions, tool calls, outputs, and failures across the entire pipeline run timeline.
                 </p>
               </div>
-              <div id="auditStatusPill" class="section-pill">0 runs · 0 events</div>
+              <div style="position:relative">
+                <button id="auditStatsToggle" class="section-pill audit-stats-trigger" aria-haspopup="true" aria-expanded="false">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex-shrink:0"><rect x="3" y="12" width="4" height="9"/><rect x="10" y="7" width="4" height="14"/><rect x="17" y="3" width="4" height="18"/></svg>
+                  <span id="auditStatusPill">0 runs · 0 events</span>
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="audit-stats-chevron"><polyline points="6 9 12 15 18 9"/></svg>
+                </button>
+                <div id="auditStatsPopover" class="audit-stats-popover" hidden>
+                  <div class="audit-stats-grid">
+                    <div class="audit-stat-item">
+                      <span class="audit-stat-label">Total Runs</span>
+                      <span class="audit-stat-value" id="auditTotalRuns">0</span>
+                    </div>
+                    <div class="audit-stat-item">
+                      <span class="audit-stat-label">Running</span>
+                      <span class="audit-stat-value" id="auditRunningRuns">0</span>
+                    </div>
+                    <div class="audit-stat-item">
+                      <span class="audit-stat-label">Failed / Rejected</span>
+                      <span class="audit-stat-value" id="auditFailedRuns">0</span>
+                    </div>
+                    <div class="audit-stat-item">
+                      <span class="audit-stat-label">Total Events</span>
+                      <span class="audit-stat-value" id="auditEventTotal">0</span>
+                    </div>
+                    <div class="audit-stat-item">
+                      <span class="audit-stat-label">Warnings</span>
+                      <span class="audit-stat-value warning" id="auditWarningTotal">0</span>
+                    </div>
+                    <div class="audit-stat-item">
+                      <span class="audit-stat-label">Errors</span>
+                      <span class="audit-stat-value error" id="auditErrorTotal">0</span>
+                    </div>
+                  </div>
+                  <div id="auditPhaseMeta" class="audit-stats-phases"></div>
+                </div>
+              </div>
             </div>
-          </section>
-
-          <section class="summary-grid">
-            <article class="summary-card">
-              <p class="eyebrow subtle">Run Volume</p>
-              <h3>Total Runs</h3>
-              <p class="summary-copy">Audit-indexed pipeline runs in the selected window.</p>
-              <div class="summary-value" id="auditTotalRuns">0</div>
-            </article>
-            <article class="summary-card">
-              <p class="eyebrow subtle">Active</p>
-              <h3>Running Runs</h3>
-              <p class="summary-copy">Runs that are still in flight right now.</p>
-              <div class="summary-value" id="auditRunningRuns">0</div>
-            </article>
-            <article class="summary-card">
-              <p class="eyebrow subtle">Attention</p>
-              <h3>Failed / Rejected</h3>
-              <p class="summary-copy">Runs that need follow-up or were rejected by policy.</p>
-              <div class="summary-value" id="auditFailedRuns">0</div>
-            </article>
-            <article class="summary-card">
-              <p class="eyebrow subtle">Event Volume</p>
-              <h3>Total Events</h3>
-              <p class="summary-copy">Sanitized audit events captured across all pipeline stages.</p>
-              <div class="summary-value" id="auditEventTotal">0</div>
-              <div class="summary-meta" id="auditPhaseMeta"></div>
-            </article>
-            <article class="summary-card">
-              <p class="eyebrow subtle">Warnings</p>
-              <h3>Warning Events</h3>
-              <p class="summary-copy">Events captured with warning status.</p>
-              <div class="summary-value" id="auditWarningTotal">0</div>
-            </article>
-            <article class="summary-card">
-              <p class="eyebrow subtle">Errors</p>
-              <h3>Error Events</h3>
-              <p class="summary-copy">Events captured with failed or error status.</p>
-              <div class="summary-value" id="auditErrorTotal">0</div>
-            </article>
           </section>
 
           <section class="surface-card">

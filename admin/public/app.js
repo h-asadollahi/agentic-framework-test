@@ -2426,6 +2426,26 @@ $("routeModalClose")?.addEventListener("click", closeRouteModal);
 $("routeModalBackdrop")?.addEventListener("click", closeRouteModal);
 $("auditRunModalClose")?.addEventListener("click", closeAuditModal);
 $("auditRunModalBackdrop")?.addEventListener("click", closeAuditModal);
+
+// ── Audit stats popover toggle ─────────────────────────────────────────────
+$("auditStatsToggle")?.addEventListener("click", (e) => {
+  e.stopPropagation();
+  const popover = $("auditStatsPopover");
+  const trigger = $("auditStatsToggle");
+  if (!popover || !trigger) return;
+  const isOpen = !popover.hidden;
+  popover.hidden = isOpen;
+  trigger.setAttribute("aria-expanded", String(!isOpen));
+});
+document.addEventListener("click", (e) => {
+  const popover = $("auditStatsPopover");
+  const trigger = $("auditStatsToggle");
+  if (!popover || popover.hidden) return;
+  if (!popover.contains(e.target) && e.target !== trigger && !trigger?.contains(e.target)) {
+    popover.hidden = true;
+    trigger?.setAttribute("aria-expanded", "false");
+  }
+});
 $("adminChatSend")?.addEventListener("click", () => {
   void sendAdminChatPrompt();
 });
