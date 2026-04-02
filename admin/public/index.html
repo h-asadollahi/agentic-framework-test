@@ -2314,42 +2314,11 @@
                   Inspect sanitized prompts, decisions, tool calls, outputs, and failures across the entire pipeline run timeline.
                 </p>
               </div>
-              <div style="position:relative">
-                <button id="auditStatsToggle" class="section-pill audit-stats-trigger" aria-haspopup="true" aria-expanded="false">
+              <button id="auditStatsToggle" class="section-pill audit-stats-trigger" aria-haspopup="true" aria-expanded="false">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex-shrink:0"><rect x="3" y="12" width="4" height="9"/><rect x="10" y="7" width="4" height="14"/><rect x="17" y="3" width="4" height="18"/></svg>
                   <span id="auditStatusPill">0 runs · 0 events</span>
                   <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="audit-stats-chevron"><polyline points="6 9 12 15 18 9"/></svg>
                 </button>
-                <div id="auditStatsPopover" class="audit-stats-popover" hidden>
-                  <div class="audit-stats-grid">
-                    <div class="audit-stat-item">
-                      <span class="audit-stat-label">Total Runs</span>
-                      <span class="audit-stat-value" id="auditTotalRuns">0</span>
-                    </div>
-                    <div class="audit-stat-item">
-                      <span class="audit-stat-label">Running</span>
-                      <span class="audit-stat-value" id="auditRunningRuns">0</span>
-                    </div>
-                    <div class="audit-stat-item">
-                      <span class="audit-stat-label">Failed / Rejected</span>
-                      <span class="audit-stat-value" id="auditFailedRuns">0</span>
-                    </div>
-                    <div class="audit-stat-item">
-                      <span class="audit-stat-label">Total Events</span>
-                      <span class="audit-stat-value" id="auditEventTotal">0</span>
-                    </div>
-                    <div class="audit-stat-item">
-                      <span class="audit-stat-label">Warnings</span>
-                      <span class="audit-stat-value warning" id="auditWarningTotal">0</span>
-                    </div>
-                    <div class="audit-stat-item">
-                      <span class="audit-stat-label">Errors</span>
-                      <span class="audit-stat-value error" id="auditErrorTotal">0</span>
-                    </div>
-                  </div>
-                  <div id="auditPhaseMeta" class="audit-stats-phases"></div>
-                </div>
-              </div>
             </div>
           </section>
 
@@ -2561,6 +2530,37 @@
               </div>
             </div>
           </div>
+        </div>
+
+        <!-- Audit stats popover — body-level so position:fixed is viewport-relative -->
+        <div id="auditStatsPopover" class="audit-stats-popover" hidden>
+          <div class="audit-stats-grid">
+            <div class="audit-stat-item">
+              <span class="audit-stat-label">Total Runs</span>
+              <span class="audit-stat-value" id="auditTotalRuns">0</span>
+            </div>
+            <div class="audit-stat-item">
+              <span class="audit-stat-label">Running</span>
+              <span class="audit-stat-value" id="auditRunningRuns">0</span>
+            </div>
+            <div class="audit-stat-item">
+              <span class="audit-stat-label">Failed / Rejected</span>
+              <span class="audit-stat-value" id="auditFailedRuns">0</span>
+            </div>
+            <div class="audit-stat-item">
+              <span class="audit-stat-label">Total Events</span>
+              <span class="audit-stat-value" id="auditEventTotal">0</span>
+            </div>
+            <div class="audit-stat-item">
+              <span class="audit-stat-label">Warnings</span>
+              <span class="audit-stat-value warning" id="auditWarningTotal">0</span>
+            </div>
+            <div class="audit-stat-item">
+              <span class="audit-stat-label">Errors</span>
+              <span class="audit-stat-value error" id="auditErrorTotal">0</span>
+            </div>
+          </div>
+          <div id="auditPhaseMeta" class="audit-stats-phases"></div>
         </div>
 
         <div id="routeModal" class="modal-shell" hidden>
