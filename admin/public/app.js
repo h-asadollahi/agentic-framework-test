@@ -2527,13 +2527,48 @@ $("auditStatsToggle")?.addEventListener("click", (e) => {
   trigger.setAttribute("aria-expanded", String(!isOpen));
 });
 document.addEventListener("click", (e) => {
-  const popover = $("auditStatsPopover");
-  const trigger = $("auditStatsToggle");
-  if (!popover || popover.hidden) return;
-  if (!popover.contains(e.target) && e.target !== trigger && !trigger?.contains(e.target)) {
-    popover.hidden = true;
-    trigger?.setAttribute("aria-expanded", "false");
+  // Close audit stats popover
+  const auditPopover = $("auditStatsPopover");
+  const auditTrigger = $("auditStatsToggle");
+  if (auditPopover && !auditPopover.hidden) {
+    if (!auditPopover.contains(e.target) && e.target !== auditTrigger && !auditTrigger?.contains(e.target)) {
+      auditPopover.hidden = true;
+      auditTrigger?.setAttribute("aria-expanded", "false");
+    }
   }
+  // Close token usage stats popover
+  const tuPopover = $("tokenUsageStatsPopover");
+  const tuTrigger = $("tokenUsageStatsToggle");
+  if (tuPopover && !tuPopover.hidden) {
+    if (!tuPopover.contains(e.target) && e.target !== tuTrigger && !tuTrigger?.contains(e.target)) {
+      tuPopover.hidden = true;
+      tuTrigger?.setAttribute("aria-expanded", "false");
+    }
+  }
+});
+
+// ── Token Usage stats popover toggle ──────────────────────────────────────
+function positionTokenUsageStatsPopover() {
+  const popover = $("tokenUsageStatsPopover");
+  const trigger = $("tokenUsageStatsToggle");
+  if (!popover || !trigger) return;
+  const rect = trigger.getBoundingClientRect();
+  const popoverWidth = 300;
+  let left = rect.right - popoverWidth;
+  if (left < 8) left = 8;
+  popover.style.top = `${rect.bottom + 8}px`;
+  popover.style.left = `${left}px`;
+}
+
+$("tokenUsageStatsToggle")?.addEventListener("click", (e) => {
+  e.stopPropagation();
+  const popover = $("tokenUsageStatsPopover");
+  const trigger = $("tokenUsageStatsToggle");
+  if (!popover || !trigger) return;
+  const isOpen = !popover.hidden;
+  if (!isOpen) positionTokenUsageStatsPopover();
+  popover.hidden = isOpen;
+  trigger.setAttribute("aria-expanded", String(!isOpen));
 });
 $("adminChatSend")?.addEventListener("click", () => {
   void sendAdminChatPrompt();

@@ -2003,7 +2003,11 @@
                   Review prompt-level token usage, daily breakdowns, and recent prompt history without opening the admin chat.
                 </p>
               </div>
-              <div id="tokenUsageCountPill" class="section-pill">0 prompt runs</div>
+              <button id="tokenUsageStatsToggle" class="section-pill audit-stats-trigger" aria-haspopup="true" aria-expanded="false">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex-shrink:0"><rect x="3" y="12" width="4" height="9"/><rect x="10" y="7" width="4" height="14"/><rect x="17" y="3" width="4" height="18"/></svg>
+                  <span id="tokenUsageCountPill">0 prompt runs</span>
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" class="audit-stats-chevron"><polyline points="6 9 12 15 18 9"/></svg>
+                </button>
             </div>
           </section>
 
@@ -2053,52 +2057,6 @@
             </div>
           </section>
 
-          <section class="summary-grid">
-            <article class="summary-card">
-              <p class="eyebrow subtle" id="tokenUsageTodayInputLabel">Today</p>
-              <h3>Input Tokens</h3>
-              <p class="summary-copy">
-                Latest daily input-token total for the current telemetry scope.
-              </p>
-              <div class="summary-value" id="tokenUsageTodayInput">-</div>
-            </article>
-
-            <article class="summary-card">
-              <p class="eyebrow subtle" id="tokenUsageTodayOutputLabel">Today</p>
-              <h3>Output Tokens</h3>
-              <p class="summary-copy">
-                Latest daily output-token total for the current telemetry scope.
-              </p>
-              <div class="summary-value" id="tokenUsageTodayOutput">-</div>
-            </article>
-
-            <article class="summary-card">
-              <p class="eyebrow subtle">Current Window</p>
-              <h3>Total Tokens</h3>
-              <p class="summary-copy">
-                Prompt-level total tokens across the selected window.
-              </p>
-              <div class="summary-value" id="tokenUsageWindowTotal">-</div>
-            </article>
-
-            <article class="summary-card">
-              <p class="eyebrow subtle">Current Window</p>
-              <h3>Prompt Runs</h3>
-              <p class="summary-copy">
-                Count of executed prompt runs in the current telemetry window.
-              </p>
-              <div class="summary-value" id="tokenUsageWindowPrompts">-</div>
-            </article>
-
-            <article class="summary-card">
-              <p class="eyebrow subtle">Current Window</p>
-              <h3>LLM Calls</h3>
-              <p class="summary-copy">
-                Count of tracked LLM invocations across the current telemetry window.
-              </p>
-              <div class="summary-value" id="tokenUsageWindowCalls">-</div>
-            </article>
-          </section>
 
           <section class="surface-card">
             <div class="section-head">
@@ -2576,6 +2534,32 @@
             </div>
           </div>
           <div id="auditPhaseMeta" class="audit-stats-phases"></div>
+        </div>
+
+        <!-- Token Usage stats popover — body-level so position:fixed is viewport-relative -->
+        <div id="tokenUsageStatsPopover" class="audit-stats-popover" hidden>
+          <div class="audit-stats-grid">
+            <div class="audit-stat-item">
+              <span class="audit-stat-label" id="tokenUsageTodayInputLabel">Today Input</span>
+              <span class="audit-stat-value" id="tokenUsageTodayInput">-</span>
+            </div>
+            <div class="audit-stat-item">
+              <span class="audit-stat-label" id="tokenUsageTodayOutputLabel">Today Output</span>
+              <span class="audit-stat-value" id="tokenUsageTodayOutput">-</span>
+            </div>
+            <div class="audit-stat-item">
+              <span class="audit-stat-label">Total Tokens</span>
+              <span class="audit-stat-value" id="tokenUsageWindowTotal">-</span>
+            </div>
+            <div class="audit-stat-item">
+              <span class="audit-stat-label">Prompt Runs</span>
+              <span class="audit-stat-value" id="tokenUsageWindowPrompts">-</span>
+            </div>
+            <div class="audit-stat-item">
+              <span class="audit-stat-label">LLM Calls</span>
+              <span class="audit-stat-value" id="tokenUsageWindowCalls">-</span>
+            </div>
+          </div>
         </div>
 
         <div id="routeModal" class="modal-shell" hidden>
