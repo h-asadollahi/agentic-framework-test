@@ -124,6 +124,50 @@ Operational notes for the next assistant:
 - `JudgementPacket` is designed to keep Cognition compact and explicit. If you expand it later, prefer retrieval quality over inventory bulk.
 - The plan requested by the user was numbered 112 conceptually, but the repo already had shared plan number 112 in use, so the implementation was saved as `plan-113-codex.md` to preserve shared numbering.
 
+### Plan 114: Document rough token-savings expectations for Plan 113
+
+Status: Implemented in docs on 2026-04-02 (Codex).
+
+Why this was added:
+- The user asked for the rough percentage savings from the guardrail-first optimization work to be documented in the repo.
+- That explanation previously existed only in chat, which is easy to lose and difficult for future assistants to discover.
+
+What changed:
+- Added a standalone reference doc:
+  - `docs/token-optimization.md`
+- Documented:
+  - rough token-savings ranges by workload type
+  - why deterministic-route prompts save more than creative prompts
+  - the runtime mechanisms producing the savings
+  - the current limitations of in-memory, process-local caches
+  - the recommended next step for turning estimates into measured operator-visible numbers
+
+Key estimates documented:
+- mixed workload: `25%–50%`
+- deterministic route prompt, first run: `40%–70%`
+- repeated deterministic prompt in same worker: `70%–95%`
+- ambiguous/creative prompt: `10%–25%`
+- interpretation/exception prompt: `0%–15%`
+
+Important files changed:
+- `docs/token-optimization.md`
+- `docs/ai-coding-plans/plan-114-codex.md`
+- `docs/HANDOVER.md`
+
+Validation:
+- Reviewed the doc against the Plan 113 implementation.
+- Confirmed the document describes the current architecture accurately:
+  - deterministic `BrandContract`
+  - deterministic Grounding fast path
+  - compact `JudgementPacket`
+  - deterministic Cognition skip
+  - in-memory plan/result/render caches
+
+Manual verification recommended:
+1. Open `docs/token-optimization.md`.
+2. Confirm the estimate ranges are present and clearly labeled as rough estimates.
+3. Confirm the document explains both the savings and the current limitations.
+
 ### Plan 107: Audit Trail redesign — Trigger.dev-style tree + detail pane
 
 Status: Implemented and pushed on 2026-04-01 (Claude Sonnet 4.6).
