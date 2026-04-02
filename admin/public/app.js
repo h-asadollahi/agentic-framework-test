@@ -2051,6 +2051,10 @@ function getSelectedTokenUsageDays() {
   return $("tokenUsageDays")?.value || "7";
 }
 
+function getSelectedTokenUsageGroupBy() {
+  return $("tokenUsageGroupBy")?.value || "day";
+}
+
 function renderTokenUsageSummary(payload, errorMessage = null) {
   if (errorMessage) {
     [
@@ -2070,7 +2074,11 @@ function renderTokenUsageSummary(payload, errorMessage = null) {
   const latestDay = daily[daily.length - 1] || null;
   const todayInput = latestDay ? latestDay.inputTokens || 0 : 0;
   const todayOutput = latestDay ? latestDay.outputTokens || 0 : 0;
+  const isMonthly = getSelectedTokenUsageGroupBy() === "month";
+  const latestLabel = isMonthly ? "Latest Month" : "Today";
 
+  setText("tokenUsageTodayInputLabel", latestLabel);
+  setText("tokenUsageTodayOutputLabel", latestLabel);
   setText("tokenUsageTodayInput", humanizeCount(todayInput));
   setText("tokenUsageTodayOutput", humanizeCount(todayOutput));
   setText("tokenUsageWindowTotal", humanizeCount(summary.totalTokens || 0));
@@ -2082,8 +2090,11 @@ function renderTokenUsageSummary(payload, errorMessage = null) {
   );
   setText(
     "tokenUsageScopePill",
-    `${getSelectedTokenUsageAudience()} · ${getSelectedTokenUsageDays()} days`
+    `${getSelectedTokenUsageAudience()} · ${getSelectedTokenUsageDays()} days · ${isMonthly ? "monthly" : "daily"}`
   );
+  setText("tokenUsageBreakdownEyebrow", isMonthly ? "Monthly Breakdown" : "Daily Breakdown");
+  setText("tokenUsageBreakdownTitle", isMonthly ? "Prompt-Level Usage by Month" : "Prompt-Level Usage by Day");
+  setText("tokenUsageBreakdownDateHeader", isMonthly ? "Month" : "Day");
 
   const tbody = $("tokenUsageDailyTable");
   if (!tbody) return;
@@ -2166,6 +2177,7 @@ async function loadTokenUsagePage() {
     const params = new URLSearchParams({
       audience: getSelectedTokenUsageAudience(),
       days: getSelectedTokenUsageDays(),
+      groupBy: getSelectedTokenUsageGroupBy(),
       limit: String(state.tokenUsage.limit),
       offset: String(state.tokenUsage.offset),
     });
@@ -2485,6 +2497,10 @@ $("tokenUsageBrand")?.addEventListener("change", () => {
   loadTokenUsagePage().catch((err) => status(err.message));
 });
 $("tokenUsageDays")?.addEventListener("change", () => {
+  state.tokenUsage.offset = 0;
+  loadTokenUsagePage().catch((err) => status(err.message));
+});
+$("tokenUsageGroupBy")?.addEventListener("change", () => {
   state.tokenUsage.offset = 0;
   loadTokenUsagePage().catch((err) => status(err.message));
 });

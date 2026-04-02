@@ -2042,13 +2042,20 @@
                   <option value="90">90 days</option>
                 </select>
               </label>
+              <label class="field">
+                <span class="field-label">Group By</span>
+                <select id="tokenUsageGroupBy">
+                  <option value="day" selected>Day</option>
+                  <option value="month">Month</option>
+                </select>
+              </label>
               <button id="tokenUsageRefresh" class="primary-button">Refresh Token Usage</button>
             </div>
           </section>
 
           <section class="summary-grid">
             <article class="summary-card">
-              <p class="eyebrow subtle">Today</p>
+              <p class="eyebrow subtle" id="tokenUsageTodayInputLabel">Today</p>
               <h3>Input Tokens</h3>
               <p class="summary-copy">
                 Latest daily input-token total for the current telemetry scope.
@@ -2057,7 +2064,7 @@
             </article>
 
             <article class="summary-card">
-              <p class="eyebrow subtle">Today</p>
+              <p class="eyebrow subtle" id="tokenUsageTodayOutputLabel">Today</p>
               <h3>Output Tokens</h3>
               <p class="summary-copy">
                 Latest daily output-token total for the current telemetry scope.
@@ -2096,8 +2103,8 @@
           <section class="surface-card">
             <div class="section-head">
               <div>
-                <p class="eyebrow subtle">Daily Breakdown</p>
-                <h2>Prompt-Level Usage by Day</h2>
+                <p class="eyebrow subtle" id="tokenUsageBreakdownEyebrow">Daily Breakdown</p>
+                <h2 id="tokenUsageBreakdownTitle">Prompt-Level Usage by Day</h2>
                 <p class="section-copy">
                   Daily totals grouped by prompt runs, input tokens, output tokens, total tokens, and tracked LLM calls.
                 </p>
@@ -2110,7 +2117,7 @@
                 <table class="route-table">
                   <thead>
                     <tr>
-                      <th>Day</th>
+                      <th id="tokenUsageBreakdownDateHeader">Day</th>
                       <th>Prompts</th>
                       <th>LLM Calls</th>
                       <th>Input</th>

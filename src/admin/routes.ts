@@ -470,6 +470,7 @@ export function registerAdminRoutes(app: Hono): void {
     const audience = parseRequestAudience(c.req.query("audience")) ?? "marketer";
     const brandId = parseBrandId(c.req.query("brandId")) ?? null;
     const days = Math.min(Math.max(parseIntParam(c.req.query("days"), 7), 1), 365);
+    const groupBy = c.req.query("groupBy") === "month" ? "month" : "day";
 
     if (brandId) {
       try {
@@ -489,6 +490,7 @@ export function registerAdminRoutes(app: Hono): void {
       audience,
       brandId,
       days,
+      groupBy,
     });
 
     return c.json({

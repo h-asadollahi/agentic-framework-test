@@ -38,6 +38,7 @@ class LlmUsageStoreImpl {
     audience?: "admin" | "marketer";
     brandId?: string | null;
     days?: number;
+    groupBy?: "day" | "month";
   } = {}): Promise<LlmUsageSummaryRecord> {
     const repo = getPlatformDbRepository();
     if (!repo) {

@@ -1342,6 +1342,7 @@ export class LearnedRoutesDbRepository {
     audience?: RequestAudience;
     brandId?: string | null;
     days?: number;
+    groupBy?: "day" | "month";
   } = {}): Promise<LlmUsageSummaryRecord> {
     const days = Math.min(Math.max(options.days ?? 7, 1), 365);
     const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
@@ -1365,7 +1366,9 @@ export class LearnedRoutesDbRepository {
     const eventWhereClause =
       eventConditions.length > 0 ? and(...eventConditions) : undefined;
     const promptDailyBucket =
-      sql<string>`to_char(date_trunc('day', ${llmPromptUsageRunsTable.startedAt}), 'YYYY-MM-DD')`;
+      options.groupBy === "month"
+        ? sql<string>`to_char(date_trunc('month', ${llmPromptUsageRunsTable.startedAt}), 'YYYY-MM')`
+        : sql<string>`to_char(date_trunc('day', ${llmPromptUsageRunsTable.startedAt}), 'YYYY-MM-DD')`;
 
     const [totalsRows, providerRows, modelRows, dailyRows] = await Promise.all([
       this.db
