@@ -1,9 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { buildExecutionContext } from "../../src/core/context.js";
-import { buildGroundingResultFromOutput } from "../../src/trigger/ground.js";
+import {
+  buildDeterministicGroundingSummary,
+  buildGroundingResultFromOutput,
+  shouldUseDeterministicGrounding,
+} from "../../src/trigger/ground.js";
 
 describe("grounding output parsing", () => {
-  it("parses plain JSON grounding output", async () => {
+  it("keeps deterministic brand identity and guardrails authoritative even when JSON parses", async () => {
     const context = await buildExecutionContext("ground-plain-json");
     const output = JSON.stringify({
       brandIdentity: {
@@ -14,6 +18,7 @@ describe("grounding output parsing", () => {
         ...context.guardrails,
         neverDo: ["Do not misrepresent campaign KPIs"],
       },
+      summary: "Summarized active brand contract.",
     });
 
     const { parsedJson, groundingResult } = buildGroundingResultFromOutput(
@@ -22,10 +27,9 @@ describe("grounding output parsing", () => {
     );
 
     expect(parsedJson).toBe(true);
-    expect(groundingResult.brandIdentity.name).toBe("Acme Brand");
-    expect(groundingResult.guardrails.neverDo).toEqual([
-      "Do not misrepresent campaign KPIs",
-    ]);
+    expect(groundingResult.brandIdentity.name).toBe(context.brandIdentity.name);
+    expect(groundingResult.guardrails).toEqual(context.guardrails);
+    expect(groundingResult.summary).toBe("Summarized active brand contract.");
   });
 
   it("parses fenced JSON grounding output", async () => {
@@ -48,7 +52,7 @@ describe("grounding output parsing", () => {
     );
 
     expect(parsedJson).toBe(true);
-    expect(groundingResult.brandIdentity.name).toBe("Fenced Brand");
+    expect(groundingResult.brandIdentity.name).toBe(context.brandIdentity.name);
     expect(groundingResult.guardrails).toEqual(context.guardrails);
   });
 
@@ -62,5 +66,28 @@ describe("grounding output parsing", () => {
     expect(parsedJson).toBe(false);
     expect(groundingResult.brandIdentity).toEqual(context.brandIdentity);
     expect(groundingResult.guardrails).toEqual(context.guardrails);
+    expect(groundingResult.summary).toBe(buildDeterministicGroundingSummary(context));
+  });
+
+  it("uses deterministic grounding for normal marketer requests", async () => {
+    const context = await buildExecutionContext("ground-deterministic-default");
+
+    expect(
+      shouldUseDeterministicGrounding(
+        "List all available dimensions and metrics in Mapp Intelligence",
+        context
+      )
+    ).toBe(true);
+  });
+
+  it("keeps optional grounding narration for interpretation-like requests", async () => {
+    const context = await buildExecutionContext("ground-interpretation");
+
+    expect(
+      shouldUseDeterministicGrounding(
+        "Can we make an exception to the current brand rules for this request?",
+        context
+      )
+    ).toBe(false);
   });
 });

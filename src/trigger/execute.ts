@@ -25,6 +25,11 @@ import {
 import { skillCandidatesStore } from "../routing/skill-candidates-store.js";
 import { inferAdminTokenUsageMonitorRequest } from "./admin-observability.js";
 import { agentAuditStore } from "../observability/agent-audit-store.js";
+import {
+  buildDeterministicResultCacheKey,
+  getCachedDeterministicResult,
+  setCachedDeterministicResult,
+} from "../optimization/runtime-caches.js";
 // Register all plugins on import
 import "./sub-agents/plugins/index.js";
 import type {
@@ -251,12 +256,55 @@ export const executeTask = task({
               );
             }
 
+            const deterministicCacheKey = buildRegisteredSubtaskCacheKey(
+              targetResolution.executionAgentId,
+              learnedRoute?.id ?? routeIdFromInput,
+              executionInput,
+              payload.context.requestContext.brandId,
+              payload.context.brandContract.hash
+            );
+            const cachedDeterministicResult = deterministicCacheKey
+              ? getCachedDeterministicResult(deterministicCacheKey)
+              : null;
+            if (cachedDeterministicResult) {
+              logger.info("Deterministic sub-agent cache hit", {
+                subtaskId: subtask.id,
+                agentId: targetResolution.executionAgentId,
+                routeId: learnedRoute?.id ?? routeIdFromInput ?? null,
+              });
+              await agentAuditStore.record({
+                ...auditBase,
+                componentKind: "subtask",
+                componentId: subtask.id,
+                eventType: "decision",
+                status: "completed",
+                payload: {
+                  decision: "deterministic-result-cache-hit",
+                  cacheKey: deterministicCacheKey,
+                  executionAgentId: targetResolution.executionAgentId,
+                  routeId: learnedRoute?.id ?? routeIdFromInput ?? null,
+                },
+              });
+              return {
+                subtaskId: subtask.id,
+                agentId: subtask.agentId,
+                result: {
+                  ...cachedDeterministicResult,
+                  durationMs: 0,
+                },
+              };
+            }
+
             // ── Registered sub-agent plugin ───────────────
             result = await subAgentRegistry.execute(
               targetResolution.executionAgentId,
               executionInput,
               payload.context
             );
+
+            if (deterministicCacheKey && result.success) {
+              setCachedDeterministicResult(deterministicCacheKey, result);
+            }
           } else {
             // ── Smart Fallback Router ─────────────────────
             logger.info(
@@ -992,6 +1040,33 @@ function resolveMaterializedSkillGuidance(subtask: SubTask): {
     skillFile: rawSkillFile,
     guidance,
   };
+}
+
+function isDeterministicCacheEligible(agentId: string): boolean {
+  return ["mcp-fetcher", "api-fetcher", "token-usage-monitor", "cohort-monitor"].includes(
+    agentId
+  );
+}
+
+function buildRegisteredSubtaskCacheKey(
+  agentId: string,
+  routeId: string | null,
+  input: unknown,
+  brandId: string | null,
+  brandContractHash: string
+): string | null {
+  if (!isDeterministicCacheEligible(agentId)) return null;
+
+  return buildDeterministicResultCacheKey({
+    agentId,
+    routeId,
+    normalizedInput: {
+      routeId,
+      brandId,
+      input,
+    },
+    brandContractHash,
+  });
 }
 
 function isDeterministicSkillCreatorAgent(agentId: string): boolean {

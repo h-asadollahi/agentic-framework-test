@@ -1,9 +1,15 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { createHash } from "node:crypto";
 import { logger } from "../core/logger.js";
 import { allowsAudience } from "../core/request-context.js";
-import type { CapabilityAudience, RequestContext, RequestScope } from "../core/types.js";
+import type {
+  CapabilityAudience,
+  RequestContext,
+  RequestScope,
+  SkillCandidateSummary,
+} from "../core/types.js";
 import {
   SkillCandidatesFileSchema,
   type SkillCandidate,
@@ -430,6 +436,40 @@ class SkillCandidatesStoreImpl {
     return findBestCandidateMatch(lowerPrompt, globalCandidates);
   }
 
+  getTopMatches(
+    prompt: string,
+    requestContext?: RequestContext,
+    limit = 3
+  ): SkillCandidateSummary[] {
+    this.ensureLoaded();
+
+    const lowerPrompt = prompt.trim().toLowerCase();
+    if (!lowerPrompt) return [];
+
+    return this.candidates
+      .filter((item) => candidateMatchesRequestContext(item, requestContext))
+      .map((candidate) => {
+        const score = scoreCandidateAgainstPrompt(lowerPrompt, candidate);
+        return {
+          id: candidate.id,
+          capability: candidate.capability,
+          description: candidate.description,
+        suggestedSkillFile: candidate.suggestedSkillFile,
+        triggerPatterns: candidate.triggerPatterns,
+        confidence: candidate.confidence,
+        requiresApproval: candidate.requiresApproval,
+        materialized: skillFileExists(candidate.suggestedSkillFile),
+        score,
+      } satisfies SkillCandidateSummary;
+      })
+      .filter((candidate) => candidate.score > 0)
+      .sort((a, b) => {
+        if (b.score !== a.score) return b.score - a.score;
+        return CONFIDENCE_RANK[b.confidence] - CONFIDENCE_RANK[a.confidence];
+      })
+      .slice(0, limit);
+  }
+
   getAll(): SkillCandidate[] {
     this.ensureLoaded();
     return [...this.candidates];
@@ -442,6 +482,25 @@ class SkillCandidatesStoreImpl {
 
   isMaterialized(skillFile: string): boolean {
     return skillFileExists(skillFile);
+  }
+
+  getInventoryHash(requestContext?: RequestContext): string {
+    this.ensureLoaded();
+    const payload = this.candidates
+      .filter((candidate) => candidateMatchesRequestContext(candidate, requestContext))
+      .map((candidate) => ({
+        id: candidate.id,
+        capability: candidate.capability,
+        triggerPatterns: candidate.triggerPatterns,
+        confidence: candidate.confidence,
+        usageCount: candidate.usageCount,
+        scope: candidate.scope,
+        brandId: candidate.brandId,
+        audience: candidate.audience,
+        materialized: skillFileExists(candidate.suggestedSkillFile),
+      }));
+
+    return createHash("sha1").update(JSON.stringify(payload)).digest("hex");
   }
 }
 
@@ -503,6 +562,46 @@ function findBestCandidateMatch(
     }
 
   return bestScore > 0 ? best : null;
+}
+
+function scoreCandidateAgainstPrompt(
+  lowerPrompt: string,
+  candidate: SkillCandidate
+): number {
+  let score = 0;
+
+  for (const pattern of candidate.triggerPatterns) {
+    const normalized = pattern.trim().toLowerCase();
+    if (!normalized) continue;
+    if (lowerPrompt.includes(normalized)) {
+      score += normalized.length;
+    }
+
+    const overlap = tokenOverlapScore(lowerPrompt, normalized);
+    if (overlap >= 2) {
+      score += overlap * 3;
+    }
+  }
+
+  if (score === 0) {
+    const capabilityHint = candidate.capability.trim().toLowerCase();
+    if (capabilityHint && lowerPrompt.includes(capabilityHint)) {
+      score += Math.max(4, capabilityHint.length / 2);
+    }
+
+    const descriptionHint = candidate.description.trim().toLowerCase();
+    const capabilityOverlap = tokenOverlapScore(lowerPrompt, capabilityHint);
+    if (capabilityOverlap >= 2) {
+      score += capabilityOverlap * 2;
+    }
+
+    const descriptionOverlap = tokenOverlapScore(lowerPrompt, descriptionHint);
+    if (descriptionOverlap >= 3) {
+      score += descriptionOverlap;
+    }
+  }
+
+  return score;
 }
 
 export const skillCandidatesStore = new SkillCandidatesStoreImpl();

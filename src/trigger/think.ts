@@ -1,6 +1,12 @@
 import { task, logger } from "@trigger.dev/sdk/v3";
 import { cognitionAgent } from "../agents/cognition-agent.js";
-import type { CognitionResult, GroundingResult, RequestContext, SubTask } from "../core/types.js";
+import type {
+  CognitionResult,
+  GroundingResult,
+  JudgementPacket,
+  RequestContext,
+  SubTask,
+} from "../core/types.js";
 import { learnedRoutesStore } from "../routing/learned-routes-store.js";
 import { skillCandidatesStore } from "../routing/skill-candidates-store.js";
 import { withRunId } from "../core/request-context.js";
@@ -12,6 +18,15 @@ import { buildDeterministicAdminObservabilityPlan } from "./admin-observability.
 import { parseAgentJson } from "./agent-output-parser.js";
 import { isSynthesisLikeDescription } from "./execute-routing.js";
 import { agentAuditStore } from "../observability/agent-audit-store.js";
+import {
+  buildJudgementPacket,
+  shouldSkipCognitionForStrongDeterministicRoute,
+} from "./judgement-packet.js";
+import {
+  buildPlanCacheKey,
+  getCachedPlan,
+  setCachedPlan,
+} from "../optimization/runtime-caches.js";
 
 /**
  * Think Task (Cognition)
@@ -81,11 +96,106 @@ export const thinkTask = task({
       return deterministicAdminPlan;
     }
 
+    const guardrailDecision = detectCognitionGuardrailRejection(
+      payload.userMessage,
+      context.requestContext
+    );
+    if (guardrailDecision.rejected) {
+      const rejected = buildRejectedCognitionResult(
+        guardrailDecision.reason ??
+          "Request is out of scope for this marketing assistant."
+      );
+      await agentAuditStore.record({
+        ...auditBase,
+        eventType: "decision",
+        status: "completed",
+        payload: {
+          decision: "guardrail-rejection",
+          reason: guardrailDecision.reason,
+        },
+      });
+      return rejected;
+    }
+
+    const judgementPacket = buildJudgementPacket(payload.userMessage, context);
+    context.shortTermMemory.activeContext.judgementPacket = judgementPacket;
+    await agentAuditStore.record({
+      ...auditBase,
+      eventType: "decision",
+      status: "completed",
+      payload: {
+        decision: "judgement-packet-built",
+        classification: judgementPacket.classification,
+        routeCandidateCount: judgementPacket.routeCandidates.length,
+        skillCandidateCount: judgementPacket.skillCandidates.length,
+        routeInventoryHash: judgementPacket.routeInventoryHash,
+        skillInventoryHash: judgementPacket.skillInventoryHash,
+      },
+    });
+
+    const planCacheKey = buildPlanCacheKey({
+      userMessage: payload.userMessage.trim().toLowerCase(),
+      brandContractHash: context.brandContract.hash,
+      routeInventoryHash: judgementPacket.routeInventoryHash,
+      skillInventoryHash: judgementPacket.skillInventoryHash,
+      audience: context.requestContext.audience,
+      scope: context.requestContext.scope,
+    });
+    const cachedPlan =
+      judgementPacket.autonomyPolicy.allowPlanCache &&
+      getCachedPlan(planCacheKey);
+    if (cachedPlan) {
+      logger.info("Cognition plan cache hit", {
+        sessionId: context.sessionId,
+        subtaskCount: cachedPlan.subtasks.length,
+      });
+      await agentAuditStore.record({
+        ...auditBase,
+        eventType: "decision",
+        status: "completed",
+        payload: {
+          decision: "plan-cache-hit",
+          planCacheKey,
+          subtaskCount: cachedPlan.subtasks.length,
+        },
+      });
+      return cachedPlan;
+    }
+
+    if (shouldSkipCognitionForStrongDeterministicRoute(judgementPacket)) {
+      const deterministicPlan = buildDeterministicRoutePlan(
+        payload.userMessage,
+        judgementPacket
+      );
+      setCachedPlan(planCacheKey, deterministicPlan);
+      await agentAuditStore.record({
+        ...auditBase,
+        eventType: "decision",
+        status: "completed",
+        payload: {
+          decision: "strong-deterministic-route-skip",
+          routeId: judgementPacket.routeCandidates[0]?.id,
+          routeScore: judgementPacket.routeCandidates[0]?.score ?? 0,
+        },
+      });
+      return deterministicPlan;
+    }
+
     const input = JSON.stringify({
       userMessage: payload.userMessage,
       requestContext: context.requestContext,
-      brandIdentity: payload.groundingResult.brandIdentity,
-      guardrails: payload.groundingResult.guardrails,
+      judgementPacket,
+      brandContract: {
+        hash: context.brandContract.hash,
+        version: context.brandContract.version,
+        summary: judgementPacket.brandContractSummary,
+        judgementNotes: context.brandContract.judgementNotes,
+      },
+      requestContextSummary: {
+        audience: context.requestContext.audience,
+        scope: context.requestContext.scope,
+        brandId: context.requestContext.brandId,
+      },
     });
 
     const result = await cognitionAgent.execute(input, context);
@@ -128,27 +238,6 @@ export const thinkTask = task({
       });
     }
 
-    // Deterministic guardrail fallback in case the model misses rejection policy.
-    const guardrailDecision = detectCognitionGuardrailRejection(
-      payload.userMessage,
-      context.requestContext
-    );
-    if (guardrailDecision.rejected) {
-      cognitionResult = buildRejectedCognitionResult(
-        guardrailDecision.reason ??
-          "Request is out of scope for this marketing assistant."
-      );
-      await agentAuditStore.record({
-        ...auditBase,
-        eventType: "decision",
-        status: "completed",
-        payload: {
-          decision: "guardrail-rejection",
-          reason: guardrailDecision.reason,
-        },
-      });
-    }
-
     if (cognitionResult.rejected === true) {
       const reason =
         cognitionResult.rejectionReason ??
@@ -180,6 +269,14 @@ export const thinkTask = task({
       }
     }
 
+    if (cognitionResult.rejected !== true) {
+      cognitionResult = enforceJudgementPacketGuardrails(
+        cognitionResult,
+        judgementPacket
+      );
+      setCachedPlan(planCacheKey, cognitionResult);
+    }
+
     logger.info(`Cognition produced ${cognitionResult.subtasks.length} subtasks`);
     await agentAuditStore.record({
       ...auditBase,
@@ -201,6 +298,74 @@ export const thinkTask = task({
 export async function preloadCognitionStores(): Promise<void> {
   await learnedRoutesStore.load();
   await skillCandidatesStore.load();
+}
+
+function buildDeterministicRoutePlan(
+  userMessage: string,
+  judgementPacket: JudgementPacket
+): CognitionResult {
+  const bestRoute = judgementPacket.routeCandidates[0];
+  const agentId =
+    bestRoute.routeType === "api"
+      ? "api-fetcher"
+      : bestRoute.agentId ?? "general";
+
+  return {
+    subtasks: [
+      {
+        id: "task-1",
+        agentId,
+        description: userMessage,
+        input: {
+          routeId: bestRoute.id,
+        },
+        dependencies: [],
+        priority: "high",
+      },
+    ],
+    reasoning: `Strong deterministic route match "${bestRoute.id}" (${bestRoute.capability}) with score ${bestRoute.score}; skipping cognition model planning.`,
+    plan: `Execute learned route ${bestRoute.id} via ${agentId}.`,
+    rejected: false,
+  };
+}
+
+function planViolatesGuardrails(
+  cognitionResult: CognitionResult,
+  judgementPacket: JudgementPacket
+): boolean {
+  const combinedText = [
+    cognitionResult.reasoning,
+    cognitionResult.plan,
+    ...cognitionResult.subtasks.map((subtask) => subtask.description),
+  ]
+    .join(" ")
+    .toLowerCase();
+
+  return judgementPacket.neverDo.some((rule) => {
+    const tokens = rule
+      .toLowerCase()
+      .split(/[^a-z0-9]+/)
+      .filter((token) => token.length > 4);
+    return tokens.length > 0 && tokens.every((token) => combinedText.includes(token));
+  });
+}
+
+function enforceJudgementPacketGuardrails(
+  cognitionResult: CognitionResult,
+  judgementPacket: JudgementPacket
+): CognitionResult {
+  if (planViolatesGuardrails(cognitionResult, judgementPacket)) {
+    return buildRejectedCognitionResult(
+      "The request conflicts with the active brand guardrails and requires human review or a reformulated request."
+    );
+  }
+
+  return {
+    ...cognitionResult,
+    reasoning: `${cognitionResult.reasoning} | Judgement packet enforced alwaysDo: ${judgementPacket.alwaysDo
+      .slice(0, 3)
+      .join("; ")}.`,
+  };
 }
 
 export function applyAutonomousSkillCreation(

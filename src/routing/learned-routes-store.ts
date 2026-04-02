@@ -2,6 +2,7 @@ import { readFileSync, writeFileSync, existsSync, mkdirSync } from "node:fs";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
+import { createHash } from "node:crypto";
 import {
   LearnedRoutesFileSchema,
   type LearnedRoute,
@@ -20,7 +21,7 @@ import {
 } from "./learned-routes-db-repository.js";
 import { logger } from "../core/logger.js";
 import { getPlatformDbRepository } from "../platform/db-repository.js";
-import type { RequestContext } from "../core/types.js";
+import type { RequestContext, RouteCandidate } from "../core/types.js";
 import { allowsAudience } from "../core/request-context.js";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -267,6 +268,51 @@ class LearnedRoutesStoreImpl {
   getById(routeId: string): LearnedRoute | null {
     this.ensureLoaded();
     return this.routes.find((r) => r.id === routeId) ?? null;
+  }
+
+  getTopMatches(
+    description: string,
+    requestContext?: RequestContext,
+    limit = 3
+  ): RouteCandidate[] {
+    this.ensureLoaded();
+    const lower = description.toLowerCase();
+
+    return this.routes
+      .filter((route) => routeMatchesRequestContext(route, requestContext))
+      .map((route) => {
+        let score = 0;
+        let matchedPatternCount = 0;
+        for (const pattern of route.matchPatterns) {
+          if (lower.includes(pattern.toLowerCase())) {
+            score += pattern.length;
+            matchedPatternCount += 1;
+          }
+        }
+        return {
+          id: route.id,
+          capability: route.capability,
+          description: route.description,
+          routeType: route.routeType,
+          agentId: route.agentId,
+          workflowType: route.apiWorkflow?.workflowType,
+          matchPatterns: route.matchPatterns,
+          score,
+          matchedPatternCount,
+        } satisfies RouteCandidate;
+      })
+      .filter((candidate) => candidate.score > 0)
+      .sort((a, b) => {
+        if (b.score !== a.score) return b.score - a.score;
+        if (b.matchedPatternCount !== a.matchedPatternCount) {
+          return b.matchedPatternCount - a.matchedPatternCount;
+        }
+        const routeA = this.routes.find((route) => route.id === a.id);
+        const routeB = this.routes.find((route) => route.id === b.id);
+        if (!routeA || !routeB) return 0;
+        return compareRoutePriority(routeB, routeA);
+      })
+      .slice(0, limit);
   }
 
   async addRoute(data: {
@@ -612,6 +658,24 @@ class LearnedRoutesStoreImpl {
         endpointUrl: r.endpoint?.url,
         workflowType: r.apiWorkflow?.workflowType,
       }));
+  }
+
+  getInventoryHash(requestContext?: RequestContext): string {
+    this.ensureLoaded();
+    const payload = this.routes
+      .filter((route) => routeMatchesRequestContext(route, requestContext))
+      .map((route) => ({
+        id: route.id,
+        usageCount: route.usageCount,
+        matchPatterns: route.matchPatterns,
+        routeType: route.routeType,
+        agentId: route.agentId,
+        workflowType: route.apiWorkflow?.workflowType,
+        brandId: route.brandId,
+        scope: route.scope,
+        audience: route.audience,
+      }));
+    return createHash("sha1").update(JSON.stringify(payload)).digest("hex");
   }
 
   count(): number {

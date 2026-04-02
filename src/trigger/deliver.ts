@@ -21,6 +21,11 @@ import {
   extractCriticalFacts,
 } from "./delivery-fidelity.js";
 import { agentAuditStore } from "../observability/agent-audit-store.js";
+import {
+  buildRenderCacheKey,
+  getCachedRender,
+  setCachedRender,
+} from "../optimization/runtime-caches.js";
 
 const DETERMINISTIC_ROUTE_AGENT_IDS = new Set([
   "mcp-fetcher",
@@ -71,6 +76,25 @@ export const deliverTask = task({
     let deliveryResult: DeliveryResult;
 
     if (shouldUseDeterministicDeliverFastPath(payload.agencyResult)) {
+      const renderCacheKey = buildRenderCacheKey({
+        brandContractHash: payload.context.brandContract.hash,
+        agencySummary: payload.agencyResult.summary,
+        issues: payload.agencyResult.issues ?? [],
+        results: payload.agencyResult.results,
+      });
+      const cachedRender = getCachedRender(renderCacheKey);
+      if (cachedRender) {
+        await agentAuditStore.record({
+          ...auditBase,
+          eventType: "decision",
+          status: "completed",
+          payload: {
+            decision: "deterministic-render-cache-hit",
+            renderCacheKey,
+          },
+        });
+        deliveryResult = cachedRender;
+      } else {
       await agentAuditStore.record({
         ...auditBase,
         eventType: "decision",
@@ -80,13 +104,15 @@ export const deliverTask = task({
           criticalFacts,
         },
       });
-      deliveryResult = buildDeterministicDeliveryFastPath(
-        payload.agencyResult,
-        criticalFacts
-      );
-      logger.info("Interface phase complete (deterministic fast path)", {
-        model: "deterministic-fast-path",
-      });
+        deliveryResult = buildDeterministicDeliveryFastPath(
+          payload.agencyResult,
+          criticalFacts
+        );
+        setCachedRender(renderCacheKey, deliveryResult);
+        logger.info("Interface phase complete (deterministic fast path)", {
+          model: "deterministic-fast-path",
+        });
+      }
     } else {
       const input = JSON.stringify({
         results: buildCompactInterfacePromptResults(payload.agencyResult.results),

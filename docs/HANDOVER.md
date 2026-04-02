@@ -1,6 +1,6 @@
 # Development Handover — Continue from Here
 
-> **Last updated:** 2026-04-01
+> **Last updated:** 2026-04-02
 > **Previous AI:** Claude Sonnet 4.6 via Claude Code (plan-100-claude)
 > **Next AI:** OpenAI Codex (or any agent picking this up)
 
@@ -46,6 +46,83 @@ src/
 ---
 
 ## Post-Handover Progress (2026-03-10, Codex)
+
+### Plan 113: Guardrail-first token optimization with deterministic grounding and compact cognition
+
+Status: Implemented and validated on 2026-04-02 (Codex).
+
+Why this was added:
+- Token usage needed to come down without weakening brand identity, guardrails, or human control.
+- The existing pipeline still spent reasoning tokens repeatedly on brand context and full route/skill inventories.
+- Grounding needed to become authoritative and deterministic instead of relying on an LLM to restate brand rules each run.
+
+What changed:
+- Added a deterministic `BrandContract` runtime object as the authoritative brand artifact for execution.
+  - Built from resolved brand identity plus merged guardrails.
+  - Carries explicit `alwaysDo`, `neverDo`, voice/content policy state, a stable `version`, and a cache-safe `hash`.
+- Refactored Grounding into:
+  - deterministic grounding core for normal requests
+  - optional LLM narration path only for interpretation-style requests
+- Grounding LLM output is no longer allowed to override brand identity or guardrails.
+  - It can contribute an explanatory summary when needed.
+- Added a compact `JudgementPacket` for Cognition containing:
+  - audience/scope
+  - brand contract summary
+  - explicit non-negotiables
+  - autonomy policy hints
+  - top learned-route candidates
+  - top skill candidates
+  - top relevant sub-agent summaries
+- Stopped stuffing large route/skill inventories into the Cognition prompt when the judgement packet is available.
+- Added deterministic skip logic so strong learned-route matches can bypass Cognition entirely and emit a safe plan directly.
+- Added in-memory caches for:
+  - cognition plans
+  - deterministic sub-agent results
+  - deterministic delivery renders
+- Cache keys include brand-contract and inventory hashes so changed guardrails/routes/skills invalidate reuse correctly.
+
+Important files changed:
+- `src/core/types.ts`
+- `src/core/context.ts`
+- `src/core/brand-contract.ts`
+- `src/trigger/ground.ts`
+- `src/trigger/think.ts`
+- `src/trigger/execute.ts`
+- `src/trigger/deliver.ts`
+- `src/trigger/judgement-packet.ts`
+- `src/optimization/runtime-caches.ts`
+- `src/agents/cognition-agent.ts`
+- `src/routing/learned-routes-store.ts`
+- `src/routing/skill-candidates-store.ts`
+- `knowledge/agents/cognition/system-prompt.md`
+- `tests/unit/brand-contract.test.ts`
+- `tests/unit/judgement-packet.test.ts`
+- `tests/unit/runtime-caches.test.ts`
+- `tests/unit/ground-output-parser.test.ts`
+- `docs/ai-coding-plans/plan-113-codex.md`
+
+Validation:
+- `npm run build`
+- `npm test`
+- Manual runtime sanity check:
+  - built a live `ExecutionContext` for `northline-fashion`
+  - verified `brandContract.version` and `brandContract.hash` exist
+  - verified deterministic grounding is used for a standard fashion-safe prompt
+  - verified deterministic grounding summary is present without needing the Grounding LLM
+
+Manual verification recommended:
+1. Trigger a normal analytics prompt such as `List all available dimensions and metrics in Mapp Intelligence`.
+2. Confirm Grounding does not spend an LLM call for the normal case.
+3. Trigger an interpretation/conflict prompt such as `Can we make an exception to the current brand rules for this request?`
+4. Confirm Grounding still allows the narration/interpretation path.
+5. Trigger a deterministic route prompt twice in the same worker process.
+6. Confirm the second run benefits from plan/result/render cache hits.
+
+Operational notes for the next assistant:
+- All new caches are in-memory and process-local only in this wave.
+- `BrandContract` is now the runtime authority for identity and guardrails; do not reintroduce LLM-authored brand state as canonical.
+- `JudgementPacket` is designed to keep Cognition compact and explicit. If you expand it later, prefer retrieval quality over inventory bulk.
+- The plan requested by the user was numbered 112 conceptually, but the repo already had shared plan number 112 in use, so the implementation was saved as `plan-113-codex.md` to preserve shared numbering.
 
 ### Plan 107: Audit Trail redesign — Trigger.dev-style tree + detail pane
 

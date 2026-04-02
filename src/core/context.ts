@@ -13,6 +13,7 @@ import {
   parseGuardrailsFile,
   parseSoulFile,
 } from "../tenancy/brand-seed.js";
+import { createBrandContract } from "./brand-contract.js";
 
 export { parseSoulFile, parseGuardrailsFile } from "../tenancy/brand-seed.js";
 
@@ -50,11 +51,20 @@ export async function buildExecutionContext(
   const sessionMemory = cloneShortTermMemory(shortTermMemory.get(sessionId));
 
   if (requestContext.audience === "admin" && !requestContext.brandId) {
+    const brandIdentity = getSystemAdminIdentity();
+    const guardrails = getSystemAdminGuardrails();
     return {
       sessionId,
       requestContext,
-      brandIdentity: getSystemAdminIdentity(),
-      guardrails: getSystemAdminGuardrails(),
+      brandIdentity,
+      guardrails,
+      brandContract: createBrandContract({
+        brandId: null,
+        audience: requestContext.audience,
+        scope: requestContext.scope,
+        brandIdentity,
+        guardrails,
+      }),
       shortTermMemory: sessionMemory,
       longTermMemory: getEmptyLongTermMemory(),
     };
@@ -74,6 +84,13 @@ export async function buildExecutionContext(
     requestContext,
     brandIdentity: brand.brandIdentity,
     guardrails: brand.guardrails,
+    brandContract: createBrandContract({
+      brandId: requestContext.brandId,
+      audience: requestContext.audience,
+      scope: requestContext.scope,
+      brandIdentity: brand.brandIdentity,
+      guardrails: brand.guardrails,
+    }),
     shortTermMemory: sessionMemory,
     longTermMemory: getEmptyLongTermMemory(),
   };

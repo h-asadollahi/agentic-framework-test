@@ -1,6 +1,13 @@
 import type { Tool } from "ai";
 import { BaseAgent } from "./base-agent.js";
-import type { AgentConfig, ExecutionContext } from "../core/types.js";
+import type {
+  AgentConfig,
+  ExecutionContext,
+  JudgementPacket,
+  RouteCandidate,
+  SkillCandidateSummary,
+  SubAgentSummary,
+} from "../core/types.js";
 import { getModelAssignment } from "../config/models.js";
 import { learnedRoutesStore } from "../routing/learned-routes-store.js";
 import { skillCandidatesStore } from "../routing/skill-candidates-store.js";
@@ -41,6 +48,8 @@ export const COGNITION_SYSTEM_PROMPT_FILE =
 export const COGNITION_SYSTEM_PROMPT_FALLBACK = `You are the Cognition Agent in a multi-agent marketing platform for "{{BRAND_NAME}}".
 
 Your role is to decompose the user's request into an executable plan of subtasks.
+
+You will receive a compact deterministic judgement packet in the input. Treat it as authoritative for task classification, brand-contract constraints, route candidates, skill candidates, and human-control requirements.
 
 ## Brand Context
 - Personality: {{BRAND_PERSONALITY}}
@@ -139,6 +148,7 @@ export class CognitionAgent extends BaseAgent {
   }
 
   buildSystemPrompt(context: ExecutionContext): string {
+    const judgementPacket = this.getJudgementPacket(context);
     const brand = context.brandIdentity;
     const guardrails = context.guardrails;
     const vars = {
@@ -146,11 +156,21 @@ export class CognitionAgent extends BaseAgent {
       BRAND_PERSONALITY: brand.personality.join(", "),
       BRAND_VALUES: brand.values.join(", "),
       BRAND_VOICE: `${brand.voice.tone}, ${brand.voice.style}`,
-      GUARDRAILS_NEVER_DO: guardrails.neverDo.join("; "),
-      GUARDRAILS_ALWAYS_DO: guardrails.alwaysDo.join("; "),
-      AVAILABLE_SUB_AGENTS_SECTION: this.buildAvailableSubAgentsSection(context),
-      LEARNED_ROUTES_SECTION: this.buildLearnedRoutesSection(context),
-      SKILL_CANDIDATES_SECTION: this.buildSkillCandidatesSection(context),
+      GUARDRAILS_NEVER_DO: judgementPacket?.neverDo.join("; ") ?? guardrails.neverDo.join("; "),
+      GUARDRAILS_ALWAYS_DO:
+        judgementPacket?.alwaysDo.join("; ") ?? guardrails.alwaysDo.join("; "),
+      AVAILABLE_SUB_AGENTS_SECTION: this.buildAvailableSubAgentsSection(
+        context,
+        judgementPacket?.subAgentCandidates
+      ),
+      LEARNED_ROUTES_SECTION: this.buildLearnedRoutesSection(
+        context,
+        judgementPacket?.routeCandidates
+      ),
+      SKILL_CANDIDATES_SECTION: this.buildSkillCandidatesSection(
+        context,
+        judgementPacket?.skillCandidates
+      ),
     };
 
     if (this.promptLoader === loadAgentPromptSpec) {
@@ -179,12 +199,38 @@ export class CognitionAgent extends BaseAgent {
     return this.resolvedPromptSource;
   }
 
+  private getJudgementPacket(context: ExecutionContext): JudgementPacket | null {
+    const packet = context.shortTermMemory.activeContext.judgementPacket;
+    if (packet && typeof packet === "object") {
+      return packet as JudgementPacket;
+    }
+    return null;
+  }
+
   /**
    * Build a prompt section listing learned routes so the cognition agent
    * can assign subtasks to the exact target agent for known capabilities.
    */
-  private buildLearnedRoutesSection(context: ExecutionContext): string {
-    const routes = learnedRoutesStore.getSummary(context.requestContext);
+  private buildLearnedRoutesSection(
+    context: ExecutionContext,
+    routeCandidates?: RouteCandidate[]
+  ): string {
+    const routes =
+      routeCandidates && routeCandidates.length > 0
+        ? routeCandidates.map((candidate) => {
+            const full = learnedRoutesStore.getById(candidate.id);
+            return {
+              id: candidate.id,
+              capability: candidate.capability,
+              description: candidate.description,
+              routeType: candidate.routeType,
+              agentId: candidate.agentId,
+              endpointUrl: full?.endpoint?.url,
+              workflowType: candidate.workflowType,
+              matchPatterns: candidate.matchPatterns,
+            };
+          })
+        : learnedRoutesStore.getSummary(context.requestContext);
     if (routes.length === 0) return "";
 
     const routeLines = routes
@@ -223,8 +269,14 @@ ${routeLines}
 `;
   }
 
-  private buildSkillCandidatesSection(context: ExecutionContext): string {
-    const candidates = skillCandidatesStore.getSummary(context.requestContext);
+  private buildSkillCandidatesSection(
+    context: ExecutionContext,
+    candidateSummaries?: SkillCandidateSummary[]
+  ): string {
+    const candidates =
+      candidateSummaries && candidateSummaries.length > 0
+        ? candidateSummaries
+        : skillCandidatesStore.getSummary(context.requestContext);
     if (candidates.length === 0) return "";
 
     const lines = candidates
@@ -248,8 +300,19 @@ ${lines}
 `;
   }
 
-  private buildAvailableSubAgentsSection(context: ExecutionContext): string {
-    const summaries = subAgentRegistry.getSummary();
+  private buildAvailableSubAgentsSection(
+    context: ExecutionContext,
+    subAgentCandidates?: SubAgentSummary[]
+  ): string {
+    const summaries =
+      subAgentCandidates && subAgentCandidates.length > 0
+        ? subAgentCandidates
+        : subAgentRegistry.getSummary().map((agent) => ({
+            id: agent.id,
+            description: agent.description,
+            capabilities: agent.capabilities,
+            relevanceScore: 0,
+          }));
     if (summaries.length === 0) {
       return "(No registered sub-agents available.)";
     }

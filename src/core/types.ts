@@ -38,6 +38,79 @@ export interface GuardrailConstraints {
   contentPolicies: string[];
 }
 
+export interface BrandContract {
+  brandId: string | null;
+  audience: RequestAudience;
+  scope: RequestScope;
+  identity: BrandIdentity;
+  guardrails: GuardrailConstraints;
+  judgementNotes: string[];
+  hash: string;
+  version: string;
+}
+
+export interface AutonomyPolicy {
+  requireHumanControlForCriticalActions: boolean;
+  allowDeterministicGrounding: boolean;
+  allowPlanCache: boolean;
+  allowDeterministicRouteSkip: boolean;
+  interactiveHitlReplyControlsOnly: boolean;
+}
+
+export interface RouteCandidate {
+  id: string;
+  capability: string;
+  description: string;
+  routeType: "api" | "sub-agent";
+  agentId?: string;
+  workflowType?: string;
+  matchPatterns: string[];
+  score: number;
+  matchedPatternCount: number;
+}
+
+export interface SkillCandidateSummary {
+  id: string;
+  capability: string;
+  description: string;
+  suggestedSkillFile: string;
+  triggerPatterns: string[];
+  confidence: "low" | "medium" | "high";
+  requiresApproval: boolean;
+  materialized: boolean;
+  score: number;
+}
+
+export interface SubAgentSummary {
+  id: string;
+  description: string;
+  capabilities: string[];
+  relevanceScore: number;
+}
+
+export interface JudgementPacket {
+  classification:
+    | "deterministic-route"
+    | "deterministic-skill"
+    | "creative"
+    | "analytics"
+    | "operational"
+    | "general";
+  audience: RequestAudience;
+  scope: RequestScope;
+  brandContractSummary: string;
+  alwaysDo: string[];
+  neverDo: string[];
+  trustBoundary: string[];
+  hitlPolicy: string[];
+  routeCandidates: RouteCandidate[];
+  skillCandidates: SkillCandidateSummary[];
+  subAgentCandidates: SubAgentSummary[];
+  routeInventoryHash: string;
+  skillInventoryHash: string;
+  autonomyPolicy: AutonomyPolicy;
+}
+
 // ── Autonomy & Trust ───────────────────────────────────────
 export interface AutonomyLevel {
   canSchedule: boolean;
@@ -110,6 +183,7 @@ export interface ExecutionContext {
   requestContext: RequestContext;
   brandIdentity: BrandIdentity;
   guardrails: GuardrailConstraints;
+  brandContract: BrandContract;
   shortTermMemory: ShortTermMemory;
   longTermMemory: LongTermMemory;
 }
@@ -224,6 +298,7 @@ export interface SubAgentPlugin {
 export interface GroundingResult {
   brandIdentity: BrandIdentity;
   guardrails: GuardrailConstraints;
+  summary?: string;
   context: ExecutionContext;
 }
 
