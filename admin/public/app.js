@@ -40,6 +40,8 @@ const state = {
   },
 };
 
+let _tokenUsageChart = null;
+
 const pageConfig = {
   "#dashboard": {
     page: "dashboard",
@@ -2066,6 +2068,7 @@ function renderTokenUsageSummary(payload, errorMessage = null) {
     ].forEach((id) => setText(id, "Unavailable"));
     setText("tokenUsageCountPill", "Telemetry unavailable");
     setText("tokenUsageScopePill", errorMessage);
+    if (_tokenUsageChart) { _tokenUsageChart.destroy(); _tokenUsageChart = null; }
     return;
   }
 
@@ -2096,28 +2099,88 @@ function renderTokenUsageSummary(payload, errorMessage = null) {
   setText("tokenUsageBreakdownTitle", isMonthly ? "Prompt-Level Usage by Month" : "Prompt-Level Usage by Day");
   setText("tokenUsageBreakdownDateHeader", isMonthly ? "Month" : "Day");
 
+  // ── Table (hidden by default, toggled via button) ────────────
   const tbody = $("tokenUsageDailyTable");
-  if (!tbody) return;
-  tbody.innerHTML = "";
-
-  if (!daily.length) {
-    tbody.innerHTML =
-      '<tr><td colspan="6" class="empty-state">No token usage has been tracked for this window yet.</td></tr>';
-    return;
+  if (tbody) {
+    tbody.innerHTML = "";
+    if (!daily.length) {
+      tbody.innerHTML =
+        '<tr><td colspan="6" class="empty-state">No token usage has been tracked for this window yet.</td></tr>';
+    } else {
+      daily.forEach((entry) => {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>${escapeHtml(entry.bucket)}</td>
+          <td>${escapeHtml(humanizeCount(entry.promptCount || 0))}</td>
+          <td>${escapeHtml(humanizeCount(entry.llmCallCount || 0))}</td>
+          <td>${escapeHtml(humanizeCount(entry.inputTokens || 0))}</td>
+          <td>${escapeHtml(humanizeCount(entry.outputTokens || 0))}</td>
+          <td>${escapeHtml(humanizeCount(entry.totalTokens || entry.tokens || 0))}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
   }
 
-  daily.forEach((entry) => {
-    const tr = document.createElement("tr");
-    tr.innerHTML = `
-      <td>${escapeHtml(entry.bucket)}</td>
-      <td>${escapeHtml(humanizeCount(entry.promptCount || 0))}</td>
-      <td>${escapeHtml(humanizeCount(entry.llmCallCount || 0))}</td>
-      <td>${escapeHtml(humanizeCount(entry.inputTokens || 0))}</td>
-      <td>${escapeHtml(humanizeCount(entry.outputTokens || 0))}</td>
-      <td>${escapeHtml(humanizeCount(entry.totalTokens || entry.tokens || 0))}</td>
-    `;
-    tbody.appendChild(tr);
-  });
+  // ── Chart ────────────────────────────────────────────────────
+  const canvas = $("tokenUsageChart");
+  if (!canvas || typeof Chart === "undefined") return;
+
+  const labels = daily.map((e) => e.bucket);
+  const inputData = daily.map((e) => e.inputTokens || 0);
+  const outputData = daily.map((e) => e.outputTokens || 0);
+
+  if (_tokenUsageChart) {
+    _tokenUsageChart.data.labels = labels;
+    _tokenUsageChart.data.datasets[0].data = inputData;
+    _tokenUsageChart.data.datasets[1].data = outputData;
+    _tokenUsageChart.update();
+  } else {
+    _tokenUsageChart = new Chart(canvas, {
+      type: "bar",
+      data: {
+        labels,
+        datasets: [
+          {
+            label: "Input tokens",
+            data: inputData,
+            backgroundColor: "rgba(142,126,255,0.78)",
+            borderRadius: 4,
+            stack: "tokens",
+          },
+          {
+            label: "Output tokens",
+            data: outputData,
+            backgroundColor: "rgba(142,126,255,0.30)",
+            borderRadius: 4,
+            stack: "tokens",
+          },
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { position: "top", labels: { font: { size: 12 }, boxWidth: 12, padding: 16 } },
+          tooltip: {
+            callbacks: {
+              label: (item) => ` ${item.dataset.label}: ${humanizeCount(item.raw)}`,
+              footer: (items) =>
+                `Total: ${humanizeCount(items.reduce((s, i) => s + (i.raw || 0), 0))}`,
+            },
+          },
+        },
+        scales: {
+          x: { stacked: true, grid: { display: false }, ticks: { font: { size: 11 } } },
+          y: {
+            stacked: true,
+            ticks: { callback: (v) => humanizeCount(v), font: { size: 11 } },
+            grid: { color: "rgba(0,0,0,0.05)" },
+          },
+        },
+      },
+    });
+  }
 }
 
 function renderTokenUsagePrompts(payload, errorMessage = null) {
@@ -2503,6 +2566,16 @@ $("tokenUsageDays")?.addEventListener("change", () => {
 $("tokenUsageGroupBy")?.addEventListener("change", () => {
   state.tokenUsage.offset = 0;
   loadTokenUsagePage().catch((err) => status(err.message));
+});
+$("tokenUsageViewToggle")?.addEventListener("click", () => {
+  const tableWrap = $("tokenUsageTableWrap");
+  const chartWrap = $("tokenUsageChartWrap");
+  const btn = $("tokenUsageViewToggle");
+  if (!tableWrap || !chartWrap || !btn) return;
+  const showingChart = !chartWrap.hidden;
+  chartWrap.hidden = showingChart;
+  tableWrap.hidden = !showingChart;
+  btn.textContent = showingChart ? "Show chart" : "Show table";
 });
 $("tokenUsagePrev")?.addEventListener("click", () => {
   state.tokenUsage.offset = Math.max(0, state.tokenUsage.offset - state.tokenUsage.limit);

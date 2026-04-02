@@ -2112,26 +2112,34 @@
               <div class="section-pill" id="tokenUsageScopePill">marketer · 7 days</div>
             </div>
 
-            <div class="table-shell">
-              <div class="table-scroll">
-                <table class="route-table">
-                  <thead>
-                    <tr>
-                      <th id="tokenUsageBreakdownDateHeader">Day</th>
-                      <th>Prompts</th>
-                      <th>LLM Calls</th>
-                      <th>Input</th>
-                      <th>Output</th>
-                      <th>Total</th>
-                    </tr>
-                  </thead>
-                  <tbody id="tokenUsageDailyTable">
-                    <tr>
-                      <td colspan="6" class="empty-state">No token usage loaded.</td>
-                    </tr>
-                  </tbody>
-                </table>
+            <div id="tokenUsageChartWrap" style="position:relative;height:260px;margin-top:4px;">
+              <canvas id="tokenUsageChart"></canvas>
+            </div>
+            <div id="tokenUsageTableWrap" hidden>
+              <div class="table-shell" style="margin-top:12px;">
+                <div class="table-scroll">
+                  <table class="route-table">
+                    <thead>
+                      <tr>
+                        <th id="tokenUsageBreakdownDateHeader">Day</th>
+                        <th>Prompts</th>
+                        <th>LLM Calls</th>
+                        <th>Input</th>
+                        <th>Output</th>
+                        <th>Total</th>
+                      </tr>
+                    </thead>
+                    <tbody id="tokenUsageDailyTable">
+                      <tr>
+                        <td colspan="6" class="empty-state">No token usage loaded.</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
               </div>
+            </div>
+            <div style="text-align:right;margin-top:10px;">
+              <button id="tokenUsageViewToggle" class="ghost-button" style="font-size:0.76rem">Show table</button>
             </div>
           </section>
 
@@ -2653,6 +2661,7 @@
       </main>
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
     <script src="/app.js" type="module"></script>
   </body>
 </html>
