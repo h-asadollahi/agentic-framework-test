@@ -1,0 +1,80 @@
+{
+  "$schema": "brand-dna/v1",
+  "brandId": "northline-fashion",
+  "version": "1.0.0",
+  "updatedAt": "2026-04-07",
+
+  "attributeEnvelopes": {
+    "silhouette": {
+      "allowed": ["straight_cut", "softly_tailored"],
+      "excluded": ["oversized", "bodycon", "asymmetric_hem"],
+      "weight": 0.9,
+      "description": "Overall garment shape"
+    },
+    "fit": {
+      "allowed": ["body_skimming", "tailored"],
+      "excluded": ["baggy", "skin_tight"],
+      "weight": 0.85,
+      "description": "How garments conform to the body"
+    },
+    "length": {
+      "allowed": ["on_knee", "below_knee"],
+      "excluded": ["mini", "micro", "crop"],
+      "weight": 0.8,
+      "description": "Hemline position"
+    },
+    "colour": {
+      "allowed": ["neutral_palette"],
+      "excluded": ["neon", "high_contrast_print", "colour_blocking"],
+      "weight": 0.75,
+      "description": "Colour family and saturation"
+    },
+    "material": {
+      "allowed": ["mid_weight_woven", "structured_knit"],
+      "excluded": ["ultra_sheer", "synthetic_shine", "high_embellishment"],
+      "weight": 0.8,
+      "description": "Fabric type and weight"
+    }
+  },
+
+  "compositionalGrammar": {
+    "preferredCombinations": [
+      {
+        "attributes": ["silhouette:straight_cut", "colour:neutral_palette"],
+        "reason": "Core brand expression — refined and commercially grounded"
+      },
+      {
+        "attributes": ["fit:tailored", "material:structured_knit"],
+        "reason": "Editorial polish — signals wearable sophistication"
+      }
+    ],
+    "forbiddenCombinations": [
+      {
+        "attributes": ["colour:neon", "silhouette:any"],
+        "reason": "Violates restraint-over-excess core value"
+      },
+      {
+        "attributes": ["material:ultra_sheer", "fit:any"],
+        "reason": "Not aligned with material integrity value"
+      }
+    ]
+  },
+
+  "trendPolicy": {
+    "stance": "adapt",
+    "description": "Adapt global trends through the Northline lens — never chase trend cycles uncritically.",
+    "categoryOverrides": {
+      "maximalism": "ignore",
+      "quiet_luxury": "lead",
+      "streetwear": "ignore",
+      "tailoring_revival": "lead",
+      "dopamine_dressing": "ignore"
+    }
+  },
+
+  "semanticAnchors": [
+    "refined", "editorial", "wearable", "timeless", "restraint", "sophisticated", "polished"
+  ],
+
+  "driftThreshold": 0.75
+}

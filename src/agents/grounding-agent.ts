@@ -28,6 +28,8 @@ const DEFAULT_CONFIG: AgentConfig = {
       "readCurrentBrandIdentity",
       "readCurrentGuardrails",
       "readBrandGuidelines",
+      "readBrandDna",
+      "readCustomerDna",
     ],
     blockedActions: [],
     requiresApproval: [],

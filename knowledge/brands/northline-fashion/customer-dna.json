@@ -1,0 +1,88 @@
+{
+  "$schema": "customer-dna/v1",
+  "brandId": "northline-fashion",
+  "version": "1.0.0",
+  "updatedAt": "2026-04-07",
+
+  "cohorts": [
+    {
+      "id": "fashion-marketer-primary",
+      "label": "Fashion Marketers & Brand Teams",
+      "isPrimary": true,
+      "demographics": {
+        "roles": ["marketing manager", "brand director", "merchandiser", "brand team lead"],
+        "industry": "fashion_retail",
+        "companySize": "mid_to_large",
+        "ageRange": "28-45"
+      },
+      "semanticPreferences": {
+        "vocabulary": [
+          "silhouette", "editorial", "collection drop", "merchandising",
+          "campaign ROI", "brand narrative", "seasonal direction"
+        ],
+        "avoids": ["viral", "trending rn", "loud", "statement piece", "hype"],
+        "preferredContentFormats": ["campaign brief", "product story", "performance report", "trend edit"]
+      },
+      "behavioralSignals": {
+        "primaryGoal": "polished, brand-aligned content generation",
+        "decisionDrivers": [
+          "aesthetic alignment with brand DNA",
+          "commercial viability",
+          "brand voice consistency"
+        ],
+        "escalationTriggers": [
+          "off-brand product direction",
+          "ROI uncertainty",
+          "competitor brand mentions",
+          "requests for trend-chasing content"
+        ]
+      },
+      "fitAnchors": [
+        "editorial campaign content aligned to approved envelope",
+        "campaign performance reporting in brand voice",
+        "product narrative consistency across channels"
+      ]
+    },
+    {
+      "id": "merchandiser-secondary",
+      "label": "Merchandisers & Buyers",
+      "isPrimary": false,
+      "demographics": {
+        "roles": ["merchandiser", "buyer", "product manager"],
+        "industry": "fashion_retail",
+        "companySize": "mid_to_large"
+      },
+      "semanticPreferences": {
+        "vocabulary": [
+          "sell-through", "range plan", "buy depth", "option count",
+          "assortment", "flow dates", "markdown strategy"
+        ],
+        "avoids": ["vanity metrics", "brand speak without data"],
+        "preferredContentFormats": ["range summary", "performance report", "markdown recommendation"]
+      },
+      "behavioralSignals": {
+        "primaryGoal": "data-backed assortment and performance decisions",
+        "decisionDrivers": ["sell-through data", "returns rate", "margin impact"],
+        "escalationTriggers": ["high returns rate", "margin pressure", "stock imbalance"]
+      },
+      "fitAnchors": [
+        "range performance analysis",
+        "returns pattern insight",
+        "brand-aligned markdown strategy"
+      ]
+    }
+  ],
+
+  "driftIndicators": [
+    "increase in requests for trend-driven or off-brand content",
+    "declining engagement with editorial-tone responses",
+    "returns clustering in neutral_palette or structured_knit categories",
+    "escalation requests referencing competitor brands"
+  ],
+
+  "fitScoringWeights": {
+    "vocabularyAlignment": 0.30,
+    "envelopeCompliance": 0.40,
+    "toneConsistency": 0.30
+  }
+}

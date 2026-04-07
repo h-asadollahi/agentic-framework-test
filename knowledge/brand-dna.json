@@ -1,0 +1,62 @@
+{
+  "$schema": "brand-dna/v1",
+  "brandId": "acme-marketing",
+  "version": "1.0.0",
+  "updatedAt": "2026-04-07",
+
+  "attributeEnvelopes": {
+    "tone": {
+      "allowed": ["professional", "friendly", "conversational", "empowering"],
+      "excluded": ["corporate_jargon", "condescending", "hype_driven"],
+      "weight": 0.85,
+      "description": "Communication register and emotional quality"
+    },
+    "complexity": {
+      "allowed": ["clear", "accessible", "data_informed"],
+      "excluded": ["overly_technical", "jargon_heavy"],
+      "weight": 0.75,
+      "description": "Depth and accessibility of language"
+    },
+    "positioning": {
+      "allowed": ["peer", "advisor", "partner"],
+      "excluded": ["subordinate", "superior", "salesy"],
+      "weight": 0.80,
+      "description": "Relational stance toward the marketer"
+    }
+  },
+
+  "compositionalGrammar": {
+    "preferredCombinations": [
+      {
+        "attributes": ["tone:professional", "positioning:advisor"],
+        "reason": "Core Acme expression — data-driven but approachable"
+      },
+      {
+        "attributes": ["tone:friendly", "complexity:accessible"],
+        "reason": "Empowers marketers without overwhelming them"
+      }
+    ],
+    "forbiddenCombinations": [
+      {
+        "attributes": ["tone:hype_driven", "positioning:any"],
+        "reason": "Undermines transparency and trust core values"
+      }
+    ]
+  },
+
+  "trendPolicy": {
+    "stance": "follow",
+    "description": "Follow marketing technology trends pragmatically — adopt what genuinely improves marketer outcomes.",
+    "categoryOverrides": {
+      "ai_automation": "lead",
+      "privacy_first": "lead",
+      "dark_patterns": "ignore"
+    }
+  },
+
+  "semanticAnchors": [
+    "innovative", "approachable", "data-driven", "empowering", "transparent", "customer-first"
+  ],
+
+  "driftThreshold": 0.70
+}

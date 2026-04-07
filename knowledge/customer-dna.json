@@ -1,0 +1,60 @@
+{
+  "$schema": "customer-dna/v1",
+  "brandId": "acme-marketing",
+  "version": "1.0.0",
+  "updatedAt": "2026-04-07",
+
+  "cohorts": [
+    {
+      "id": "marketing-professional-primary",
+      "label": "Marketing Professionals",
+      "isPrimary": true,
+      "demographics": {
+        "roles": ["marketing manager", "campaign manager", "growth marketer", "marketing analyst"],
+        "industry": "mid_to_large_enterprise",
+        "companySize": "mid_to_large",
+        "ageRange": "25-45"
+      },
+      "semanticPreferences": {
+        "vocabulary": [
+          "campaign performance", "conversion rate", "audience segment",
+          "CAC", "LTV", "retention", "workflow automation", "A/B test"
+        ],
+        "avoids": ["synergy", "disrupt", "pivot", "circle back", "low-hanging fruit"],
+        "preferredContentFormats": ["performance report", "campaign brief", "insight summary", "action recommendation"]
+      },
+      "behavioralSignals": {
+        "primaryGoal": "data-driven campaign decisions and automated workflow efficiency",
+        "decisionDrivers": [
+          "measurable ROI",
+          "time saved through automation",
+          "clear data insights"
+        ],
+        "escalationTriggers": [
+          "uncertain ROI claims",
+          "PII or compliance concerns",
+          "requests to send campaigns without approval",
+          "conflicting data sources"
+        ]
+      },
+      "fitAnchors": [
+        "campaign performance reporting in plain, data-backed language",
+        "automation recommendations with clear rationale",
+        "audience segmentation insights grounded in cohort data"
+      ]
+    }
+  ],
+
+  "driftIndicators": [
+    "increase in jargon-heavy or overly technical responses",
+    "responses that promise specific ROI without data backing",
+    "declining use of active voice and peer-level framing",
+    "escalation requests about privacy or compliance concerns"
+  ],
+
+  "fitScoringWeights": {
+    "vocabularyAlignment": 0.35,
+    "envelopeCompliance": 0.35,
+    "toneConsistency": 0.30
+  }
+}

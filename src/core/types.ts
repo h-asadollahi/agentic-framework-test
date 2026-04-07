@@ -15,6 +15,62 @@ export type SubAgentStatus =
   | "failed"
   | "escalated";
 
+// ── Brand DNA (structured attribute envelopes + grammar) ──
+export interface AttributeEnvelope {
+  allowed: string[];
+  excluded: string[];
+  weight: number;
+  description: string;
+}
+
+export interface BrandDna {
+  brandId: string;
+  version: string;
+  attributeEnvelopes: Record<string, AttributeEnvelope>;
+  compositionalGrammar: {
+    preferredCombinations: Array<{ attributes: string[]; reason: string }>;
+    forbiddenCombinations: Array<{ attributes: string[]; reason: string }>;
+  };
+  trendPolicy: {
+    stance: "lead" | "follow" | "adapt" | "ignore";
+    description: string;
+    categoryOverrides: Record<string, "lead" | "follow" | "adapt" | "ignore">;
+  };
+  semanticAnchors: string[];
+  driftThreshold: number;
+}
+
+// ── Customer DNA (cohort profiles + fit scoring weights) ──
+export interface CustomerCohort {
+  id: string;
+  label: string;
+  isPrimary: boolean;
+  demographics: Record<string, unknown>;
+  semanticPreferences: {
+    vocabulary: string[];
+    avoids: string[];
+    preferredContentFormats: string[];
+  };
+  behavioralSignals: {
+    primaryGoal: string;
+    decisionDrivers: string[];
+    escalationTriggers: string[];
+  };
+  fitAnchors: string[];
+}
+
+export interface CustomerDna {
+  brandId: string;
+  version: string;
+  cohorts: CustomerCohort[];
+  driftIndicators: string[];
+  fitScoringWeights: {
+    vocabularyAlignment: number;
+    envelopeCompliance: number;
+    toneConsistency: number;
+  };
+}
+
 // ── Brand Identity (parsed from knowledge/soul.md) ─────────
 export interface BrandIdentity {
   name: string;
@@ -298,6 +354,8 @@ export interface SubAgentPlugin {
 export interface GroundingResult {
   brandIdentity: BrandIdentity;
   guardrails: GuardrailConstraints;
+  brandDna?: BrandDna;
+  customerDna?: CustomerDna;
   summary?: string;
   context: ExecutionContext;
 }
