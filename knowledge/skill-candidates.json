@@ -1,11 +1,14 @@
 {
   "version": "1.0.0",
-  "lastUpdated": "2026-03-17T13:14:49.480Z",
+  "lastUpdated": "2026-04-01T10:40:32.123Z",
   "candidates": [
     {
       "id": "skill-001",
       "capability": "monthly-cohort-churn-risk-scan",
       "description": "Automate a 30-day cross-cohort churn analysis with baseline comparison, rank cohorts by risk, and generate a concise summary with mitigation actions.",
+      "audience": "marketer",
+      "scope": "global",
+      "brandId": null,
       "suggestedSkillFile": "skills/learned/monthly-cohort-churn-risk-scan.md",
       "triggerPatterns": [
         "run a 30-day churn analysis across cohorts",
@@ -24,6 +27,9 @@
       "id": "skill-002",
       "capability": "mapp-monthly-analysis-usage-summary",
       "description": "Automate retrieval (MCP route-007) and concise summary of monthly API calculation usage (used, limit, remaining, month/year, and % used).",
+      "audience": "marketer",
+      "scope": "global",
+      "brandId": null,
       "suggestedSkillFile": "skills/learned/mapp-monthly-analysis-usage-summary.md",
       "triggerPatterns": [
         "how many api calculations have i used this month",
@@ -38,13 +44,16 @@
       "requiresApproval": false,
       "source": "autonomous",
       "addedAt": "2026-03-11T11:42:50.760Z",
-      "lastUsedAt": "2026-03-17T13:14:49.480Z",
-      "usageCount": 17
+      "lastUsedAt": "2026-04-01T10:40:32.123Z",
+      "usageCount": 23
     },
     {
       "id": "skill-003",
       "capability": "compliance-approval-memo-generator",
       "description": "Generate an Approval to Execute (or Do Not Send) compliance memo by ingesting campaign brief, audience, legal basis, suppressions, data handling/tracking, content/disclosures, and operational controls, then outputting a structured memo with final sign-off conditions.",
+      "audience": "marketer",
+      "scope": "global",
+      "brandId": null,
       "suggestedSkillFile": "skills/learned/compliance-approval-memo-generator.md",
       "triggerPatterns": [
         "produce an approval to execute compliance memo",

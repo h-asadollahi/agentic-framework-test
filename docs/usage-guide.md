@@ -969,11 +969,15 @@ How it works:
 - `src/agents/cognition-agent.ts` loads the system prompt from `knowledge/agents/cognition/system-prompt.md`.
 - `src/agents/agency-agent.ts` loads the system prompt from `knowledge/agents/agency/system-prompt.md`.
 - `src/agents/interface-agent.ts` loads the system prompt from `knowledge/agents/interface/system-prompt.md`.
+- `src/core/context.ts` now compiles a deterministic `BrandContract` for every run so brand identity and merged guardrails stay authoritative even when LLM stages are skipped.
 - `src/tools/agent-spec-loader.ts` handles file loading, placeholder interpolation (`{{KEY}}`), and fallback to hardcoded prompt if the file is missing/empty.
 - `src/trigger/ground.ts` remains authoritative for parse/fallback decision logic; the markdown decision file mirrors behavior for human maintainability.
+- `src/trigger/ground.ts` now includes a deterministic grounding fast path for normal requests and reserves the Grounding LLM for interpretation-like questions.
 - `src/trigger/think.ts` + `src/trigger/cognition-guardrails.ts` remain authoritative for cognition parse fallback and deterministic out-of-scope rejection logic.
+- `src/trigger/judgement-packet.ts` builds the compact cognition `JudgementPacket` with top route/skill/sub-agent candidates, trust-boundary rules, and human-control policy.
 - `src/trigger/execute.ts` + `src/trigger/execute-routing.ts` remain authoritative for Agency execution routing, summarization, and fallback behavior. Autonomous skill persistence is intentionally not in the critical path.
 - `src/trigger/think.ts` prunes redundant synthesis-only `general/assistant` subtasks for safe single-route deterministic plans.
+- `src/optimization/runtime-caches.ts` provides in-memory caches for plan reuse, deterministic sub-agent results, and deterministic delivery renders keyed by brand-contract and inventory hashes.
 - `src/trigger/execute.ts` includes deterministic fast paths for safe single-route deterministic executions: it skips the Agency summary model call and also skips redundant synthesis-only subtasks when they only depend on a successful deterministic route task.
 - `src/trigger/deliver.ts` includes deterministic fast paths for safe single-route deterministic responses and compact prompt payloads for non-fast-path Interface model calls.
 - `src/trigger/skill-learner.ts` + `src/trigger/skill-learning.ts` run asynchronous post-execution skill filtering/materialization (`max 1` suggestion per run with anti-spam locking).
